@@ -16,6 +16,7 @@ interface WebcamCaptureProps {
 
 const DEFAULT_INTERVAL = 80; // ~12fps — reliable without overwhelming
 const DEFAULT_QUALITY = 0.65;
+const FRAME_BUFFER_URL = '/api/frame/browser';
 
 export default function WebcamCapture({
   active,
@@ -36,6 +37,8 @@ export default function WebcamCapture({
   const [fps, setFps] = useState(0);
   const [frameCount, setFrameCount] = useState(0);
   const [relayEnabled, setRelayEnabled] = useState(false);
+  const [tdRelayActive, setTdRelayActive] = useState(true); // POST frames to /api/frame/browser for TD
+  const [tdRelayStatus, setTdRelayStatus] = useState<'idle' | 'ok' | 'err'>('idle');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -58,6 +61,9 @@ export default function WebcamCapture({
   qualityRef.current = quality;
   const relayEnabledRef = useRef(relayEnabled);
   relayEnabledRef.current = relayEnabled;
+  const tdRelayActiveRef = useRef(tdRelayActive);
+  tdRelayActiveRef.current = tdRelayActive;
+  const tdPostingRef = useRef(false);
   const intervalRef = useRef(captureInterval);
   intervalRef.current = captureInterval;
 
@@ -126,6 +132,24 @@ export default function WebcamCapture({
 
           // Send frame to parent
           onFrameRef.current(url, frameTimesRef.current.length);
+
+          // POST to /api/frame/browser for TD to poll
+          if (tdRelayActiveRef.current && !tdPostingRef.current) {
+            tdPostingRef.current = true;
+            fetch(FRAME_BUFFER_URL, {
+              method: 'POST',
+              body: blob,
+              headers: { 'Content-Type': 'image/jpeg' },
+            })
+              .then(res => {
+                tdPostingRef.current = false;
+                setTdRelayStatus(res.ok ? 'ok' : 'err');
+              })
+              .catch(() => {
+                tdPostingRef.current = false;
+                setTdRelayStatus('err');
+              });
+          }
 
           // Optional WS relay
           if (relayEnabledRef.current && onFrameDataRef.current) {
@@ -265,6 +289,27 @@ export default function WebcamCapture({
           )}
         </div>
         <div className="webcam-controls">
+          {status === 'live' && (
+            <button
+              className="webcam-td-relay-btn"
+              onClick={() => setTdRelayActive(!tdRelayActive)}
+              style={{
+                padding: '2px 8px',
+                fontSize: 9,
+                fontFamily: "'JetBrains Mono', monospace",
+                letterSpacing: '0.05em',
+                border: `1px solid ${tdRelayActive ? (tdRelayStatus === 'ok' ? '#22c55e' : '#666') : '#333'}`,
+                borderRadius: 4,
+                background: tdRelayActive && tdRelayStatus === 'ok' ? 'rgba(34,197,94,0.12)' : 'transparent',
+                color: tdRelayActive ? (tdRelayStatus === 'ok' ? '#22c55e' : '#888') : '#555',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+              title="POST frames to /api/frame/browser for TD to poll"
+            >
+              {tdRelayActive ? (tdRelayStatus === 'ok' ? '● TD' : '○ TD') : 'TD OFF'}
+            </button>
+          )}
           {onFrameData && status === 'live' && (
             <label className="toggle webcam-relay-toggle" title="Relay frames to other monitors via WS">
               <input
@@ -333,6 +378,24 @@ export default function WebcamCapture({
               </option>
             ))}
           </select>
+        </div>
+      )}
+
+      {/* TD polling info */}
+      {status === 'live' && tdRelayActive && (
+        <div className="webcam-td-info" style={{
+          margin: '6px 0 0',
+          padding: '5px 8px',
+          background: 'rgba(92,200,255,0.06)',
+          border: '1px solid rgba(92,200,255,0.15)',
+          borderRadius: 4,
+          fontSize: 9,
+          fontFamily: "'JetBrains Mono', monospace",
+          color: '#888',
+          lineHeight: 1.5,
+        }}>
+          <span style={{ color: '#5cc8ff' }}>TD → Web Client DAT</span>{' '}
+          poll: <code style={{ color: '#aab' }}>{typeof window !== 'undefined' ? window.location.origin : ''}/api/frame/browser</code>
         </div>
       )}
 
