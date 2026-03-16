@@ -40,11 +40,14 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
           );
           const statusCls = mStatus ? slotStatusClass(mStatus) : '';
 
-          // "last seen" age string for the footer
-          let lastSeenStr = '';
-          if (mStatus) {
-            if (mStatus.lastHeartbeatAt && (mStatus.heartbeat === 'live' || mStatus.heartbeat === 'stale')) {
-              lastSeenStr = `last seen ${formatAge(now - mStatus.lastHeartbeatAt)}`;
+          // "Last event" — pick the most recent timestamp across all layers
+          let lastEventStr = '';
+          if (mStatus && slot.active) {
+            const timestamps = [mStatus.lastHeartbeatAt, mStatus.lastStateUpdateAt, mStatus.lastStreamFrameAt].filter(Boolean) as number[];
+            if (timestamps.length > 0) {
+              const mostRecent = Math.max(...timestamps);
+              const age = now - mostRecent;
+              lastEventStr = `last event: ${formatAge(age)} ago`;
             }
           }
 
@@ -99,8 +102,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                 <div className="slot-meta">
                   <span className="slot-fps">
                     {slot.fps != null ? `${slot.fps}fps` : ''}
-                    {slot.fps != null && lastSeenStr ? ' · ' : ''}
-                    {lastSeenStr}
+                    {slot.fps != null && lastEventStr ? ' · ' : ''}
+                    {lastEventStr}
                   </span>
                   {slot.cloudNode && <span className="cloud-badge">&#x2601; Cloud</span>}
                   {slot.active ? (
