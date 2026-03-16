@@ -451,7 +451,7 @@ header {
 .slot.active-slot.selected { border-color: var(--active); box-shadow: 0 0 14px rgba(0,255,136,0.25), 0 0 0 1px var(--active), 0 0 24px rgba(0,255,136,0.1); }
 .slot.active-slot .slot-label { color: var(--active); }
 .slot-video-area { width: 100%; aspect-ratio: 16/9; background: var(--slot-empty); position: relative; overflow: hidden; }
-.slot-video-area img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.slot-video-area img { width: 100%; height: 100%; object-fit: cover; display: block; will-change: contents; image-rendering: auto; }
 
 .slot-suggestion { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: 14px 16px; gap: 4px; }
 .suggestion-eyebrow { font-size: 8px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-dim); opacity: 0.4; margin-bottom: 2px; }

@@ -15,10 +15,10 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   const activeCount = slots.filter(s => s.active).length;
   const hasActiveNodes = activeCount > 0;
 
-  // Tick every 200ms so "last seen" ages stay fresh
+  // Tick every 500ms for age display (slower = less jitter)
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 200);
+    const id = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(id);
   }, []);
 
@@ -46,15 +46,15 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
             const timestamps = [mStatus.lastHeartbeatAt, mStatus.lastStateUpdateAt, mStatus.lastStreamFrameAt].filter(Boolean) as number[];
             if (timestamps.length > 0) {
               const mostRecent = Math.max(...timestamps);
-              const age = now - mostRecent;
-              lastEventStr = `last event: ${formatAge(age)} ago`;
+              const age = Math.max(0, now - mostRecent);
+              lastEventStr = `last: ${formatAge(age)}`;
             }
           }
 
           // Waiting timer for video area
           let waitingStr = '';
           if (mStatus && mStatus.heartbeat === 'waiting' && mStatus.entity === 'registered' && mStatus.registeredAt) {
-            waitingStr = `${formatAge(now - mStatus.registeredAt)} since registration`;
+            waitingStr = `${formatAge(Math.max(0, now - mStatus.registeredAt))} since registration`;
           }
 
           return (

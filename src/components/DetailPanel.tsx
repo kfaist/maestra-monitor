@@ -1,6 +1,7 @@
 'use client';
 
-import { FleetSlot, LogEntry, EventEntry } from '@/types';
+import { FleetSlot, LogEntry, EventEntry, SlotConnectionInfo } from '@/types';
+import ConnectionPanel from './ConnectionPanel';
 import Explainer from './Explainer';
 import SignalPanel from './SignalPanel';
 import TDConnectGuide from './TDConnectGuide';
@@ -21,6 +22,10 @@ interface DetailPanelProps {
   onWebcamToggle: (active: boolean) => void;
   onWebcamFrame: (blobUrl: string, fps: number) => void;
   onWebcamFrameData?: (base64: string) => void;
+  connectionInfo: SlotConnectionInfo | null;
+  onAutoConnect?: () => void;
+  onDisconnect?: () => void;
+  onUpdateConfig?: (config: { serverUrl?: string; entityId?: string; port?: number; streamPath?: string }) => void;
 }
 
 export default function DetailPanel({
@@ -37,6 +42,10 @@ export default function DetailPanel({
   onWebcamToggle,
   onWebcamFrame,
   onWebcamFrameData,
+  connectionInfo,
+  onAutoConnect,
+  onDisconnect,
+  onUpdateConfig,
 }: DetailPanelProps) {
   const hasRemoteFrame = slot?.active && slot.frameUrl && !webcamActive;
 
@@ -111,6 +120,14 @@ export default function DetailPanel({
         onPromptChange={onPromptChange}
         onBroadcast={onBroadcast}
         onP6Flush={onP6Flush}
+      />
+
+      {/* Maestra Status + Connection */}
+      <ConnectionPanel
+        connectionInfo={connectionInfo}
+        onAutoConnect={onAutoConnect}
+        onDisconnect={onDisconnect}
+        onUpdateConfig={onUpdateConfig}
       />
 
       {/* Event Log */}

@@ -869,13 +869,6 @@ export default function Home() {
               onJoinNode={() => setJoinModalOpen(true)}
             />
 
-            <ConnectionPanel
-              connectionInfo={connectionInfo}
-              onAutoConnect={handleAutoConnect}
-              onDisconnect={handleDisconnect}
-              onUpdateConfig={updateConnectionConfig}
-            />
-
             <AudioAnalysis audioData={audioData} />
 
             {/* Target selector for color/modulation sends */}
@@ -922,6 +915,10 @@ export default function Home() {
             onWebcamToggle={handleWebcamToggle}
             onWebcamFrame={handleWebcamFrame}
             onWebcamFrameData={handleWebcamFrameData}
+            connectionInfo={connectionInfo}
+            onAutoConnect={handleAutoConnect}
+            onDisconnect={handleDisconnect}
+            onUpdateConfig={updateConnectionConfig}
           />
         </div>
 

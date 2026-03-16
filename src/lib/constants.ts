@@ -1,6 +1,6 @@
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://maestra-backend-v2-production.up.railway.app';
 export const WS_URL = API_BASE.replace('https', 'wss') + '/ws';
-export const FRAME_FETCH_INTERVAL = 55; // ms
+export const FRAME_FETCH_INTERVAL = 100; // ms (~10fps per slot, smooth enough without hammering)
 export const HEARTBEAT_INTERVAL = 5000; // ms
 export const WS_RECONNECT_DELAY = 3000; // ms
 export const FREQ_LOG_MAX = 12;
