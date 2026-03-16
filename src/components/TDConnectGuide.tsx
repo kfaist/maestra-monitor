@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { FleetSlot } from '@/types';
+import { FleetSlot, formatAge } from '@/types';
 import { MAESTRA_API_URL } from '@/lib/maestra-connection';
+import MaestraStatusPanel from './MaestraStatusPanel';
 
 interface TDConnectGuideProps {
   slot: FleetSlot;
@@ -30,10 +31,25 @@ const SIGNAL_SOURCES: { value: SignalSource; title: string; desc: string; icon: 
   { value: 'test_signal', title: 'Test Signal', desc: 'Generate test values for debugging.', icon: '▶' },
 ];
 
-const ROLES: { value: NodeRole; title: string; desc: string; color: string; examples: string[] }[] = [
-  { value: 'receive', title: 'Receive State', desc: 'This node listens for state updates from other nodes.', color: '#5cc8ff', examples: ['Receive BPM from audio node', 'Receive color palette from controller'] },
-  { value: 'send', title: 'Send State', desc: 'This node publishes signals to the network.', color: '#22c55e', examples: ['Send BPM and frequency bands', 'Send sensor data to fleet'] },
-  { value: 'two_way', title: 'Two-Way Sync', desc: 'This node both sends and receives signals.', color: '#fbbf24', examples: ['Send video, receive prompts', 'Full bidirectional state sync'] },
+const ROLES: { value: NodeRole; title: string; desc: string; color: string; nodeType: string; examples: string[] }[] = [
+  {
+    value: 'receive', title: 'Receive State',
+    desc: 'This node listens for state updates from other nodes.',
+    color: '#5cc8ff', nodeType: 'Visual node',
+    examples: ['Receive BPM from audio node', 'Receive color palette from controller', 'Receive scene state and intensity'],
+  },
+  {
+    value: 'send', title: 'Send State',
+    desc: 'This node publishes signals to the network.',
+    color: '#22c55e', nodeType: 'Audio node',
+    examples: ['Send BPM and frequency bands', 'Send sensor data to fleet', 'Send color palette to lighting node'],
+  },
+  {
+    value: 'two_way', title: 'Two-Way Sync',
+    desc: 'This node both sends and receives signals.',
+    color: '#fbbf24', nodeType: 'Full sync',
+    examples: ['Send video, receive prompts', 'Send audio analysis, receive color state', 'Full bidirectional state sync'],
+  },
 ];
 
 export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChange }: TDConnectGuideProps) {
@@ -43,7 +59,7 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
   const [expandedSection, setExpandedSection] = useState<GuideSection | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [prevConnected, setPrevConnected] = useState(false);
+  const [prevLive, setPrevLive] = useState(false);
 
   // TD-specific config
   const [tdOpPath, setTdOpPath] = useState('/project1/audio_analysis');
@@ -65,16 +81,23 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
   const serverUrl = MAESTRA_API_URL;
   const isLive = slot.maestraStatus?.heartbeat === 'live';
   const isConnected = slot.maestraStatus?.server === 'connected' && slot.maestraStatus?.entity === 'registered';
+  const hasStream = slot.maestraStatus?.stream === 'live';
 
-  // Celebration: show briefly when connection goes from disconnected → live
+  // Celebration: show when connection goes from not-live → live
   useEffect(() => {
-    if (isLive && !prevConnected) {
+    if (isLive && !prevLive) {
       setShowCelebration(true);
-      const t = setTimeout(() => setShowCelebration(false), 4000);
+      const t = setTimeout(() => setShowCelebration(false), 5000);
+      setPrevLive(true);
       return () => clearTimeout(t);
     }
-    setPrevConnected(isLive);
-  }, [isLive, prevConnected]);
+    if (!isLive) setPrevLive(false);
+  }, [isLive, prevLive]);
+
+  // Last event age for celebration
+  const lastEventAge = slot.maestraStatus?.lastHeartbeatAt
+    ? Math.max(0, Date.now() - slot.maestraStatus.lastHeartbeatAt)
+    : null;
 
   const copyToClipboard = useCallback((text: string, field: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -107,7 +130,11 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
           <div className="td-celebration-content">
             <div className="td-celebration-title">Connected to Maestra</div>
             <div className="td-celebration-detail">
-              Node: <strong>{entityId}</strong> &middot; Heartbeat: <span style={{ color: '#22c55e' }}>Live</span>
+              Node: <strong>{entityId}</strong>
+              {' '}&middot; Heartbeat: <span style={{ color: '#22c55e' }}>Live</span>
+              {lastEventAge != null && (
+                <> &middot; Last event: <span style={{ color: '#5cc8ff' }}>{formatAge(lastEventAge)} ago</span></>
+              )}
             </div>
           </div>
         </div>
@@ -120,7 +147,11 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
           <div className="td-section-title-group">
             <span className="td-section-title">Connect Your TouchDesigner Node</span>
             <span className="td-section-subtitle">
-              {isLive ? 'Connected and live' : isConnected ? 'Connected — waiting for heartbeat' : 'Join this node to the Maestra network'}
+              {isLive
+                ? 'Connected and live'
+                : isConnected
+                  ? 'Connected — waiting for heartbeat'
+                  : 'Join this node to the Maestra network so it can share signals with other systems in the show'}
             </span>
           </div>
           {isConnected && (
@@ -160,7 +191,7 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
                 rel="noopener noreferrer"
                 className="td-action-btn td-action-primary"
               >
-                Download TOX
+                Download TouchDesigner Connector
               </a>
               <button className="td-action-btn" onClick={() => copyToClipboard(serverUrl, 'serverUrl')}>
                 {copiedField === 'serverUrl' ? '✓ Copied' : 'Copy Server URL'}
@@ -170,23 +201,31 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
               </button>
             </div>
 
-            {/* Steps */}
+            {/* Instructions */}
             <div className="td-steps">
               <div className="td-step"><span className="td-step-n">1</span> Download the TouchDesigner connector (.tox)</div>
               <div className="td-step"><span className="td-step-n">2</span> Drag it into your TouchDesigner project</div>
-              <div className="td-step"><span className="td-step-n">3</span> Paste the Server URL and Entity ID into the connector</div>
+              <div className="td-step"><span className="td-step-n">3</span> Paste the Server URL and Entity ID into the connector parameters</div>
               <div className="td-step"><span className="td-step-n">4</span> Click <strong>Connect</strong></div>
             </div>
 
             {/* Expected result */}
             <div className="td-expected">
-              <div className="td-expected-label">When connected, this slot will show:</div>
+              <div className="td-expected-label">When your node connects, this slot will show:</div>
               <div className="td-expected-items">
                 <span>Live heartbeat</span>
                 <span>State updates</span>
-                <span>Stream preview</span>
+                <span>Stream preview (if available)</span>
               </div>
             </div>
+
+            {/* Node Status — embedded 5-layer status panel */}
+            {slot.maestraStatus && (
+              <div className="td-node-status">
+                <div className="td-node-status-title">Node Status</div>
+                <MaestraStatusPanel status={slot.maestraStatus} />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -199,7 +238,7 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
             <div className="td-section-title-group">
               <span className="td-section-title">Choose Your Signal Source</span>
               <span className="td-section-subtitle">
-                {SIGNAL_SOURCES.find(s => s.value === signalSource)?.title || 'Select how this node sends or receives signals'}
+                Select how this node sends or receives signals inside the Maestra network
               </span>
             </div>
             <div className="td-section-chevron">{expandedSection === 'signal' ? '▾' : '▸'}</div>
@@ -227,6 +266,7 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
               <div className="td-signal-config">
                 {signalSource === 'touchdesigner' && (
                   <>
+                    <div className="td-config-section-label">Signal Interface</div>
                     <div className="td-config-field">
                       <label>Operator Path</label>
                       <input type="text" value={tdOpPath} onChange={e => setTdOpPath(e.target.value)} placeholder="/project1/audio_analysis" />
@@ -244,6 +284,16 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
                     <div className="td-config-field">
                       <label>Channels / Fields</label>
                       <input type="text" value={tdChannels} onChange={e => setTdChannels(e.target.value)} placeholder="bass, mid, high" />
+                    </div>
+                    {/* Live signal preview placeholder */}
+                    <div className="td-preview-area">
+                      <div className="td-preview-label">Preview</div>
+                      <div className="td-preview-content">
+                        {hasStream
+                          ? <span style={{ color: '#22c55e' }}>Live signal preview active</span>
+                          : <span style={{ color: '#666' }}>Live signal preview appears here when streaming</span>
+                        }
+                      </div>
                     </div>
                   </>
                 )}
@@ -271,6 +321,20 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
   "bass": 0.7,
   "intensity": 0.45
 }`}</pre>
+                    </div>
+                    <div className="td-config-field">
+                      <label>Field Mapping</label>
+                      <div className="td-field-mapping">
+                        <div className="td-field-map-row">
+                          <code>bpm</code> <span className="td-field-arrow">→</span> <span>animation speed</span>
+                        </div>
+                        <div className="td-field-map-row">
+                          <code>bass</code> <span className="td-field-arrow">→</span> <span>shader intensity</span>
+                        </div>
+                        <div className="td-field-map-row">
+                          <code>intensity</code> <span className="td-field-arrow">→</span> <span>global brightness</span>
+                        </div>
+                      </div>
                     </div>
                   </>
                 )}
@@ -343,7 +407,7 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
             <div className="td-section-title-group">
               <span className="td-section-title">Node Role</span>
               <span className="td-section-subtitle">
-                {ROLES.find(r => r.value === nodeRole)?.title || 'Choose how this node interacts'}
+                Choose how this node interacts with the Maestra system
               </span>
             </div>
             <div className="td-section-chevron">{expandedSection === 'role' ? '▾' : '▸'}</div>
@@ -364,9 +428,11 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
                         <div className={`td-role-radio-dot ${nodeRole === r.value ? 'active' : ''}`} />
                       </div>
                       <div className="td-role-card-title">{r.title}</div>
+                      <span className="td-role-node-type" style={{ color: r.color }}>{r.nodeType}</span>
                     </div>
                     <div className="td-role-card-desc">{r.desc}</div>
                     <div className="td-role-examples">
+                      <div className="td-role-examples-label">Example behaviors</div>
                       {r.examples.map((ex, i) => (
                         <div key={i} className="td-role-example">{ex}</div>
                       ))}

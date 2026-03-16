@@ -1246,6 +1246,80 @@ header {
 .td-role-card.selected .td-role-example { color: #8888aa; }
 
 /* Advanced toggle */
+/* Node status embed inside Section 1 */
+.td-node-status {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.td-node-status-title {
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: #8888aa; margin-bottom: 6px;
+}
+
+/* Config section label */
+.td-config-section-label {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.06em; color: #ccd;
+  margin-bottom: 10px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Live signal preview area */
+.td-preview-area {
+  margin-top: 10px; padding: 10px 12px;
+  background: rgba(0,0,0,0.25);
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+}
+.td-preview-label {
+  font-size: 8px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: #8888aa; margin-bottom: 6px;
+}
+.td-preview-content {
+  font-size: 10px; min-height: 24px;
+  display: flex; align-items: center;
+}
+
+/* JSON field mapping */
+.td-field-mapping {
+  display: flex; flex-direction: column; gap: 3px;
+}
+.td-field-map-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 10px; padding: 3px 0;
+}
+.td-field-map-row code {
+  font-family: var(--font-mono); color: #5cc8ff;
+  background: rgba(0,0,0,0.3); padding: 1px 6px;
+  border-radius: 2px; font-size: 10px;
+}
+.td-field-arrow {
+  color: #666; font-size: 11px;
+}
+.td-field-map-row span:last-child {
+  color: #aab;
+}
+
+/* Role node type badge */
+.td-role-node-type {
+  font-size: 8px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  margin-left: auto; opacity: 0.7;
+}
+.td-role-card.selected .td-role-node-type { opacity: 1; }
+
+/* Role examples label */
+.td-role-examples-label {
+  font-size: 8px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: #666; margin-bottom: 3px;
+}
+.td-role-card.selected .td-role-examples-label { color: #8888aa; }
+
+/* Advanced toggle */
 .td-advanced-toggle {
   padding: 8px 14px; cursor: pointer;
   font-size: 9px; letter-spacing: 0.1em;
