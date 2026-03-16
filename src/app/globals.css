@@ -458,6 +458,20 @@ header {
 .suggestion-eyebrow { font-size: 8px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-dim); opacity: 0.4; margin-bottom: 2px; }
 .suggestion-title { font-family: var(--font-display); font-size: 11px; font-weight: 700; color: var(--text); letter-spacing: 0.04em; opacity: 0.55; }
 .suggestion-desc { font-size: 9px; color: var(--text-dim); line-height: 1.5; opacity: 0.45; }
+
+/* ── Available Slot State ── */
+.slot-available-state { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; transition: all 0.25s ease; }
+.slot-available-label { font-family: var(--font-display); font-size: 11px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); opacity: 0.35; transition: all 0.25s ease; }
+.slot:not(.active-slot):hover .slot-available-label { opacity: 0.7; color: var(--accent); transform: translateY(-6px); }
+.slot-available-hover-btn { display: flex; align-items: center; gap: 5px; font-family: var(--font-display); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: #fff; background: rgba(0,212,255,0.2); border: 1px solid rgba(0,212,255,0.5); padding: 7px 16px; border-radius: 4px; opacity: 0; transform: translateY(8px) scale(0.95); transition: all 0.25s ease; pointer-events: none; }
+.slot:not(.active-slot):hover .slot-available-hover-btn { opacity: 1; transform: translateY(2px) scale(1); pointer-events: auto; }
+.slot-available-hover-icon { font-size: 14px; color: var(--accent); font-weight: 300; }
+
+/* Available tag in footer — show label normally, expand on hover */
+.available-label { display: inline; }
+.available-connect-btn { display: none; }
+.slot:not(.active-slot):hover .available-label { display: none; }
+.slot:not(.active-slot):hover .available-connect-btn { display: inline; }
 .suggestion-tag { font-size: 8px; letter-spacing: 0.1em; padding: 2px 6px; border-radius: 2px; text-transform: uppercase; margin-top: 4px; opacity: 0.4; }
 .suggestion-tag.td { background: rgba(0,212,255,0.1); color: var(--accent); border: 1px solid rgba(0,212,255,0.15); }
 .suggestion-tag.scope { background: rgba(244,114,182,0.1); color: var(--pink); border: 1px solid rgba(244,114,182,0.15); }
@@ -1075,6 +1089,76 @@ header {
 }
 .td-action-primary:hover {
   background: rgba(0,212,255,0.15) !important;
+}
+
+/* ── Onboarding action buttons (Get Connector step) ── */
+.td-onboard-action-btn {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 12px 14px;
+  background: rgba(0,212,255,0.04);
+  border: 1px solid rgba(0,212,255,0.15);
+  border-radius: 6px; cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left; font-family: inherit;
+}
+.td-onboard-action-btn:hover {
+  background: rgba(0,212,255,0.12);
+  border-color: rgba(0,212,255,0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0,212,255,0.1);
+}
+.td-onboard-action-btn.td-onboard-subtle {
+  background: rgba(255,255,255,0.02);
+  border-color: rgba(255,255,255,0.06);
+}
+.td-onboard-action-btn.td-onboard-subtle:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.15);
+  box-shadow: none;
+  transform: none;
+}
+.td-onboard-action-icon {
+  font-size: 18px; color: var(--accent); flex-shrink: 0; width: 24px; text-align: center;
+}
+.td-onboard-action-text { display: flex; flex-direction: column; gap: 2px; }
+.td-onboard-action-title { font-size: 11px; font-weight: 700; color: var(--text); letter-spacing: 0.02em; }
+.td-onboard-action-desc { font-size: 9px; color: #888; line-height: 1.4; }
+
+/* ── Waiting state animation ── */
+.td-waiting-container {
+  display: flex; flex-direction: column; align-items: center; padding: 16px 0 8px;
+}
+.td-waiting-pulse-wrap {
+  position: relative; width: 40px; height: 40px; margin-bottom: 12px;
+}
+.td-waiting-dot {
+  position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px;
+  border-radius: 50%; background: var(--accent);
+}
+.td-waiting-pulse {
+  position: absolute; top: 50%; left: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px;
+  border-radius: 50%; border: 2px solid var(--accent); opacity: 0;
+  animation: td-pulse 2s ease-out infinite;
+}
+@keyframes td-pulse {
+  0% { transform: scale(0.5); opacity: 0.8; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+.td-waiting-text {
+  font-family: var(--font-display); font-size: 11px; font-weight: 600;
+  color: var(--accent); letter-spacing: 0.04em; margin-bottom: 12px;
+}
+.td-waiting-details {
+  display: flex; flex-direction: column; gap: 4px; width: 100%;
+}
+.td-waiting-detail-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 10px; background: rgba(0,0,0,0.2); border-radius: 3px;
+  font-size: 10px;
+}
+.td-waiting-detail-label {
+  font-size: 8px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: #666;
 }
 
 /* Steps (compact) */

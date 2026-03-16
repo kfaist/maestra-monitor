@@ -111,14 +111,18 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       ) : null}
                     </div>
                   )
-                ) : slot.suggestion ? (
-                  <div className="slot-suggestion">
-                    <div className="suggestion-eyebrow">// connect a node</div>
-                    <div className="suggestion-title">{slot.suggestion.title}</div>
-                    <div className="suggestion-desc">{slot.suggestion.desc}</div>
-                    <span className={`suggestion-tag ${slot.suggestion.tag}`}>{slot.suggestion.tagLabel}</span>
+                ) : (
+                  <div className="slot-available-state">
+                    <div className="slot-available-label">AVAILABLE</div>
+                    {slot.suggestion && (
+                      <span className={`suggestion-tag ${slot.suggestion.tag}`}>{slot.suggestion.tagLabel}</span>
+                    )}
+                    <div className="slot-available-hover-btn">
+                      <span className="slot-available-hover-icon">+</span>
+                      Click to Connect
+                    </div>
                   </div>
-                ) : null}
+                )}
               </div>
               <div className="slot-footer">
                 <div className="slot-label">{slot.label}</div>
@@ -134,7 +138,10 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       {statusText}
                     </span>
                   ) : (
-                    <span className="slot-tag available-tag">Available · Click to connect</span>
+                    <span className="slot-tag available-tag">
+                      <span className="available-label">Available</span>
+                      <span className="available-connect-btn">Click to Connect</span>
+                    </span>
                   )}
                 </div>
               </div>
