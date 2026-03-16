@@ -5,6 +5,7 @@ import { AudioAnalysisData } from '@/types';
 
 interface AudioAnalysisProps {
   audioData: AudioAnalysisData;
+  onSendAudio?: (payload: Record<string, unknown>) => void;
 }
 
 interface HistoryRow {
@@ -35,14 +36,37 @@ const STEM_CONFIG = [
   { key: 'other', label: 'Other', hue: 220 },
 ];
 
-export default function AudioAnalysis({ audioData }: AudioAnalysisProps) {
+export default function AudioAnalysis({ audioData, onSendAudio }: AudioAnalysisProps) {
   const [enabled, setEnabled] = useState(true);
+  const [sendActive, setSendActive] = useState(false);
   const [activeTab, setActiveTab] = useState<'freq' | 'stems' | 'live'>('freq');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const barHeightsRef = useRef(new Float32Array(64).fill(0));
   const historyRef = useRef<HistoryRow[]>([]);
   const lastHistTimeRef = useRef(0);
   const animFrameRef = useRef<number | null>(null);
+  const sendActiveRef = useRef(false);
+  const audioDataRef = useRef(audioData);
+
+  // Keep refs in sync
+  sendActiveRef.current = sendActive;
+  audioDataRef.current = audioData;
+
+  // Send audio data to TD on interval
+  useEffect(() => {
+    if (!onSendAudio) return;
+    const timer = setInterval(() => {
+      if (!sendActiveRef.current) return;
+      const d = audioDataRef.current;
+      onSendAudio({
+        type: 'audio_analysis',
+        sub: d.sub, bass: d.bass, mid: d.mid, high: d.high,
+        rms: d.rms, bpm: d.bpm, peak: d.peak,
+        drums: d.drums, vocals: d.vocals, melody: d.melody,
+      });
+    }, 250);
+    return () => clearInterval(timer);
+  }, [onSendAudio]);
 
   const drawBars = useCallback(() => {
     const canvas = canvasRef.current;
@@ -140,10 +164,32 @@ export default function AudioAnalysis({ audioData }: AudioAnalysisProps) {
     <div className="audio-analysis-section">
       <div className="aa-header">
         <span className="aa-title">Audio Analysis</span>
-        <div
-          className={`aa-toggle ${enabled ? 'on' : ''}`}
-          onClick={() => setEnabled(!enabled)}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {onSendAudio && (
+            <button
+              className={`aa-send-btn ${sendActive ? 'active' : ''}`}
+              onClick={() => setSendActive(!sendActive)}
+              style={{
+                padding: '3px 10px',
+                fontSize: 10,
+                fontFamily: "'JetBrains Mono', monospace",
+                letterSpacing: '0.05em',
+                border: `1px solid ${sendActive ? '#22c55e' : '#333'}`,
+                borderRadius: 4,
+                background: sendActive ? 'rgba(34,197,94,0.15)' : 'transparent',
+                color: sendActive ? '#22c55e' : '#888',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              {sendActive ? '● SENDING' : 'SEND TO TD'}
+            </button>
+          )}
+          <div
+            className={`aa-toggle ${enabled ? 'on' : ''}`}
+            onClick={() => setEnabled(!enabled)}
+          />
+        </div>
       </div>
 
       <div className="aa-tabs">

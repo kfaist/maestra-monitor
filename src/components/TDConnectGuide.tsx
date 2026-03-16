@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { FleetSlot, formatAge } from '@/types';
 import { MAESTRA_API_URL } from '@/lib/maestra-connection';
-import MaestraStatusPanel from './MaestraStatusPanel';
+// MaestraStatusPanel now only renders in ConnectionPanel (no duplicate)
 
 interface TDConnectGuideProps {
   slot: FleetSlot;
@@ -219,11 +219,16 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
               </div>
             </div>
 
-            {/* Node Status — embedded 5-layer status panel */}
+            {/* Node status hint — full panel lives in ConnectionPanel */}
             {slot.maestraStatus && (
-              <div className="td-node-status">
-                <div className="td-node-status-title">Node Status</div>
-                <MaestraStatusPanel status={slot.maestraStatus} />
+              <div className="td-node-status-hint">
+                <div className="td-node-status-dot" style={{
+                  background: isLive ? '#22c55e' : isConnected ? '#5cc8ff' : '#666',
+                  boxShadow: isLive ? '0 0 8px #22c55e' : 'none',
+                }} />
+                <span style={{ color: isLive ? '#22c55e' : isConnected ? '#5cc8ff' : '#888' }}>
+                  {isLive ? 'Heartbeat live' : isConnected ? 'Connected — waiting for heartbeat' : 'Not connected'}
+                </span>
               </div>
             )}
           </div>

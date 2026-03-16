@@ -897,8 +897,6 @@ export default function Home() {
               onJoinNode={() => setJoinModalOpen(true)}
             />
 
-            <AudioAnalysis audioData={audioData} />
-
             {/* Target selector for color/modulation sends */}
             <div className="send-target-bar">
               <span className="send-target-label">Send to</span>
@@ -925,6 +923,7 @@ export default function Home() {
             </div>
 
             <ColorPalette onColorChange={handleColorChange} />
+            <AudioAnalysis audioData={audioData} onSendAudio={sendToTarget} />
             <ModulationGrid onModulationChange={handleModulationChange} />
           </div>
 
