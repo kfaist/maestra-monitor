@@ -280,15 +280,18 @@ export default function Home() {
     }
   }, [connectionInfo, log]);
 
-  // Frame fetching — fetch from backend for each active slot
+  // Frame fetching — only fetch for slots with an advertised/live stream
+  // Streams are NOT attached on slot click — only via stream_advertised WS event
   const frameErrorCountRef = useRef(0);
   const fetchFrame = useCallback(async () => {
     const currentSlots = slotsRef.current;
-    // Fetch for all active slots (use their endpoint or the default)
-    const activeSlots = currentSlots.filter(s => s.active);
-    if (activeSlots.length === 0) return;
+    // Only fetch for slots that have a stream advertised or live (not just "active")
+    const streamingSlots = currentSlots.filter(s =>
+      s.active && s.maestraStatus && (s.maestraStatus.stream === 'live' || s.maestraStatus.stream === 'advertised')
+    );
+    if (streamingSlots.length === 0) return;
 
-    for (const slot of activeSlots) {
+    for (const slot of streamingSlots) {
       // Skip slots with webcam active (webcam handler sets frameUrl directly)
       if (slot.id === selectedIdRef.current && webcamActiveRef.current) continue;
 
@@ -815,29 +818,13 @@ export default function Home() {
     fetchFrame();
     frameIntervalRef.current = setInterval(fetchFrame, FRAME_FETCH_INTERVAL);
 
-    // Auto-reconnect from localStorage
-    let reconnectedFromStorage = false;
-    try {
-      const stored = localStorage.getItem(LS_KEY);
-      if (stored) {
-        const savedSlots = JSON.parse(stored) as { id: string; label: string; entityId: string }[];
-        if (savedSlots.length > 0) {
-          reconnectedFromStorage = true;
-          setTimeout(() => {
-            savedSlots.forEach(saved => autoConnectSlot(saved.id));
-            selectSlot(savedSlots[0].id);
-            log('Auto-reconnected from previous session', 'ok');
-          }, 100);
-        }
-      }
-    } catch { /* */ }
-
-    if (!reconnectedFromStorage) {
-      setTimeout(() => {
-        selectSlot('krista1');
-        autoConnectSlot('krista1');
-      }, 100);
-    }
+    // On init, just select the first slot — do NOT auto-connect anything.
+    // Slots start as "available". Connections only happen when a user
+    // explicitly connects via the setup wizard, or when a stream_advertised
+    // event arrives via WebSocket.
+    setTimeout(() => {
+      selectSlot('krista1');
+    }, 100);
 
     return () => {
       simulatorRef.current?.stop();
