@@ -118,6 +118,13 @@ export interface LogEntry {
   type: 'info' | 'warn' | 'error' | 'ok';
 }
 
+export interface EventEntry {
+  timestamp: string;
+  eventType: 'connect' | 'disconnect' | 'state' | 'stream';
+  entityId: string;
+  message: string;
+}
+
 export interface ToxParam {
   title: string;
   items: string[];

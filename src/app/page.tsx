@@ -15,8 +15,10 @@ import {
   ToxReferenceTab,
   UseCases,
   ConnectionPanel,
+  JoinModal,
 } from '@/components';
-import { FleetSlot, LogEntry, AudioAnalysisData, SlotConnectionInfo } from '@/types';
+import { JoinNodeData } from '@/components/JoinModal';
+import { FleetSlot, LogEntry, EventEntry, AudioAnalysisData, SlotConnectionInfo } from '@/types';
 import { createInitialSlots, SUGGESTIONS } from '@/mock';
 import { WSSimulator } from '@/mock/ws-simulator';
 import { API_BASE } from '@/mock/gpu-nodes';
@@ -29,6 +31,8 @@ import {
   generateEntityId,
 } from '@/lib/maestra-connection';
 
+const LS_KEY = 'maestra_connected_slots';
+
 export default function Home() {
   // State
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -37,11 +41,17 @@ export default function Home() {
   const [slots, setSlots] = useState<FleetSlot[]>(createInitialSlots);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
+  const [eventEntries, setEventEntries] = useState<EventEntry[]>([]);
   const [audioData, setAudioData] = useState<AudioAnalysisData>({
     sub: 65, bass: 82, mid: 45, high: 73, rms: 0.76, bpm: 128,
     drums: 88, stemBass: 70, vocals: 56, melody: 62, keys: 44, other: 38, peak: 94,
   });
   const [connectionInfo, setConnectionInfo] = useState<SlotConnectionInfo | null>(null);
+  const [joinModalOpen, setJoinModalOpen] = useState(false);
+
+  // Lifted inject state (shared between page and SignalPanel)
+  const [injectActive, setInjectActive] = useState(false);
+  const [promptText, setPromptText] = useState('');
 
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
@@ -65,10 +75,31 @@ export default function Home() {
     });
   }, []);
 
+  // Event logging
+  const logEvent = useCallback((eventType: EventEntry['eventType'], entityId: string, message: string) => {
+    setEventEntries(prev => {
+      const entry: EventEntry = { timestamp: formatTimestamp(), eventType, entityId, message };
+      const next = [entry, ...prev];
+      if (next.length > 20) next.length = 20;
+      return next;
+    });
+  }, []);
+
+  // Persist connected slots to localStorage
+  const saveConnectedSlots = useCallback(() => {
+    try {
+      const connected = slotsRef.current
+        .filter(s => s.active && s.entity_id)
+        .map(s => ({ id: s.id, label: s.label, entityId: s.entity_id }));
+      localStorage.setItem(LS_KEY, JSON.stringify(connected));
+    } catch {
+      // localStorage may not be available
+    }
+  }, []);
+
   // Sync MaestraConnectionState → SlotConnectionInfo for UI
   const syncConnectionInfo = useCallback((slotId: string, state: MaestraConnectionState) => {
     setConnectionInfo(prev => {
-      // Only update if this is the currently selected slot
       if (prev && prev.slotId !== slotId) return prev;
       return {
         serverUrl: state.serverUrl,
@@ -85,7 +116,6 @@ export default function Home() {
       };
     });
 
-    // Also update the slot's connection_status
     setSlots(prev => prev.map(s => {
       if (s.id !== slotId) return s;
       return {
@@ -105,7 +135,6 @@ export default function Home() {
     const slot = slotsRef.current.find(s => s.id === slotId);
     if (!slot) return;
 
-    // Destroy existing connection for this slot
     const existing = connectionsRef.current.get(slotId);
     if (existing) existing.destroy();
 
@@ -123,13 +152,14 @@ export default function Home() {
     conn.onStateChange((state) => {
       syncConnectionInfo(slotId, state);
 
-      // Log status transitions
       if (state.status === 'discovering') {
         log(`[${slotId}] Discovering Maestra server...`, 'info');
       } else if (state.status === 'connecting') {
         log(`[${slotId}] Connecting to ${state.serverUrl}...`, 'info');
       } else if (state.status === 'connected') {
         log(`[${slotId}] Connected to Maestra as ${state.entityId}`, 'ok');
+        logEvent('connect', state.entityId, `${slotId} joined the fleet`);
+        saveConnectedSlots();
       } else if (state.status === 'error') {
         log(`[${slotId}] ${state.errorMessage || 'Connection error'}`, 'error');
       }
@@ -137,7 +167,6 @@ export default function Home() {
 
     connectionsRef.current.set(slotId, conn);
 
-    // Activate the slot
     setSlots(prev => prev.map(s => {
       if (s.id !== slotId) return s;
       return {
@@ -148,13 +177,10 @@ export default function Home() {
       };
     }));
 
-    // Show connection info immediately
     const initialState = conn.getState();
     syncConnectionInfo(slotId, initialState);
-
-    // Start the connection flow
     conn.connect();
-  }, [log, syncConnectionInfo]);
+  }, [log, logEvent, syncConnectionInfo, saveConnectedSlots]);
 
   // Disconnect a slot
   const disconnectSlot = useCallback((slotId: string) => {
@@ -163,6 +189,9 @@ export default function Home() {
       conn.disconnect();
       connectionsRef.current.delete(slotId);
     }
+
+    const slot = slotsRef.current.find(s => s.id === slotId);
+    logEvent('disconnect', slot?.entity_id || slotId, `${slotId} left the fleet`);
 
     setSlots(prev => prev.map(s => {
       if (s.id !== slotId) return s;
@@ -177,7 +206,8 @@ export default function Home() {
     });
 
     log(`[${slotId}] Disconnected from Maestra`, 'warn');
-  }, [log]);
+    saveConnectedSlots();
+  }, [log, logEvent, saveConnectedSlots]);
 
   // Update connection config (from Advanced Settings)
   const updateConnectionConfig = useCallback((config: { serverUrl?: string; entityId?: string; port?: number; streamPath?: string }) => {
@@ -187,7 +217,6 @@ export default function Home() {
 
     if (conn) {
       conn.updateConfig(config);
-      // Reconnect with new settings
       conn.disconnect();
       conn.connect();
       log(`[${slotId}] Reconnecting with updated settings...`, 'info');
@@ -291,19 +320,17 @@ export default function Home() {
     }
   }, []);
 
-  // Slot selection — also shows connection panel for any selected slot
+  // Slot selection
   const selectSlot = useCallback((id: string) => {
     setSelectedId(id);
     const slot = slotsRef.current.find(s => s.id === id);
     if (!slot) return;
 
-    // Check if we have a MaestraConnection for this slot
     const conn = connectionsRef.current.get(id);
     if (conn) {
       const state = conn.getState();
       syncConnectionInfo(id, state);
     } else if (slot.active && slot.entity_id) {
-      // Legacy: slot was active before MaestraConnection was created (e.g., krista1)
       setConnectionInfo({
         serverUrl: GALLERY_SERVER_URL,
         entityId: slot.entity_id,
@@ -318,7 +345,6 @@ export default function Home() {
         errorMessage: null,
       });
     } else {
-      // Inactive slot — show connection panel in disconnected state so user can claim it
       setConnectionInfo({
         serverUrl: GALLERY_SERVER_URL,
         entityId: generateEntityId(slot.label, slot.suggestion?.tag),
@@ -358,6 +384,52 @@ export default function Home() {
       }];
     });
   }, []);
+
+  // Join node from modal
+  const handleJoinNode = useCallback((data: JoinNodeData) => {
+    setJoinModalOpen(false);
+
+    // Find first available (non-active) slot
+    const availableSlot = slotsRef.current.find(s => !s.active);
+    if (!availableSlot) {
+      // Create a new slot
+      const n = slotsRef.current.length + 1;
+      const newId = `slot${n}`;
+      setSlots(prev => [...prev, {
+        id: newId,
+        label: data.name,
+        entity_id: null,
+        endpoint: null,
+        active: false,
+        fps: null,
+        frameUrl: null,
+        cloudNode: false,
+        connection_status: 'disconnected',
+        last_heartbeat: null,
+        active_stream: null,
+        state_summary: {},
+        _frameTimes: [],
+        _fpsSmooth: null,
+      }]);
+      // Auto-connect after creation
+      setTimeout(() => {
+        setSlots(prev => prev.map(s => s.id === newId ? { ...s, label: data.name } : s));
+        autoConnectSlot(newId);
+        selectSlot(newId);
+      }, 50);
+    } else {
+      // Claim the available slot
+      setSlots(prev => prev.map(s => {
+        if (s.id !== availableSlot.id) return s;
+        return { ...s, label: data.name, suggestion: undefined };
+      }));
+      autoConnectSlot(availableSlot.id);
+      selectSlot(availableSlot.id);
+    }
+
+    log(`[JoinNode] ${data.name} (${data.role}) — ${data.intent}`, 'ok');
+    logEvent('connect', data.name, `${data.name} joined as ${data.role}`);
+  }, [autoConnectSlot, selectSlot, log, logEvent]);
 
   // Reconnect stream
   const reconnectStream = useCallback(() => {
@@ -436,12 +508,34 @@ export default function Home() {
     fetchFrame();
     frameIntervalRef.current = setInterval(fetchFrame, FRAME_FETCH_INTERVAL);
 
-    // Auto-select and auto-connect krista1
-    setTimeout(() => {
-      selectSlot('krista1');
-      // Auto-connect krista1 to the gallery Maestra server
-      autoConnectSlot('krista1');
-    }, 100);
+    // Auto-reconnect from localStorage
+    let reconnectedFromStorage = false;
+    try {
+      const stored = localStorage.getItem(LS_KEY);
+      if (stored) {
+        const savedSlots = JSON.parse(stored) as { id: string; label: string; entityId: string }[];
+        if (savedSlots.length > 0) {
+          reconnectedFromStorage = true;
+          setTimeout(() => {
+            savedSlots.forEach(saved => {
+              autoConnectSlot(saved.id);
+            });
+            selectSlot(savedSlots[0].id);
+            log('Auto-reconnected from previous session', 'ok');
+          }, 100);
+        }
+      }
+    } catch {
+      // localStorage not available
+    }
+
+    // Default: auto-select and auto-connect krista1
+    if (!reconnectedFromStorage) {
+      setTimeout(() => {
+        selectSlot('krista1');
+        autoConnectSlot('krista1');
+      }, 100);
+    }
 
     return () => {
       simulatorRef.current?.stop();
@@ -449,17 +543,28 @@ export default function Home() {
       if (wsReconnectTimerRef.current) clearTimeout(wsReconnectTimerRef.current);
       if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
       clearInterval(entityInterval);
-      // Clean up all connections
       connectionsRef.current.forEach(conn => conn.destroy());
       connectionsRef.current.clear();
     };
   }, [connectWS, fetchEntities, fetchFrame, selectSlot, autoConnectSlot, log]);
 
+  // Derived values for Header
   const selectedSlot = slots.find(s => s.id === selectedId) || null;
+  const activeSlots = slots.filter(s => s.active).length;
+  const streamFps = slots.find(s => s.id === 'krista1')?.fps ?? null;
+  const audioActive = audioData.rms > 0.1;
 
   return (
     <>
-      <Header wsStatus={wsStatus} apiStatus={apiStatus} />
+      <Header
+        wsStatus={wsStatus}
+        apiStatus={apiStatus}
+        streamFps={streamFps}
+        activeSlots={activeSlots}
+        totalSlots={slots.length}
+        audioActive={audioActive}
+        onJoinNode={() => setJoinModalOpen(true)}
+      />
       <Explainer />
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
@@ -473,6 +578,7 @@ export default function Home() {
               selectedId={selectedId}
               onSelectSlot={selectSlot}
               onAddSlot={addSlot}
+              onJoinNode={() => setJoinModalOpen(true)}
             />
 
             {/* Connection Panel (shown for any selected slot) */}
@@ -497,8 +603,13 @@ export default function Home() {
           <DetailPanel
             slot={selectedSlot}
             logEntries={logEntries}
+            eventEntries={eventEntries}
             onReconnect={reconnectStream}
             onCycleSource={cycleStreamSource}
+            injectActive={injectActive}
+            onInjectToggle={setInjectActive}
+            promptText={promptText}
+            onPromptChange={setPromptText}
           />
         </div>
 
@@ -517,6 +628,13 @@ export default function Home() {
       </div>
 
       <Footer />
+
+      {/* Join Node Modal */}
+      <JoinModal
+        open={joinModalOpen}
+        onClose={() => setJoinModalOpen(false)}
+        onJoin={handleJoinNode}
+      />
     </>
   );
 }

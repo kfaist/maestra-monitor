@@ -1,17 +1,32 @@
 'use client';
 
-import { FleetSlot, LogEntry } from '@/types';
+import { FleetSlot, LogEntry, EventEntry } from '@/types';
 import SignalPanel from './SignalPanel';
 import WSLog from './WSLog';
 
 interface DetailPanelProps {
   slot: FleetSlot | null;
   logEntries: LogEntry[];
+  eventEntries: EventEntry[];
   onReconnect: () => void;
   onCycleSource: () => void;
+  injectActive: boolean;
+  onInjectToggle: (active: boolean) => void;
+  promptText: string;
+  onPromptChange: (text: string) => void;
 }
 
-export default function DetailPanel({ slot, logEntries, onReconnect, onCycleSource }: DetailPanelProps) {
+export default function DetailPanel({
+  slot,
+  logEntries,
+  eventEntries,
+  onReconnect,
+  onCycleSource,
+  injectActive,
+  onInjectToggle,
+  promptText,
+  onPromptChange,
+}: DetailPanelProps) {
   return (
     <div className="detail-panel">
       {/* Video Preview */}
@@ -97,7 +112,12 @@ export default function DetailPanel({ slot, logEntries, onReconnect, onCycleSour
       </div>
 
       {/* Signal Panel */}
-      <SignalPanel />
+      <SignalPanel
+        injectActive={injectActive}
+        onInjectToggle={onInjectToggle}
+        promptText={promptText}
+        onPromptChange={onPromptChange}
+      />
 
       {/* Fleet Input */}
       <div style={{ padding: '8px 16px 0' }}>
@@ -106,6 +126,26 @@ export default function DetailPanel({ slot, logEntries, onReconnect, onCycleSour
         </div>
         <div style={{ fontSize: '11px', color: 'var(--accent)', minHeight: '18px', fontFamily: 'var(--font-mono)', opacity: 0.8 }}>
           &mdash;
+        </div>
+      </div>
+
+      {/* Event Log */}
+      <div className="event-log">
+        <div className="event-log-title">// Event Log</div>
+        <div className="event-log-inner">
+          {eventEntries.length === 0 ? (
+            <div style={{ fontSize: '9px', color: 'var(--text-dim)', opacity: 0.4 }}>No events yet</div>
+          ) : (
+            eventEntries.map((evt, i) => (
+              <div key={i} className="event-line">
+                <span className="event-time">[{evt.timestamp}]</span>
+                <span className={`event-type ${evt.eventType}`}>
+                  {evt.eventType === 'connect' ? 'JOIN' : evt.eventType === 'disconnect' ? 'LEFT' : evt.eventType === 'state' ? 'STATE' : 'STREAM'}
+                </span>
+                <span className="event-msg">{evt.message}</span>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
