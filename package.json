@@ -9,7 +9,13 @@
     "start": "next start -p ${PORT:-3000}",
     "lint": "next lint"
   },
-  "keywords": ["maestra", "touchdesigner", "monitoring", "dashboard", "websocket"],
+  "keywords": [
+    "maestra",
+    "touchdesigner",
+    "monitoring",
+    "dashboard",
+    "websocket"
+  ],
   "author": "Krista Faist",
   "license": "AGPL-3.0",
   "dependencies": {
