@@ -198,18 +198,23 @@ export default function Home() {
     connectionsRef.current.set(slotId, conn);
 
     // Set slot active immediately — derive endpoint from slot's suggestion tag
+    // For krista1: also mark stream as 'advertised' so fetchFrame starts pulling SD frames
+    const isSDSlot = slotId === 'krista1';
     setSlots(prev => prev.map(s => {
       if (s.id !== slotId) return s;
-      // Only set endpoint for krista1 (the SD slot) — other slots get endpoint from backend
-      const endpoint = s.id === 'krista1' ? '/video/frame/td' : s.endpoint;
+      const endpoint = isSDSlot ? '/video/frame/td' : s.endpoint;
       return {
         ...s,
         active: true,
         entity_id: entityId,
         endpoint,
         connection_status: 'connecting',
-        active_stream: s.id === 'krista1' ? 'StreamDiffusion' : s.active_stream,
-        maestraStatus: { ...defaultSlotStatus(), server: 'connecting' },
+        active_stream: isSDSlot ? 'StreamDiffusion' : s.active_stream,
+        maestraStatus: {
+          ...defaultSlotStatus(),
+          server: 'connecting',
+          stream: isSDSlot ? 'advertised' : 'none',
+        },
       };
     }));
 
@@ -287,6 +292,7 @@ export default function Home() {
   // Frame fetching — only fetch for slots with an advertised/live stream
   // Streams are NOT attached on slot click — only via stream_advertised WS event
   const frameErrorCountRef = useRef(0);
+  const frameRelayPostingRef = useRef(false); // gate: one relay POST at a time
   const fetchFrame = useCallback(async () => {
     const currentSlots = slotsRef.current;
     // Only fetch for slots that have a stream advertised or live (not just "active")
@@ -312,6 +318,26 @@ export default function Home() {
         // Notify MaestraConnection that a stream frame arrived
         const conn = connectionsRef.current.get(slot.id);
         if (conn) conn.receiveStreamFrame();
+
+        // ── Relay frame to Maestra backend via WS (continuous ~80ms) ──
+        // This lets other connected nodes (TD, browsers) receive the stream
+        if (wsRef.current?.readyState === WebSocket.OPEN && !frameRelayPostingRef.current) {
+          frameRelayPostingRef.current = true;
+          blob.arrayBuffer().then(buf => {
+            // Convert to base64 and send as stream_frame
+            const bytes = new Uint8Array(buf);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            const b64 = btoa(binary);
+            wsRef.current?.send(JSON.stringify({
+              type: 'stream_frame',
+              entity_id: conn?.entityId || slot.entity_id || slot.id,
+              data: { frame: b64, format: 'jpeg', source: slot.active_stream || 'unknown' },
+              timestamp: Date.now(),
+            }));
+            frameRelayPostingRef.current = false;
+          }).catch(() => { frameRelayPostingRef.current = false; });
+        }
 
         // Reset error counter on success
         if (frameErrorCountRef.current > 0) {
