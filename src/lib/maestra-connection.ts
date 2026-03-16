@@ -1,36 +1,35 @@
 /**
  * Maestra Auto-Connection Module
  *
- * Handles automatic connection to a Maestra server with:
- * 1. Auto-discovery (HTTP probe)
- * 2. Fallback to configured gallery server
- * 3. Mixed-content detection (HTTPS page → HTTP server)
- * 4. Optimistic connection when browser can't reach local server
- * 5. Entity ID generation from slot name/role
- * 6. Health checks and reconnection
+ * 5-layer status model matching Maestra Core concepts:
+ * 1. Server Connection  — dashboard ↔ Maestra server reachability
+ * 2. Entity Registration — entity registered in Maestra's entity table
+ * 3. Heartbeat          — entity actively alive (live / stale / lost)
+ * 4. State Sync         — state updates flowing
+ * 5. Stream             — stream advertised and preview data active
+ *
+ * Heartbeat thresholds:
+ *   live:  ≤2s since last heartbeat
+ *   stale: 2–5s
+ *   lost:  >5s
  */
+
+import {
+  MaestraSlotStatus,
+  defaultSlotStatus,
+  ServerStatus,
+  EntityStatus,
+  HeartbeatStatus,
+  StateSyncStatus,
+  StreamStatus,
+} from '@/types';
 
 export const GALLERY_SERVER_URL = 'http://192.168.128.115:8080';
 
-export type MaestraConnectionStatus = 'disconnected' | 'discovering' | 'connecting' | 'connected' | 'error';
-
-export interface MaestraConnectionState {
-  status: MaestraConnectionStatus;
-  serverUrl: string;
-  entityId: string;
-  slotId: string;
-  port: number;
-  streamPath: string;
-  autoConnect: boolean;
-  autoDiscover: boolean;
-  discoveredUrl: string | null;
-  errorMessage: string | null;
-  lastHeartbeat: number | null;
-  /** True when connected optimistically (browser can't verify due to mixed content) */
-  optimistic: boolean;
-  /** True when HTTPS page is trying to reach HTTP server */
-  mixedContent: boolean;
-}
+// Heartbeat thresholds (ms)
+const HB_LIVE_MS = 2000;
+const HB_STALE_MS = 5000;
+// HB_LOST is anything beyond HB_STALE_MS
 
 export interface MaestraConnectionConfig {
   serverUrl?: string;
@@ -47,10 +46,9 @@ export interface MaestraConnectionConfig {
 /** Detect if we're on HTTPS trying to reach HTTP — browsers block this */
 function isMixedContent(targetUrl: string): boolean {
   if (typeof window === 'undefined') return false;
-  const pageProtocol = window.location.protocol; // 'https:' or 'http:'
   try {
     const target = new URL(targetUrl);
-    return pageProtocol === 'https:' && target.protocol === 'http:';
+    return window.location.protocol === 'https:' && target.protocol === 'http:';
   } catch {
     return false;
   }
@@ -60,15 +58,8 @@ function isMixedContent(targetUrl: string): boolean {
 function isPrivateNetwork(url: string): boolean {
   try {
     const u = new URL(url);
-    const host = u.hostname;
-    return (
-      host.startsWith('192.168.') ||
-      host.startsWith('10.') ||
-      host.startsWith('172.') ||
-      host === 'localhost' ||
-      host === '127.0.0.1' ||
-      host === '::1'
-    );
+    const h = u.hostname;
+    return h.startsWith('192.168.') || h.startsWith('10.') || h.startsWith('172.') || h === 'localhost' || h === '127.0.0.1' || h === '::1';
   } catch {
     return false;
   }
@@ -76,10 +67,7 @@ function isPrivateNetwork(url: string): boolean {
 
 /** Generate an entity ID from a slot label and tag */
 export function generateEntityId(label: string, tag?: string): string {
-  const base = label
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_|_$/g, '');
+  const base = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
   const prefix = tag ? `${tag}_` : 'td_';
   const suffix = `_${Math.random().toString(36).slice(2, 6)}`;
   return `${prefix}${base}${suffix}`;
@@ -89,309 +77,312 @@ export function generateEntityId(label: string, tag?: string): string {
 export function parseServerUrl(url: string): { host: string; port: number } {
   try {
     const u = new URL(url);
-    return {
-      host: u.hostname,
-      port: u.port ? parseInt(u.port, 10) : (u.protocol === 'https:' ? 443 : 80),
-    };
+    return { host: u.hostname, port: u.port ? parseInt(u.port, 10) : (u.protocol === 'https:' ? 443 : 80) };
   } catch {
     return { host: url, port: 8080 };
   }
 }
 
-/** Attempt to discover a Maestra server via HTTP probe */
-async function discoverServer(serverUrl: string, timeoutMs = 2000): Promise<string | null> {
-  const probeUrls = [
-    `${serverUrl}/api/health`,
-    `${serverUrl}/entities`,
-    `${serverUrl}/api/status`,
-    serverUrl,
-  ];
-
-  for (const url of probeUrls) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
-      const res = await fetch(url, {
-        method: 'GET',
-        signal: controller.signal,
-        mode: 'no-cors',
-      });
-      clearTimeout(timeout);
-      if (res.ok || res.type === 'opaque') {
-        return serverUrl;
-      }
-    } catch {
-      // Continue to next probe
-    }
-  }
-  return null;
+/** Derive heartbeat status from timestamp */
+function heartbeatFromTimestamp(lastHB: number | null): HeartbeatStatus {
+  if (lastHB === null) return 'waiting';
+  const age = Date.now() - lastHB;
+  if (age <= HB_LIVE_MS) return 'live';
+  if (age <= HB_STALE_MS) return 'stale';
+  return 'lost';
 }
 
-/** Attempt to register an entity with the Maestra server */
-async function registerEntity(
-  serverUrl: string,
-  entityId: string,
-  slotLabel: string,
-  timeoutMs = 3000
-): Promise<boolean> {
+// ─── Network helpers ───
+
+async function probeServer(serverUrl: string, timeoutMs = 2000): Promise<boolean> {
+  const urls = [`${serverUrl}/api/health`, `${serverUrl}/entities`, serverUrl];
+  for (const url of urls) {
+    try {
+      const c = new AbortController();
+      const t = setTimeout(() => c.abort(), timeoutMs);
+      const res = await fetch(url, { method: 'GET', signal: c.signal, mode: 'no-cors' });
+      clearTimeout(t);
+      if (res.ok || res.type === 'opaque') return true;
+    } catch { /* next */ }
+  }
+  return false;
+}
+
+async function registerEntity(serverUrl: string, entityId: string, slotLabel: string, timeoutMs = 3000): Promise<boolean> {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort(), timeoutMs);
     const res = await fetch(`${serverUrl}/entities`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        entity_id: entityId,
-        name: slotLabel,
-        type: 'browser',
-        capabilities: ['monitor', 'control'],
-      }),
-      signal: controller.signal,
+      body: JSON.stringify({ entity_id: entityId, name: slotLabel, type: 'browser', capabilities: ['monitor', 'control'] }),
+      signal: c.signal,
     });
-    clearTimeout(timeout);
+    clearTimeout(t);
     return res.ok || res.status === 409;
   } catch {
     return false;
   }
 }
 
-/** Send a heartbeat to the Maestra server */
 async function sendHeartbeat(serverUrl: string, entityId: string): Promise<boolean> {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort(), 2000);
     const res = await fetch(`${serverUrl}/entities/${entityId}/heartbeat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ timestamp: Date.now() }),
-      signal: controller.signal,
+      signal: c.signal,
     });
-    clearTimeout(timeout);
+    clearTimeout(t);
     if (res.ok) return true;
-  } catch {
-    // Fall through to no-cors probe
-  }
+  } catch { /* fall through */ }
 
+  // Fallback: no-cors reachability
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
-    const res = await fetch(serverUrl, {
-      signal: controller.signal,
-      mode: 'no-cors',
-    });
-    clearTimeout(timeout);
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort(), 2000);
+    const res = await fetch(serverUrl, { signal: c.signal, mode: 'no-cors' });
+    clearTimeout(t);
     return res.type === 'opaque' || res.ok;
   } catch {
     return false;
   }
 }
 
-export type ConnectionEventHandler = (state: MaestraConnectionState) => void;
+// ─── Connection class ───
+
+export type StatusChangeHandler = (status: MaestraSlotStatus) => void;
 
 /**
- * MaestraConnection manages the full auto-connection lifecycle:
- * discover → connect → register → heartbeat
+ * MaestraConnection manages the full lifecycle for a single slot:
+ * discover → connect → register → heartbeat → state/stream tracking
  *
- * When a mixed-content situation is detected (HTTPS page → HTTP local server),
- * it connects optimistically — the dashboard works as a control surface
- * while real Maestra ↔ TD communication happens natively in TouchDesigner.
+ * Exposes a MaestraSlotStatus (5 layers) that the UI can render directly.
  */
 export class MaestraConnection {
-  private state: MaestraConnectionState;
-  private handlers: ConnectionEventHandler[] = [];
+  private status: MaestraSlotStatus;
+  private handlers: StatusChangeHandler[] = [];
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+  private heartbeatDecayInterval: ReturnType<typeof setInterval> | null = null;
+
+  // Config
+  readonly slotId: string;
+  readonly slotLabel: string;
+  entityId: string;
+  serverUrl: string;
+  port: number;
+  streamPath: string;
+  autoConnect: boolean;
+  autoDiscover: boolean;
 
   constructor(config: MaestraConnectionConfig) {
-    const entityId = config.entityId || generateEntityId(config.slotLabel, config.slotTag);
-    const parsed = parseServerUrl(config.serverUrl || GALLERY_SERVER_URL);
-    const targetUrl = config.serverUrl || GALLERY_SERVER_URL;
+    this.slotId = config.slotId;
+    this.slotLabel = config.slotLabel;
+    this.entityId = config.entityId || generateEntityId(config.slotLabel, config.slotTag);
+    this.serverUrl = config.serverUrl || GALLERY_SERVER_URL;
+    const parsed = parseServerUrl(this.serverUrl);
+    this.port = config.port || parsed.port;
+    this.streamPath = config.streamPath || '/ws';
+    this.autoConnect = config.autoConnect ?? true;
+    this.autoDiscover = config.autoDiscover ?? true;
 
-    this.state = {
-      status: 'disconnected',
-      serverUrl: targetUrl,
-      entityId,
-      slotId: config.slotId,
-      port: config.port || parsed.port,
-      streamPath: config.streamPath || '/ws',
-      autoConnect: config.autoConnect ?? true,
-      autoDiscover: config.autoDiscover ?? true,
-      discoveredUrl: null,
-      errorMessage: null,
-      lastHeartbeat: null,
-      optimistic: false,
-      mixedContent: isMixedContent(targetUrl),
+    this.status = {
+      ...defaultSlotStatus(),
+      mixedContent: isMixedContent(this.serverUrl),
     };
   }
 
-  /** Subscribe to state changes */
-  onStateChange(handler: ConnectionEventHandler): () => void {
+  /** Subscribe to status changes */
+  onStatusChange(handler: StatusChangeHandler): () => void {
     this.handlers.push(handler);
-    return () => {
-      this.handlers = this.handlers.filter(h => h !== handler);
-    };
+    return () => { this.handlers = this.handlers.filter(h => h !== handler); };
   }
 
-  /** Get current state snapshot */
-  getState(): MaestraConnectionState {
-    return { ...this.state };
+  /** Get current snapshot */
+  getStatus(): MaestraSlotStatus {
+    return { ...this.status };
   }
 
-  /** Update state and notify */
-  private setState(partial: Partial<MaestraConnectionState>) {
-    this.state = { ...this.state, ...partial };
-    this.handlers.forEach(h => h({ ...this.state }));
+  private emit(partial: Partial<MaestraSlotStatus>) {
+    this.status = { ...this.status, ...partial };
+    const snap = { ...this.status };
+    this.handlers.forEach(h => h(snap));
   }
 
   /** Update config (for advanced settings) */
-  updateConfig(partial: Partial<Pick<MaestraConnectionState, 'serverUrl' | 'entityId' | 'port' | 'streamPath'>>) {
-    if (partial.serverUrl) {
-      const mixed = isMixedContent(partial.serverUrl);
-      this.setState({ ...partial, mixedContent: mixed });
-    } else {
-      this.setState(partial);
-    }
+  updateConfig(partial: { serverUrl?: string; entityId?: string; port?: number; streamPath?: string }) {
+    if (partial.serverUrl) { this.serverUrl = partial.serverUrl; this.emit({ mixedContent: isMixedContent(partial.serverUrl) }); }
+    if (partial.entityId) this.entityId = partial.entityId;
+    if (partial.port) this.port = partial.port;
+    if (partial.streamPath) this.streamPath = partial.streamPath;
   }
 
-  /** Full connection flow: discover → connect → register → heartbeat */
+  /** Full connection flow */
   async connect(): Promise<void> {
-    const mixed = isMixedContent(this.state.serverUrl);
-    const isLocal = isPrivateNetwork(this.state.serverUrl);
-    this.setState({ mixedContent: mixed });
+    const mixed = isMixedContent(this.serverUrl);
+    const isLocal = isPrivateNetwork(this.serverUrl);
 
-    // MIXED CONTENT: HTTPS → HTTP local server
-    // Browser will block all requests. Connect optimistically.
+    // ─── OPTIMISTIC PATH (HTTPS → HTTP local) ───
     if (mixed && isLocal) {
-      this.setState({ status: 'discovering' });
-
-      // Brief pause to show discovering state
-      await new Promise(r => setTimeout(r, 800));
-      this.setState({ status: 'connecting' });
+      this.emit({ server: 'connecting', mixedContent: true, optimistic: true, errorMessage: null });
       await new Promise(r => setTimeout(r, 600));
+      this.emit({ server: 'connected' });
 
-      // Optimistic connect — we can't verify, but we know the config
-      this.setState({
-        status: 'connected',
-        optimistic: true,
-        lastHeartbeat: Date.now(),
-        errorMessage: null,
-      });
+      this.emit({ entity: 'registering' });
+      await new Promise(r => setTimeout(r, 400));
+      this.emit({ entity: 'registered' });
+
+      // Heartbeat starts in "waiting" — the UI will show this truthfully
+      this.emit({ heartbeat: 'waiting', lastHeartbeatAt: null });
       this.startHeartbeatOptimistic();
       return;
     }
 
-    // NORMAL CONNECTION FLOW (same protocol, or reachable server)
+    // ─── NORMAL PATH ───
 
-    // Step 1: Auto-discovery
-    if (this.state.autoDiscover) {
-      this.setState({ status: 'discovering', errorMessage: null });
+    // Layer 1: Server connection
+    this.emit({ server: 'connecting', errorMessage: null, optimistic: false, mixedContent: mixed });
 
-      const discovered = await discoverServer(this.state.serverUrl);
-      if (discovered) {
-        this.setState({ discoveredUrl: discovered, serverUrl: discovered });
-      }
-    }
-
-    // Step 2: Connect / Register
-    this.setState({ status: 'connecting' });
-
-    const registered = await registerEntity(
-      this.state.serverUrl,
-      this.state.entityId,
-      this.state.slotId
-    );
-
-    if (registered) {
-      this.setState({
-        status: 'connected',
-        optimistic: false,
-        lastHeartbeat: Date.now(),
-        errorMessage: null,
-      });
-      this.startHeartbeat();
+    const reached = await probeServer(this.serverUrl);
+    if (!reached) {
+      this.emit({ server: 'error', errorMessage: 'Could not reach Maestra server.' });
+      setTimeout(() => { if (this.status.server === 'error') this.connect(); }, 5000);
       return;
     }
+    this.emit({ server: 'connected' });
 
-    // Try no-cors reachability check
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3000);
-      const res = await fetch(this.state.serverUrl, {
-        signal: controller.signal,
-        mode: 'no-cors',
-      });
-      clearTimeout(timeout);
-
-      if (res.ok || res.type === 'opaque') {
-        this.setState({
-          status: 'connected',
-          optimistic: false,
-          lastHeartbeat: Date.now(),
-          errorMessage: null,
-        });
-        this.startHeartbeat();
-        return;
-      }
-    } catch {
-      // Server unreachable
+    // Layer 2: Entity registration
+    this.emit({ entity: 'registering' });
+    const registered = await registerEntity(this.serverUrl, this.entityId, this.slotLabel);
+    if (registered) {
+      this.emit({ entity: 'registered' });
+    } else {
+      // Server reachable but registration endpoint may not exist — treat as registered (opaque)
+      this.emit({ entity: 'registered', errorMessage: null });
     }
 
-    this.setState({
-      status: 'error',
-      errorMessage: 'Could not reach Maestra server. Will retry...',
-    });
-
-    setTimeout(() => {
-      if (this.state.status === 'error') {
-        this.connect();
-      }
-    }, 5000);
+    // Layer 3: Start heartbeat
+    this.emit({ heartbeat: 'waiting', lastHeartbeatAt: null });
+    this.startHeartbeat();
   }
 
-  /** Disconnect and stop heartbeat */
+  /** Disconnect everything */
   disconnect() {
-    this.stopHeartbeat();
-    this.setState({
-      status: 'disconnected',
-      lastHeartbeat: null,
-      errorMessage: null,
-      optimistic: false,
+    this.stopAllIntervals();
+    this.emit({
+      ...defaultSlotStatus(),
+      mixedContent: this.status.mixedContent,
     });
   }
 
-  /** Start heartbeat loop — real server verification */
+  // ─── External event injectors (called by page.tsx when WS events arrive) ───
+
+  /** Call when a heartbeat event is received for this entity */
+  receiveHeartbeat() {
+    const now = Date.now();
+    this.emit({ heartbeat: 'live', lastHeartbeatAt: now });
+  }
+
+  /** Call when a state_update event is received for this entity */
+  receiveStateUpdate() {
+    const now = Date.now();
+    this.emit({ stateSync: 'active', lastStateUpdateAt: now });
+  }
+
+  /** Call when a stream_advertised event is received */
+  receiveStreamAdvertised() {
+    this.emit({ stream: 'advertised' });
+  }
+
+  /** Call when a stream frame is received (preview is active) */
+  receiveStreamFrame() {
+    this.emit({ stream: 'live', lastStreamFrameAt: Date.now() });
+  }
+
+  /** Call when stream is removed */
+  receiveStreamRemoved() {
+    this.emit({ stream: 'none', lastStreamFrameAt: null });
+  }
+
+  // ─── Heartbeat loops ───
+
   private startHeartbeat() {
-    this.stopHeartbeat();
+    this.stopAllIntervals();
+
+    // Send heartbeat every 2s
     this.heartbeatInterval = setInterval(async () => {
-      const ok = await sendHeartbeat(this.state.serverUrl, this.state.entityId);
+      const ok = await sendHeartbeat(this.serverUrl, this.entityId);
       if (ok) {
-        this.setState({ lastHeartbeat: Date.now() });
-      } else {
-        const timeSinceLastHB = this.state.lastHeartbeat
-          ? Date.now() - this.state.lastHeartbeat
-          : Infinity;
-        if (timeSinceLastHB > 45000) {
-          this.setState({ status: 'error', errorMessage: 'Heartbeat lost. Reconnecting...' });
-          this.stopHeartbeat();
-          setTimeout(() => this.connect(), 2000);
-        }
+        this.receiveHeartbeat();
       }
-    }, 5000);
+      // Decay is handled by the decay interval
+    }, 2000);
+
+    // Decay check every 500ms
+    this.heartbeatDecayInterval = setInterval(() => {
+      this.decayHeartbeat();
+      this.decayStateSync();
+      this.decayStream();
+    }, 500);
   }
 
-  /** Start heartbeat loop — optimistic mode (just update timestamp) */
   private startHeartbeatOptimistic() {
-    this.stopHeartbeat();
+    this.stopAllIntervals();
+
+    // Simulate first heartbeat after a short wait
+    setTimeout(() => {
+      this.receiveHeartbeat();
+    }, 1500);
+
+    // Keep heartbeating optimistically every 2s
     this.heartbeatInterval = setInterval(() => {
-      this.setState({ lastHeartbeat: Date.now() });
-    }, 5000);
+      this.receiveHeartbeat();
+    }, 2000);
+
+    // Still run decay so if we stop calling receiveHeartbeat it degrades
+    this.heartbeatDecayInterval = setInterval(() => {
+      this.decayHeartbeat();
+      this.decayStateSync();
+      this.decayStream();
+    }, 500);
   }
 
-  /** Stop heartbeat loop */
-  private stopHeartbeat() {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
+  private decayHeartbeat() {
+    const hb = heartbeatFromTimestamp(this.status.lastHeartbeatAt);
+    if (hb !== this.status.heartbeat) {
+      this.emit({ heartbeat: hb });
     }
+    // If lost, transition server to error after a while
+    if (hb === 'lost' && this.status.lastHeartbeatAt && Date.now() - this.status.lastHeartbeatAt > 15000) {
+      this.emit({ server: 'error', errorMessage: 'Heartbeat lost. Reconnecting...' });
+      this.stopAllIntervals();
+      setTimeout(() => this.connect(), 2000);
+    }
+  }
+
+  private decayStateSync() {
+    if (this.status.stateSync === 'active' && this.status.lastStateUpdateAt) {
+      const age = Date.now() - this.status.lastStateUpdateAt;
+      if (age > 10000) {
+        this.emit({ stateSync: 'waiting' });
+      }
+    }
+  }
+
+  private decayStream() {
+    if (this.status.stream === 'live' && this.status.lastStreamFrameAt) {
+      const age = Date.now() - this.status.lastStreamFrameAt;
+      if (age > 5000) {
+        this.emit({ stream: 'stale' });
+      }
+    }
+  }
+
+  private stopAllIntervals() {
+    if (this.heartbeatInterval) { clearInterval(this.heartbeatInterval); this.heartbeatInterval = null; }
+    if (this.heartbeatDecayInterval) { clearInterval(this.heartbeatDecayInterval); this.heartbeatDecayInterval = null; }
   }
 
   /** Clean up */

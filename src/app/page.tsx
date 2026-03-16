@@ -18,7 +18,7 @@ import {
   JoinModal,
 } from '@/components';
 import { JoinMaestraResult } from '@/components/JoinModal';
-import { FleetSlot, LogEntry, EventEntry, AudioAnalysisData, SlotConnectionInfo } from '@/types';
+import { FleetSlot, LogEntry, EventEntry, AudioAnalysisData, SlotConnectionInfo, MaestraSlotStatus, defaultSlotStatus } from '@/types';
 import { createInitialSlots, SUGGESTIONS } from '@/mock';
 import { WSSimulator } from '@/mock/ws-simulator';
 import { API_BASE } from '@/mock/gpu-nodes';
@@ -26,7 +26,6 @@ import { formatTimestamp } from '@/lib/audio-utils';
 import { FRAME_FETCH_INTERVAL } from '@/lib/constants';
 import {
   MaestraConnection,
-  MaestraConnectionState,
   GALLERY_SERVER_URL,
   generateEntityId,
 } from '@/lib/maestra-connection';
@@ -49,7 +48,7 @@ export default function Home() {
   const [connectionInfo, setConnectionInfo] = useState<SlotConnectionInfo | null>(null);
   const [joinModalOpen, setJoinModalOpen] = useState(false);
 
-  // Lifted inject state (shared between page and SignalPanel)
+  // Lifted inject state
   const [injectActive, setInjectActive] = useState(false);
   const [promptText, setPromptText] = useState('');
 
@@ -92,47 +91,52 @@ export default function Home() {
         .filter(s => s.active && s.entity_id)
         .map(s => ({ id: s.id, label: s.label, entityId: s.entity_id }));
       localStorage.setItem(LS_KEY, JSON.stringify(connected));
-    } catch {
-      // localStorage may not be available
-    }
+    } catch { /* */ }
   }, []);
 
-  // Sync MaestraConnectionState → SlotConnectionInfo for UI
-  const syncConnectionInfo = useCallback((slotId: string, state: MaestraConnectionState) => {
+  // Sync MaestraSlotStatus → UI state for a given slot
+  const syncSlotStatus = useCallback((slotId: string, status: MaestraSlotStatus) => {
+    // Update connectionInfo if this is the selected slot
     setConnectionInfo(prev => {
       if (prev && prev.slotId !== slotId) return prev;
       return {
-        serverUrl: state.serverUrl,
-        entityId: state.entityId,
-        slotId: state.slotId,
-        connected: state.status === 'connected',
-        status: state.status,
-        autoConnect: state.autoConnect,
-        autoDiscover: state.autoDiscover,
-        port: state.port,
-        streamPath: state.streamPath,
-        discoveredUrl: state.discoveredUrl,
-        errorMessage: state.errorMessage,
-        optimistic: state.optimistic,
-        mixedContent: state.mixedContent,
+        ...prev!,
+        serverUrl: prev?.serverUrl || GALLERY_SERVER_URL,
+        entityId: prev?.entityId || '',
+        slotId,
+        connected: status.server === 'connected' && status.entity === 'registered',
+        status: status.server === 'connected' ? 'connected'
+          : status.server === 'error' ? 'error'
+          : status.server === 'connecting' ? 'connecting'
+          : 'disconnected',
+        autoConnect: prev?.autoConnect ?? true,
+        autoDiscover: prev?.autoDiscover ?? true,
+        port: prev?.port ?? 8080,
+        streamPath: prev?.streamPath ?? '/ws',
+        discoveredUrl: prev?.discoveredUrl ?? null,
+        errorMessage: status.errorMessage,
+        optimistic: status.optimistic,
+        mixedContent: status.mixedContent,
+        maestraStatus: status,
       };
     });
 
+    // Update slot in grid
     setSlots(prev => prev.map(s => {
       if (s.id !== slotId) return s;
       return {
         ...s,
-        connection_status: state.status === 'connected' ? 'connected'
-          : state.status === 'error' ? 'error'
-          : state.status === 'connecting' || state.status === 'discovering' ? 'connecting'
+        maestraStatus: status,
+        connection_status: status.server === 'connected' ? 'connected'
+          : status.server === 'error' ? 'error'
+          : status.server === 'connecting' ? 'connecting'
           : 'disconnected',
-        entity_id: state.entityId || s.entity_id,
-        last_heartbeat: state.lastHeartbeat || s.last_heartbeat,
+        last_heartbeat: status.lastHeartbeatAt || s.last_heartbeat,
       };
     }));
   }, []);
 
-  // Auto-connect a slot to the gallery Maestra server
+  // Auto-connect a slot
   const autoConnectSlot = useCallback((slotId: string) => {
     const slot = slotsRef.current.find(s => s.id === slotId);
     if (!slot) return;
@@ -151,24 +155,37 @@ export default function Home() {
       autoDiscover: true,
     });
 
-    conn.onStateChange((state) => {
-      syncConnectionInfo(slotId, state);
+    // Track previous server status for logging
+    let prevServer = 'disconnected';
+    let prevEntity = 'not_registered';
 
-      if (state.status === 'discovering') {
-        log(`[${slotId}] Discovering Maestra server...`, 'info');
-      } else if (state.status === 'connecting') {
-        log(`[${slotId}] Connecting to ${state.serverUrl}...`, 'info');
-      } else if (state.status === 'connected') {
-        log(`[${slotId}] Connected to Maestra as ${state.entityId}`, 'ok');
-        logEvent('connect', state.entityId, `${slotId} joined the fleet`);
-        saveConnectedSlots();
-      } else if (state.status === 'error') {
-        log(`[${slotId}] ${state.errorMessage || 'Connection error'}`, 'error');
+    conn.onStatusChange((status) => {
+      syncSlotStatus(slotId, status);
+
+      // Log transitions
+      if (status.server !== prevServer) {
+        if (status.server === 'connecting') {
+          log(`[${slotId}] Connecting to Maestra...`, 'info');
+        } else if (status.server === 'connected' && prevServer !== 'connected') {
+          log(`[${slotId}] Server connected`, 'ok');
+        } else if (status.server === 'error') {
+          log(`[${slotId}] ${status.errorMessage || 'Server error'}`, 'error');
+        }
+        prevServer = status.server;
+      }
+      if (status.entity !== prevEntity) {
+        if (status.entity === 'registered' && prevEntity !== 'registered') {
+          log(`[${slotId}] Entity registered as ${conn.entityId}`, 'ok');
+          logEvent('connect', conn.entityId, `${slotId} registered`);
+          saveConnectedSlots();
+        }
+        prevEntity = status.entity;
       }
     });
 
     connectionsRef.current.set(slotId, conn);
 
+    // Set slot active immediately
     setSlots(prev => prev.map(s => {
       if (s.id !== slotId) return s;
       return {
@@ -176,13 +193,28 @@ export default function Home() {
         active: true,
         entity_id: entityId,
         connection_status: 'connecting',
+        maestraStatus: { ...defaultSlotStatus(), server: 'connecting' },
       };
     }));
 
-    const initialState = conn.getState();
-    syncConnectionInfo(slotId, initialState);
+    // Set initial connectionInfo
+    setConnectionInfo({
+      serverUrl: GALLERY_SERVER_URL,
+      entityId,
+      slotId,
+      connected: false,
+      status: 'connecting',
+      autoConnect: true,
+      autoDiscover: true,
+      port: 8080,
+      streamPath: '/ws',
+      discoveredUrl: null,
+      errorMessage: null,
+      maestraStatus: { ...defaultSlotStatus(), server: 'connecting' },
+    });
+
     conn.connect();
-  }, [log, logEvent, syncConnectionInfo, saveConnectedSlots]);
+  }, [log, logEvent, syncSlotStatus, saveConnectedSlots]);
 
   // Disconnect a slot
   const disconnectSlot = useCallback((slotId: string) => {
@@ -197,12 +229,12 @@ export default function Home() {
 
     setSlots(prev => prev.map(s => {
       if (s.id !== slotId) return s;
-      return { ...s, connection_status: 'disconnected' };
+      return { ...s, connection_status: 'disconnected', maestraStatus: defaultSlotStatus() };
     }));
 
     setConnectionInfo(prev => {
       if (prev && prev.slotId === slotId) {
-        return { ...prev, connected: false, status: 'disconnected', errorMessage: null };
+        return { ...prev, connected: false, status: 'disconnected', errorMessage: null, maestraStatus: defaultSlotStatus() };
       }
       return prev;
     });
@@ -211,12 +243,11 @@ export default function Home() {
     saveConnectedSlots();
   }, [log, logEvent, saveConnectedSlots]);
 
-  // Update connection config (from Advanced Settings)
+  // Update connection config
   const updateConnectionConfig = useCallback((config: { serverUrl?: string; entityId?: string; port?: number; streamPath?: string }) => {
     if (!connectionInfo) return;
     const slotId = connectionInfo.slotId;
     const conn = connectionsRef.current.get(slotId);
-
     if (conn) {
       conn.updateConfig(config);
       conn.disconnect();
@@ -237,6 +268,10 @@ export default function Home() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
+
+      // Notify MaestraConnection that a stream frame arrived
+      const conn = connectionsRef.current.get('krista1');
+      if (conn) conn.receiveStreamFrame();
 
       setSlots(prev => prev.map(s => {
         if (s.id !== 'krista1') return s;
@@ -291,7 +326,43 @@ export default function Home() {
             }
             return;
           }
-          if (msg.type === 'heartbeat' || msg.type === 'ping') return;
+          // Route heartbeat events to the right MaestraConnection
+          if (msg.type === 'heartbeat' && msg.entity_id) {
+            connectionsRef.current.forEach((conn) => {
+              if (conn.entityId === msg.entity_id) {
+                conn.receiveHeartbeat();
+              }
+            });
+            return;
+          }
+          // Route state_update events
+          if (msg.type === 'state_update' && msg.entity_id) {
+            connectionsRef.current.forEach((conn) => {
+              if (conn.entityId === msg.entity_id) {
+                conn.receiveStateUpdate();
+              }
+            });
+            log(`State update from ${msg.entity_id}: ${JSON.stringify(msg.data).slice(0, 60)}`, 'info');
+            return;
+          }
+          // Route stream events
+          if (msg.type === 'stream_advertised' && msg.entity_id) {
+            connectionsRef.current.forEach((conn) => {
+              if (conn.entityId === msg.entity_id) {
+                conn.receiveStreamAdvertised();
+              }
+            });
+            return;
+          }
+          if (msg.type === 'stream_removed' && msg.entity_id) {
+            connectionsRef.current.forEach((conn) => {
+              if (conn.entityId === msg.entity_id) {
+                conn.receiveStreamRemoved();
+              }
+            });
+            return;
+          }
+          if (msg.type === 'ping') return;
           log(`WS: ${JSON.stringify(msg).slice(0, 80)}`, 'info');
         } catch {
           // skip non-JSON
@@ -330,14 +401,14 @@ export default function Home() {
 
     const conn = connectionsRef.current.get(id);
     if (conn) {
-      const state = conn.getState();
-      syncConnectionInfo(id, state);
-    } else if (slot.active && slot.entity_id) {
+      syncSlotStatus(id, conn.getStatus());
+    } else {
+      const entityId = slot.entity_id || generateEntityId(slot.label, slot.suggestion?.tag);
       setConnectionInfo({
         serverUrl: GALLERY_SERVER_URL,
-        entityId: slot.entity_id,
+        entityId,
         slotId: id,
-        connected: slot.connection_status === 'connected',
+        connected: false,
         status: slot.connection_status === 'connected' ? 'connected' : 'disconnected',
         autoConnect: true,
         autoDiscover: true,
@@ -345,23 +416,10 @@ export default function Home() {
         streamPath: '/ws',
         discoveredUrl: null,
         errorMessage: null,
-      });
-    } else {
-      setConnectionInfo({
-        serverUrl: GALLERY_SERVER_URL,
-        entityId: generateEntityId(slot.label, slot.suggestion?.tag),
-        slotId: id,
-        connected: false,
-        status: 'disconnected',
-        autoConnect: true,
-        autoDiscover: true,
-        port: 8080,
-        streamPath: '/ws',
-        discoveredUrl: null,
-        errorMessage: null,
+        maestraStatus: slot.maestraStatus || defaultSlotStatus(),
       });
     }
-  }, [syncConnectionInfo]);
+  }, [syncSlotStatus]);
 
   // Add slot
   const addSlot = useCallback(() => {
@@ -391,12 +449,10 @@ export default function Home() {
   const handleJoinMaestra = useCallback((result: JoinMaestraResult) => {
     setJoinModalOpen(false);
 
-    const label = result.method === 'monitor_only' ? 'Monitor' : `Operator`;
-
-    // Find first available (non-active) slot
+    const label = result.method === 'monitor_only' ? 'Monitor' : 'Operator';
     const availableSlot = slotsRef.current.find(s => !s.active);
+
     if (!availableSlot) {
-      // Create a new slot
       const n = slotsRef.current.length + 1;
       const newId = result.slotId || `slot${n}`;
       setSlots(prev => [...prev, {
@@ -412,6 +468,7 @@ export default function Home() {
         last_heartbeat: Date.now(),
         active_stream: null,
         state_summary: {},
+        maestraStatus: { ...defaultSlotStatus(), server: 'connected', entity: 'registered', heartbeat: 'waiting' },
         _frameTimes: [],
         _fpsSmooth: null,
       }]);
@@ -420,7 +477,6 @@ export default function Home() {
         saveConnectedSlots();
       }, 50);
     } else {
-      // Claim the available slot
       setSlots(prev => prev.map(s => {
         if (s.id !== availableSlot.id) return s;
         return {
@@ -431,6 +487,7 @@ export default function Home() {
           connection_status: 'connected',
           last_heartbeat: Date.now(),
           suggestion: undefined,
+          maestraStatus: { ...defaultSlotStatus(), server: 'connected', entity: 'registered', heartbeat: 'waiting' },
         };
       }));
       selectSlot(availableSlot.id);
@@ -462,69 +519,46 @@ export default function Home() {
     }, 400);
   }, [fetchFrame, log]);
 
-  // Broadcast prompt to all connected nodes via WS + Maestra
+  // Broadcast prompt
   const broadcastPrompt = useCallback((prompt: string) => {
-    const payload = JSON.stringify({
-      type: 'prompt_inject',
-      prompt,
-      timestamp: Date.now(),
-    });
-
-    // Send via WebSocket if connected
+    const payload = JSON.stringify({ type: 'prompt_inject', prompt, timestamp: Date.now() });
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(payload);
     }
-
-    // Send via each MaestraConnection
-    connectionsRef.current.forEach((conn, slotId) => {
-      const state = conn.getState();
-      if (state.status === 'connected') {
-        try {
-          fetch(`${state.serverUrl}/entities/${state.entityId}/prompt`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, timestamp: Date.now() }),
-          }).catch(() => {
-            // Silently handle CORS/network errors
-          });
-        } catch {
-          // ignore
-        }
-      }
-      void slotId; // suppress unused
-    });
-
-    log(`[Inject] Broadcast: "${prompt.slice(0, 50)}${prompt.length > 50 ? '...' : ''}"`, 'ok');
-    logEvent('stream', 'fleet', `Prompt injected: ${prompt.slice(0, 40)}`);
-  }, [log, logEvent]);
-
-  // P6 flush to TD
-  const p6Flush = useCallback((prompt: string) => {
-    const payload = JSON.stringify({
-      type: 'p6_flush',
-      prompt,
-      timestamp: Date.now(),
-    });
-
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(payload);
-    }
-
     connectionsRef.current.forEach((conn) => {
-      const state = conn.getState();
-      if (state.status === 'connected') {
+      const status = conn.getStatus();
+      if (status.server === 'connected') {
         try {
-          fetch(`${state.serverUrl}/entities/${state.entityId}/p6`, {
+          fetch(`${conn.serverUrl}/entities/${conn.entityId}/prompt`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ prompt, timestamp: Date.now() }),
           }).catch(() => {});
-        } catch {
-          // ignore
-        }
+        } catch { /* */ }
       }
     });
+    log(`[Inject] Broadcast: "${prompt.slice(0, 50)}${prompt.length > 50 ? '...' : ''}"`, 'ok');
+    logEvent('stream', 'fleet', `Prompt injected: ${prompt.slice(0, 40)}`);
+  }, [log, logEvent]);
 
+  // P6 flush
+  const p6Flush = useCallback((prompt: string) => {
+    const payload = JSON.stringify({ type: 'p6_flush', prompt, timestamp: Date.now() });
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(payload);
+    }
+    connectionsRef.current.forEach((conn) => {
+      const status = conn.getStatus();
+      if (status.server === 'connected') {
+        try {
+          fetch(`${conn.serverUrl}/entities/${conn.entityId}/p6`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, timestamp: Date.now() }),
+          }).catch(() => {});
+        } catch { /* */ }
+      }
+    });
     log('[P6 Flush] Sent prompt + p6 to TouchDesigner', 'info');
     logEvent('stream', 'fleet', 'P6 flush sent to TD');
   }, [log, logEvent]);
@@ -534,59 +568,61 @@ export default function Home() {
     setActiveTab('scope');
   }, []);
 
-  // Handle auto-connect button click
+  // Handle auto-connect button
   const handleAutoConnect = useCallback(() => {
-    if (connectionInfo) {
-      autoConnectSlot(connectionInfo.slotId);
-    }
+    if (connectionInfo) autoConnectSlot(connectionInfo.slotId);
   }, [connectionInfo, autoConnectSlot]);
 
-  // Handle disconnect button click
+  // Handle disconnect button
   const handleDisconnect = useCallback(() => {
-    if (connectionInfo) {
-      disconnectSlot(connectionInfo.slotId);
-    }
+    if (connectionInfo) disconnectSlot(connectionInfo.slotId);
   }, [connectionInfo, disconnectSlot]);
 
   // Initialize
   useEffect(() => {
-    // Start WS simulator for audio data
     simulatorRef.current = new WSSimulator();
     simulatorRef.current.subscribe((event) => {
       if (event.type === 'audio_analysis' && event.data) {
         setAudioData(event.data as unknown as AudioAnalysisData);
       }
       if (event.type === 'entity_connected') {
+        // Route to connection
+        const conn = connectionsRef.current.get('krista1');
+        if (conn) conn.receiveHeartbeat();
+
         setSlots(prev => prev.map(s => {
-          if (s.id === 'krista1') {
-            return { ...s, connection_status: 'connected', last_heartbeat: Date.now() };
-          }
+          if (s.id === 'krista1') return { ...s, connection_status: 'connected', last_heartbeat: Date.now() };
           return s;
         }));
         log(`Entity connected: ${event.entity_id}`, 'ok');
       }
       if (event.type === 'heartbeat') {
-        setSlots(prev => prev.map(s => {
-          if (s.entity_id === event.entity_id) {
-            return { ...s, last_heartbeat: Date.now() };
+        // Route heartbeat to the matching connection
+        connectionsRef.current.forEach((conn) => {
+          if (conn.entityId === event.entity_id) {
+            conn.receiveHeartbeat();
           }
+        });
+        setSlots(prev => prev.map(s => {
+          if (s.entity_id === event.entity_id) return { ...s, last_heartbeat: Date.now() };
           return s;
         }));
       }
       if (event.type === 'state_update') {
+        connectionsRef.current.forEach((conn) => {
+          if (conn.entityId === event.entity_id) {
+            conn.receiveStateUpdate();
+          }
+        });
         log(`State update from ${event.entity_id}: ${JSON.stringify(event.data).slice(0, 60)}`, 'info');
       }
     });
     simulatorRef.current.start();
 
-    // Connect WS
     connectWS();
-
-    // Fetch entities
     fetchEntities();
     const entityInterval = setInterval(fetchEntities, 10000);
 
-    // Start frame fetch
     fetchFrame();
     frameIntervalRef.current = setInterval(fetchFrame, FRAME_FETCH_INTERVAL);
 
@@ -599,19 +635,14 @@ export default function Home() {
         if (savedSlots.length > 0) {
           reconnectedFromStorage = true;
           setTimeout(() => {
-            savedSlots.forEach(saved => {
-              autoConnectSlot(saved.id);
-            });
+            savedSlots.forEach(saved => autoConnectSlot(saved.id));
             selectSlot(savedSlots[0].id);
             log('Auto-reconnected from previous session', 'ok');
           }, 100);
         }
       }
-    } catch {
-      // localStorage not available
-    }
+    } catch { /* */ }
 
-    // Default: auto-select and auto-connect krista1
     if (!reconnectedFromStorage) {
       setTimeout(() => {
         selectSlot('krista1');
@@ -630,24 +661,31 @@ export default function Home() {
     };
   }, [connectWS, fetchEntities, fetchFrame, selectSlot, autoConnectSlot, log]);
 
-  // Derived values for Header
+  // Derived values
   const selectedSlot = slots.find(s => s.id === selectedId) || null;
   const activeSlots = slots.filter(s => s.active).length;
   const streamFps = slots.find(s => s.id === 'krista1')?.fps ?? null;
   const audioActive = audioData.rms > 0.1;
+
+  // Derive overall Maestra status for header
+  const maestraHeaderStatus = (() => {
+    const statuses = slots.filter(s => s.maestraStatus).map(s => s.maestraStatus!);
+    if (statuses.some(s => s.heartbeat === 'live' || s.stream === 'live')) return 'connected' as const;
+    if (statuses.some(s => s.server === 'connected')) return 'connected' as const;
+    if (statuses.some(s => s.server === 'connecting')) return 'connecting' as const;
+    if (statuses.some(s => s.server === 'error')) return 'error' as const;
+    // Fallback to old slot-level status
+    if (slots.some(s => s.connection_status === 'connected')) return 'connected' as const;
+    if (slots.some(s => s.connection_status === 'connecting')) return 'connecting' as const;
+    return 'disconnected' as const;
+  })();
 
   return (
     <>
       <Header
         wsStatus={wsStatus}
         apiStatus={apiStatus}
-        maestraStatus={
-          // Derive overall Maestra status from connected slots
-          slots.some(s => s.connection_status === 'connected') ? 'connected'
-          : slots.some(s => s.connection_status === 'connecting') ? 'connecting'
-          : slots.some(s => s.connection_status === 'error') ? 'error'
-          : 'disconnected'
-        }
+        maestraStatus={maestraHeaderStatus}
         streamFps={streamFps}
         activeSlots={activeSlots}
         totalSlots={slots.length}
@@ -670,7 +708,6 @@ export default function Home() {
               onJoinNode={() => setJoinModalOpen(true)}
             />
 
-            {/* Connection Panel (shown for any selected slot) */}
             <ConnectionPanel
               connectionInfo={connectionInfo}
               onAutoConnect={handleAutoConnect}
@@ -678,13 +715,8 @@ export default function Home() {
               onUpdateConfig={updateConnectionConfig}
             />
 
-            {/* Audio Analysis */}
             <AudioAnalysis audioData={audioData} />
-
-            {/* Color Palette */}
             <ColorPalette />
-
-            {/* Audio Reactive Modulation */}
             <ModulationGrid />
           </div>
 
@@ -702,7 +734,6 @@ export default function Home() {
           />
         </div>
 
-        {/* Use Cases + Code Block */}
         <UseCases />
       </div>
 
@@ -718,7 +749,6 @@ export default function Home() {
 
       <Footer />
 
-      {/* Join Node Modal */}
       <JoinModal
         open={joinModalOpen}
         onClose={() => setJoinModalOpen(false)}

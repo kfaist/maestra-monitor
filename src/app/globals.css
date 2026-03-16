@@ -659,6 +659,64 @@ header {
   flex-wrap: wrap;
 }
 
+/* MAESTRA STATUS PANEL (5-layer) */
+.maestra-status-panel {
+  margin-bottom: 16px;
+}
+.msp-title {
+  font-family: var(--font-display); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-dim);
+  margin-bottom: 10px;
+}
+.msp-optimistic-badge {
+  font-size: 8px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--amber); padding: 4px 8px; margin-bottom: 10px;
+  background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.2);
+  border-radius: 3px;
+}
+.msp-grid {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.msp-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 10px; background: rgba(0,0,0,0.2); border-radius: 3px;
+  border: 1px solid var(--border);
+}
+.msp-label {
+  font-family: var(--font-display); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim);
+}
+.msp-value-group {
+  display: flex; align-items: center; gap: 6px;
+}
+.msp-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.msp-dot.pulsing {
+  animation: mspPulse 1.5s ease-in-out infinite;
+}
+@keyframes mspPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.msp-value {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  letter-spacing: 0.06em; text-transform: capitalize;
+}
+.msp-error {
+  font-size: 9px; color: var(--red); margin-top: 8px; padding: 4px 8px;
+  background: rgba(248,113,113,0.06); border: 1px solid rgba(248,113,113,0.15);
+  border-radius: 3px;
+}
+
+/* Slot tag status classes */
+.slot-tag.status-live { background: rgba(0,255,136,0.15); color: var(--active); border: 1px solid rgba(0,255,136,0.35); }
+.slot-tag.status-ok { background: rgba(0,212,255,0.1); color: var(--accent); border: 1px solid rgba(0,212,255,0.25); }
+.slot-tag.status-connecting { background: rgba(0,212,255,0.08); color: var(--accent); border: 1px solid rgba(0,212,255,0.2); }
+.slot-tag.status-warn { background: rgba(251,191,36,0.1); color: var(--amber); border: 1px solid rgba(251,191,36,0.25); }
+.slot-tag.status-off { background: rgba(248,113,113,0.08); color: var(--red); border: 1px solid rgba(248,113,113,0.2); }
+
 /* Connection Status Bar */
 .connection-status-bar {
   display: flex;

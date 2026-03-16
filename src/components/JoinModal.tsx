@@ -3,9 +3,9 @@
 import { useState, useCallback, useEffect } from 'react';
 // ConnectionStatus imported for type reference only
 
+import { MaestraSlotStatus } from '@/types';
 import {
   MaestraConnection,
-  MaestraConnectionState,
   GALLERY_SERVER_URL,
   generateEntityId,
 } from '@/lib/maestra-connection';
@@ -89,8 +89,8 @@ export default function JoinModal({ open, onClose, onJoin }: JoinModalProps) {
   const [method, setMethod] = useState<'join_show' | 'claim_station' | 'monitor_only'>('join_show');
   const [tdRole, setTdRole] = useState<'receive' | 'send' | 'two_way'>('receive');
 
-  // Connection state
-  const [connectionState, setConnectionState] = useState<MaestraConnectionState | null>(null);
+  // Connection state (5-layer MaestraSlotStatus)
+  const [connectionStatus, setConnectionStatus] = useState<MaestraSlotStatus | null>(null);
   const [connectionRef, setConnectionRef] = useState<MaestraConnection | null>(null);
   const [connectError, setConnectError] = useState<string | null>(null);
 
@@ -112,7 +112,7 @@ export default function JoinModal({ open, onClose, onJoin }: JoinModalProps) {
       setMethod('join_show');
       setTdRole('receive');
       setConnectError(null);
-      setConnectionState(null);
+      setConnectionStatus(null);
       setShowAdvanced(false);
       setEntityId(generateEntityId('operator', 'mon'));
       setServerUrl(GALLERY_SERVER_URL);
@@ -156,10 +156,9 @@ export default function JoinModal({ open, onClose, onJoin }: JoinModalProps) {
     const timeout = setTimeout(() => {
       if (!resolved) {
         resolved = true;
-        // Even if we didn't get a definitive answer, check current state
-        const state = conn.getState();
-        setConnectionState(state);
-        if (state.status === 'connected') {
+        const status = conn.getStatus();
+        setConnectionStatus(status);
+        if (status.server === 'connected') {
           setStep('success');
         } else {
           setConnectError('Connection timed out. The server may be unreachable.');
@@ -168,16 +167,16 @@ export default function JoinModal({ open, onClose, onJoin }: JoinModalProps) {
       }
     }, 8000);
 
-    conn.onStateChange((state) => {
-      setConnectionState(state);
-      if (!resolved && state.status === 'connected') {
+    conn.onStatusChange((status) => {
+      setConnectionStatus(status);
+      if (!resolved && status.server === 'connected' && status.entity === 'registered') {
         resolved = true;
         clearTimeout(timeout);
         setStep('success');
-      } else if (!resolved && state.status === 'error') {
+      } else if (!resolved && status.server === 'error') {
         resolved = true;
         clearTimeout(timeout);
-        setConnectError(state.errorMessage || 'Failed to connect to Maestra server.');
+        setConnectError(status.errorMessage || 'Failed to connect to Maestra server.');
         setStep('failure');
       }
     });
@@ -202,41 +201,40 @@ export default function JoinModal({ open, onClose, onJoin }: JoinModalProps) {
 
   const handleSuccessContinue = useCallback(() => {
     if (method === 'monitor_only') {
-      // Skip TD role for monitor-only
       const eid = customEntityId.trim() || entityId;
       onJoin({
         method,
-        serverUrl: connectionState?.serverUrl || serverUrl,
+        serverUrl,
         entityId: eid,
         slotId,
       });
     } else {
       setStep('td_role');
     }
-  }, [method, entityId, customEntityId, slotId, serverUrl, connectionState, onJoin]);
+  }, [method, entityId, customEntityId, slotId, serverUrl, onJoin]);
 
   const handleTdRoleConfirm = useCallback(() => {
     const eid = customEntityId.trim() || entityId;
     onJoin({
       method,
-      serverUrl: connectionState?.serverUrl || serverUrl,
+      serverUrl,
       entityId: eid,
       slotId,
       tdRole,
     });
-  }, [method, entityId, customEntityId, slotId, serverUrl, connectionState, tdRole, onJoin]);
+  }, [method, entityId, customEntityId, slotId, serverUrl, tdRole, onJoin]);
 
   const handleCopyInfo = useCallback(() => {
     const eid = customEntityId.trim() || entityId;
     const info = [
-      `Server: ${connectionState?.serverUrl || serverUrl}`,
+      `Server: ${serverUrl}`,
       `Entity ID: ${eid}`,
       `Slot: ${slotId}`,
       `Port: ${port}`,
       `Stream: ${streamPath}`,
     ].join('\n');
     navigator.clipboard.writeText(info).catch(() => {});
-  }, [entityId, customEntityId, slotId, serverUrl, port, streamPath, connectionState]);
+  }, [entityId, customEntityId, slotId, serverUrl, port, streamPath]);
 
   const handleClose = useCallback(() => {
     connectionRef?.destroy();
@@ -346,8 +344,8 @@ export default function JoinModal({ open, onClose, onJoin }: JoinModalProps) {
           <>
             <div className="modal-title">Connecting</div>
             <div className="modal-subtitle">
-              {connectionState?.status === 'discovering'
-                ? 'Discovering Maestra server on the network...'
+              {connectionStatus?.entity === 'registering'
+                ? 'Registering entity with Maestra server...'
                 : 'Establishing connection to Maestra server...'}
             </div>
             <div className="modal-steps">
@@ -360,7 +358,7 @@ export default function JoinModal({ open, onClose, onJoin }: JoinModalProps) {
               <div className="connecting-spinner" />
               <div className="connecting-status">
                 <span style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)' }}>
-                  {connectionState?.status === 'discovering' ? 'DISCOVERING...' : 'CONNECTING...'}
+                  {connectionStatus?.entity === 'registering' ? 'REGISTERING...' : 'CONNECTING...'}
                 </span>
                 <span style={{ fontSize: '9px', color: 'var(--text-dim)', marginTop: '4px' }}>
                   {serverUrl}
@@ -378,10 +376,10 @@ export default function JoinModal({ open, onClose, onJoin }: JoinModalProps) {
         {step === 'success' && (
           <>
             <div className="modal-title" style={{ color: 'var(--active)' }}>
-              {connectionState?.optimistic ? 'Connected (Local Network)' : 'Connected'}
+              {connectionStatus?.optimistic ? 'Connected (Local Network)' : 'Connected'}
             </div>
             <div className="modal-subtitle">
-              {connectionState?.optimistic
+              {connectionStatus?.optimistic
                 ? 'Optimistic connection — your browser can\'t directly verify the local Maestra server from HTTPS, but TD nodes on the gallery network will sync normally.'
                 : 'Successfully connected to the Maestra network.'}
             </div>
@@ -392,14 +390,14 @@ export default function JoinModal({ open, onClose, onJoin }: JoinModalProps) {
             </div>
 
             <div className="success-card">
-              {connectionState?.optimistic && (
+              {connectionStatus?.optimistic && (
                 <div style={{ fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--amber)', marginBottom: '10px', padding: '6px 8px', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: '3px' }}>
                   HTTPS → HTTP: Browser-side requests blocked. TD ↔ Maestra sync is unaffected.
                 </div>
               )}
               <div className="success-info-row">
                 <span className="success-label">Server</span>
-                <span className="success-value">{connectionState?.serverUrl || serverUrl}</span>
+                <span className="success-value">{serverUrl}</span>
               </div>
               <div className="success-info-row">
                 <span className="success-label">Slot</span>
@@ -416,7 +414,7 @@ export default function JoinModal({ open, onClose, onJoin }: JoinModalProps) {
                 Copy Info
               </button>
               <button className="btn-sm" style={{ border: '1px solid rgba(0,212,255,0.3)', background: 'rgba(0,212,255,0.06)', color: 'var(--accent)', padding: '6px 12px' }} onClick={() => {
-                const toxConfig = `# Maestra TOX Config\nserver_url = "${connectionState?.serverUrl || serverUrl}"\nentity_id = "${effectiveEntityId}"\nslot_id = "${slotId}"\nport = ${port}\nstream_path = "${streamPath}"`;
+                const toxConfig = `# Maestra TOX Config\nserver_url = "${serverUrl}"\nentity_id = "${effectiveEntityId}"\nslot_id = "${slotId}"\nport = ${port}\nstream_path = "${streamPath}"`;
                 const blob = new Blob([toxConfig], { type: 'text/plain' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
