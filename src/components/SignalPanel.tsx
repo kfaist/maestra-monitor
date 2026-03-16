@@ -11,8 +11,27 @@ interface SignalPanelProps {
   onP6Flush: (prompt: string) => void;
 }
 
-const AUTO_INJECT_INTERVAL = 5000; // 5s
-const P6_FLUSH_DELAY = 5000; // 5s after broadcast
+const AUTO_INJECT_INTERVAL = 5000;
+const P6_FLUSH_DELAY = 5000;
+
+// Extract nouns (capitalized words, 3+ chars, not at sentence start)
+function extractNouns(text: string): string[] {
+  const words = text.split(/\s+/);
+  const nouns = new Set<string>();
+  words.forEach((w, i) => {
+    const clean = w.replace(/[^a-zA-Z]/g, '');
+    if (clean.length >= 3 && /^[A-Z]/.test(clean) && i > 0) {
+      nouns.add(clean.toLowerCase());
+    }
+  });
+  // Also grab any word after common articles/prepositions as likely nouns
+  const pattern = /\b(?:the|a|an|this|that|my|your|our|some|each|every)\s+(\w{3,})/gi;
+  let match;
+  while ((match = pattern.exec(text)) !== null) {
+    nouns.add(match[1].toLowerCase());
+  }
+  return Array.from(nouns).slice(0, 12);
+}
 
 export default function SignalPanel({
   injectActive,
@@ -23,15 +42,18 @@ export default function SignalPanel({
   onP6Flush,
 }: SignalPanelProps) {
   const [transEnabled, setTransEnabled] = useState(false);
-  const [debounceMs, setDebounceMs] = useState(800);
+  const [transcript, setTranscript] = useState('');
+  const [nouns, setNouns] = useState<string[]>([]);
+  const [isListening, setIsListening] = useState(false);
   const [autoInjectCountdown, setAutoInjectCountdown] = useState(5);
   const [lastBroadcast, setLastBroadcast] = useState<number | null>(null);
   const [p6Flushing, setP6Flushing] = useState(false);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
   const autoInjectRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const p6TimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Use refs for values accessed inside intervals (avoids resetting timers on change)
   const promptTextRef = useRef(promptText);
   promptTextRef.current = promptText;
   const onBroadcastRef = useRef(onBroadcast);
@@ -39,25 +61,80 @@ export default function SignalPanel({
   const onP6FlushRef = useRef(onP6Flush);
   onP6FlushRef.current = onP6Flush;
 
-  const handleTransToggle = useCallback((checked: boolean) => {
-    setTransEnabled(checked);
-  }, []);
+  // Speech Recognition
+  useEffect(() => {
+    if (!transEnabled) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+      setIsListening(false);
+      return;
+    }
 
-  // Auto-inject every 5s when inject is live
-  // Only depends on injectActive — promptText is read via ref
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setTranscript('Speech recognition not supported in this browser.');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => {
+      setIsListening(false);
+      // Auto-restart if still enabled
+      if (transEnabled) {
+        try { recognition.start(); } catch { /* already started */ }
+      }
+    };
+    recognition.onerror = () => {
+      setIsListening(false);
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
+      let finalText = '';
+      let interimText = '';
+      for (let i = 0; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          finalText += result[0].transcript + ' ';
+        } else {
+          interimText += result[0].transcript;
+        }
+      }
+      const fullText = (finalText + interimText).trim();
+      setTranscript(fullText);
+      setNouns(extractNouns(fullText));
+    };
+
+    try {
+      recognition.start();
+      recognitionRef.current = recognition;
+    } catch { /* */ }
+
+    return () => {
+      try { recognition.stop(); } catch { /* */ }
+      recognitionRef.current = null;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transEnabled]);
+
+  // Auto-inject timer
   useEffect(() => {
     if (injectActive) {
       setAutoInjectCountdown(5);
 
-      // Countdown timer (visual)
       countdownRef.current = setInterval(() => {
-        setAutoInjectCountdown(prev => {
-          if (prev <= 1) return 5;
-          return prev - 1;
-        });
+        setAutoInjectCountdown(prev => prev <= 1 ? 5 : prev - 1);
       }, 1000);
 
-      // Auto-inject timer — reads promptText via ref, doesn't reset on typing
       autoInjectRef.current = setInterval(() => {
         const currentPrompt = promptTextRef.current;
         if (currentPrompt.trim()) {
@@ -66,7 +143,6 @@ export default function SignalPanel({
         }
       }, AUTO_INJECT_INTERVAL);
 
-      // Do an immediate first broadcast
       if (promptTextRef.current.trim()) {
         onBroadcastRef.current(promptTextRef.current);
         setLastBroadcast(Date.now());
@@ -83,102 +159,108 @@ export default function SignalPanel({
     }
   }, [injectActive]);
 
-  // Prompt + p6 flush to TD 5s after broadcast
+  // P6 flush
   useEffect(() => {
     if (lastBroadcast && injectActive) {
       setP6Flushing(false);
       if (p6TimerRef.current) clearTimeout(p6TimerRef.current);
-
       p6TimerRef.current = setTimeout(() => {
         setP6Flushing(true);
         onP6FlushRef.current(promptTextRef.current);
-        // Reset after brief display
         setTimeout(() => setP6Flushing(false), 1500);
       }, P6_FLUSH_DELAY);
-
-      return () => {
-        if (p6TimerRef.current) clearTimeout(p6TimerRef.current);
-      };
+      return () => { if (p6TimerRef.current) clearTimeout(p6TimerRef.current); };
     }
   }, [lastBroadcast, injectActive]);
 
   return (
     <div className="signal-panel">
-      {/* Transcription */}
       <div className="signal-section">
-        <div className="signal-section-hdr">
-          <span className="signal-title">// Transcription</span>
-          <label className="toggle" title="Enable transcription">
+        {/* Transcription header */}
+        <div className="sp-header">
+          <div className="sp-title-row">
+            <span className="sp-title">Transcription</span>
+            {isListening && (
+              <span className="sp-listening-badge">
+                <span className="sp-listening-dot" />
+                Listening
+              </span>
+            )}
+          </div>
+          <label className="toggle" title="Enable speech-to-text">
             <input
               type="checkbox"
               checked={transEnabled}
-              onChange={(e) => handleTransToggle(e.target.checked)}
+              onChange={(e) => setTransEnabled(e.target.checked)}
             />
             <div className="toggle-track">
               <div className="toggle-thumb" />
             </div>
+            <span className="toggle-label">{transEnabled ? 'On' : 'Off'}</span>
           </label>
         </div>
-        <div className="transcript-box">
-          <span className="transcript-dim">waiting for speech...</span>
+
+        {/* Transcript display */}
+        <div className="sp-transcript">
+          {transcript ? (
+            <span>{transcript}</span>
+          ) : (
+            <span className="sp-transcript-placeholder">
+              {transEnabled ? 'Speak into your microphone...' : 'Enable transcription to capture speech'}
+            </span>
+          )}
           {transEnabled && <span className="cursor" />}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
-          <span style={{ fontSize: '9px', color: 'var(--text-dim)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Nouns</span>
-          <span style={{ fontSize: '9px', color: 'var(--text-dim)' }}>0 extracted</span>
+
+        {/* Nouns */}
+        <div className="sp-section-label">
+          <span>Extracted Nouns</span>
+          <span className="sp-count">{nouns.length}</span>
         </div>
         <div className="noun-tags">
-          <span style={{ fontSize: '9px', color: 'var(--text-dim)', opacity: 0.4 }}>none yet</span>
+          {nouns.length > 0 ? nouns.map((n, i) => (
+            <span key={i} className="noun-tag fresh">{n}</span>
+          )) : (
+            <span className="sp-empty">No nouns extracted yet</span>
+          )}
         </div>
-        <div style={{ fontSize: '9px', color: 'var(--text-dim)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '5px' }}>
-          Base Prompt
+
+        {/* Prompt input */}
+        <div className="sp-section-label" style={{ marginTop: '12px' }}>
+          <span>Base Prompt</span>
+          {injectActive && <span className="sp-live-indicator">LIVE</span>}
         </div>
-        <div className="prompt-row">
+        <div className="sp-prompt-row">
           <textarea
-            className="prompt-base"
-            placeholder="baroque cathedral, golden light..."
+            className="sp-prompt-input"
+            placeholder="baroque cathedral, golden light, deep shadows..."
             value={promptText}
             onChange={(e) => onPromptChange(e.target.value)}
           />
           <button
-            className={`prompt-inject ${injectActive ? 'live' : ''}`}
+            className={`sp-inject-btn ${injectActive ? 'live' : ''}`}
             onClick={() => onInjectToggle(!injectActive)}
           >
-            {injectActive ? 'Live' : 'Inject'}
+            {injectActive ? 'Stop' : 'Inject'}
           </button>
         </div>
 
-        {/* Auto-inject indicator — shown when inject is live */}
+        {/* Auto-inject status bar */}
         {injectActive && (
-          <div className="auto-inject-bar">
-            <span style={{ fontSize: '8px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Auto-Inject</span>
-            <div className="inject-progress">
+          <div className="sp-auto-bar">
+            <span className="sp-auto-label">Auto-Inject</span>
+            <div className="sp-auto-progress">
               <div
-                className="inject-progress-fill"
+                className="sp-auto-fill"
                 style={{ width: `${((5 - autoInjectCountdown) / 5) * 100}%` }}
               />
             </div>
-            <span className="inject-countdown">{autoInjectCountdown}s</span>
+            <span className="sp-auto-countdown">{autoInjectCountdown}s</span>
             {p6Flushing && (
-              <span style={{ color: 'var(--amber)', fontSize: '8px', letterSpacing: '0.08em', fontWeight: 700 }}>
-                P6 FLUSH
-              </span>
+              <span className="sp-p6-badge">P6 FLUSH</span>
             )}
           </div>
         )}
-
-        <div className="debounce-row">
-          <span className="debounce-label">Debounce</span>
-          <input
-            className="debounce-slider"
-            type="range"
-            min="200"
-            max="3000"
-            value={debounceMs}
-            onChange={(e) => setDebounceMs(parseInt(e.target.value))}
-          />
-          <span className="debounce-val">{debounceMs}ms</span>
-        </div>
       </div>
     </div>
   );
