@@ -1423,6 +1423,45 @@ footer a:hover { text-decoration: underline; }
   padding: 6px 10px;
 }
 
+/* Webcam live preview */
+.webcam-preview {
+  margin-top: 8px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #000;
+  aspect-ratio: 16/9;
+  position: relative;
+}
+.webcam-preview video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.webcam-frame-count {
+  font-size: 8px;
+  color: var(--text-dim);
+  opacity: 0.6;
+}
+
+.webcam-status-badge {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.webcam-status-badge.requesting {
+  color: var(--amber);
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 /* Webcam badge in video overlay */
 .webcam-badge {
   background: rgba(123, 47, 255, 0.25) !important;
