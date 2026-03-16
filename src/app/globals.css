@@ -1441,6 +1441,46 @@ header {
 .td-live-activity-time { color: #555; min-width: 60px; }
 .td-live-activity-msg { color: #aab; }
 
+/* ═══ Reconnect / Stale Panel ═══ */
+.td-reconnect-panel {
+  background: rgba(251,191,36,0.04);
+  border: 1px solid rgba(251,191,36,0.15);
+  border-radius: 6px;
+  padding: 14px;
+}
+.td-reconnect-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+}
+.td-reconnect-icon {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.td-reconnect-details {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-bottom: 14px; padding: 10px;
+  background: rgba(0,0,0,0.2); border-radius: 4px;
+}
+.td-reconnect-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 10px; font-family: 'JetBrains Mono', monospace;
+}
+.td-reconnect-label { color: #666; }
+.td-reconnect-actions {
+  display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;
+}
+.td-reconnect-troubleshoot {
+  padding: 10px; background: rgba(0,0,0,0.15); border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.04);
+}
+.td-reconnect-tip {
+  font-size: 9px; color: #777; padding: 3px 0;
+  font-family: 'JetBrains Mono', monospace;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.td-reconnect-tip:last-child { border-bottom: none; }
+.td-reconnect-tip code {
+  font-size: 9px; background: rgba(0,0,0,0.3); padding: 1px 4px; border-radius: 2px;
+}
+
 /* Slot tag status classes */
 .slot-tag.status-live { background: rgba(0,255,136,0.15); color: var(--active); border: 1px solid rgba(0,255,136,0.35); }
 .slot-tag.status-ok { background: rgba(0,212,255,0.1); color: var(--accent); border: 1px solid rgba(0,212,255,0.25); }

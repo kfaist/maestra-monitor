@@ -129,7 +129,11 @@ export default function DetailPanel({
 
       {/* TD Connect Guide — shown for active/selected slots */}
       {slot && (
-        <TDConnectGuide slot={slot} />
+        <TDConnectGuide
+          slot={slot}
+          onReconnect={onAutoConnect}
+          onDisconnect={onDisconnect}
+        />
       )}
 
       {/* Event Log */}

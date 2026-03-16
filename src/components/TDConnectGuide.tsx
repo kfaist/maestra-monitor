@@ -8,11 +8,13 @@ interface TDConnectGuideProps {
   slot: FleetSlot;
   onRoleChange?: (role: 'receive' | 'send' | 'two_way') => void;
   onSignalSourceChange?: (source: SignalSource) => void;
+  onReconnect?: () => void;
+  onDisconnect?: () => void;
 }
 
 type SignalSource = 'touchdesigner' | 'json_stream' | 'osc' | 'audio_reactive' | 'text' | 'test_signal';
 type NodeRole = 'receive' | 'send' | 'two_way';
-type SetupStage = 'connect' | 'source' | 'role' | 'live';
+type SetupStage = 'connect' | 'source' | 'role' | 'live' | 'reconnect';
 
 function slotEntityName(slot: FleetSlot): string {
   if (slot.entity_id) return slot.entity_id;
@@ -57,7 +59,7 @@ const STEPS: { key: SetupStage; label: string }[] = [
   { key: 'live', label: 'Live Node' },
 ];
 
-export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChange }: TDConnectGuideProps) {
+export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChange, onReconnect, onDisconnect }: TDConnectGuideProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [signalSource, setSignalSource] = useState<SignalSource | null>(null);
   const [sourceConfirmed, setSourceConfirmed] = useState(false);
@@ -91,9 +93,14 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
     ? Math.max(0, Date.now() - slot.maestraStatus.lastHeartbeatAt)
     : null;
 
-  // Derive setupStage from state
+  // Detect stale/lost nodes
+  const isStale = slot.maestraStatus?.heartbeat === 'stale' || slot.maestraStatus?.heartbeat === 'lost';
+
+  // Derive setupStage from state — stale overrides, live auto-advances
   const setupStage: SetupStage =
+    isStale && isConnected ? 'reconnect' :
     nodeRole !== null ? 'live' :
+    isLive ? 'live' :  // Auto-advance to live panel if heartbeat is already live
     sourceConfirmed ? 'role' :
     isConnected ? 'source' :
     'connect';
@@ -170,6 +177,85 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
       </span>
     </div>
   );
+
+  // ════════════ RECONNECT / STALE MODE ════════════
+  if (setupStage === 'reconnect') {
+    const heartbeatAge = slot.maestraStatus?.lastHeartbeatAt
+      ? Math.max(0, Date.now() - slot.maestraStatus.lastHeartbeatAt)
+      : null;
+    const heartbeatLabel = slot.maestraStatus?.heartbeat === 'lost' ? 'Lost' : 'Stale';
+    const heartbeatColor = slot.maestraStatus?.heartbeat === 'lost' ? '#ef4444' : '#eab308';
+
+    return (
+      <div className="td-connect-guide">
+        <div className="td-reconnect-panel">
+          <div className="td-reconnect-header">
+            <div className="td-reconnect-icon" style={{ background: heartbeatColor, boxShadow: `0 0 12px ${heartbeatColor}55` }} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 12, color: heartbeatColor, letterSpacing: '.04em' }}>
+                Node Appears {heartbeatLabel}
+              </div>
+              <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>
+                Entity: <span style={{ color: '#5cc8ff' }}>{entityId}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="td-reconnect-details">
+            <div className="td-reconnect-row">
+              <span className="td-reconnect-label">Last Heartbeat</span>
+              <span style={{ color: heartbeatColor }}>
+                {heartbeatAge != null ? `${formatAge(heartbeatAge)} ago` : 'Never received'}
+              </span>
+            </div>
+            <div className="td-reconnect-row">
+              <span className="td-reconnect-label">Server</span>
+              <span style={{ color: isConnected ? '#22c55e' : '#ef4444' }}>
+                {isConnected ? 'Connected' : 'Disconnected'}
+              </span>
+            </div>
+            <div className="td-reconnect-row">
+              <span className="td-reconnect-label">Stream</span>
+              <span style={{ color: hasStream ? '#22c55e' : '#888' }}>
+                {hasStream ? 'Live' : slot.maestraStatus?.stream === 'stale' ? 'Stale' : 'None'}
+              </span>
+            </div>
+          </div>
+
+          <div className="td-reconnect-actions">
+            {onReconnect && (
+              <button className="td-action-btn td-action-primary" onClick={onReconnect}>
+                Reconnect Node
+              </button>
+            )}
+            {onDisconnect && (
+              <button className="td-action-btn" onClick={onDisconnect}>
+                Disconnect
+              </button>
+            )}
+            <button className="td-action-btn" onClick={() => {
+              // Re-enter setup flow by resetting wizard state
+              setNodeRole(null);
+              setSourceConfirmed(false);
+              setSignalSource(null);
+            }}>
+              Re-run Setup
+            </button>
+          </div>
+
+          <div className="td-reconnect-troubleshoot">
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#888', marginBottom: 6, letterSpacing: '.06em', textTransform: 'uppercase' }}>
+              Troubleshooting
+            </div>
+            <div className="td-reconnect-tip">Check that TouchDesigner is running and the TOX is loaded</div>
+            <div className="td-reconnect-tip">Verify the entity ID matches: <code style={{ color: '#5cc8ff' }}>{entityId}</code></div>
+            <div className="td-reconnect-tip">Confirm network connectivity to <code style={{ color: '#aab' }}>{serverUrl}</code></div>
+            <div className="td-reconnect-tip">Try restarting the TOX or re-downloading it</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ════════════ LIVE MODE ════════════
   if (setupStage === 'live') {

@@ -444,7 +444,7 @@ export default function Home() {
     }
   }, []);
 
-  // Slot selection
+  // Slot selection — auto-connects available slots so setup wizard starts immediately
   const selectSlot = useCallback((id: string) => {
     setSelectedId(id);
     const slot = slotsRef.current.find(s => s.id === id);
@@ -452,8 +452,13 @@ export default function Home() {
 
     const conn = connectionsRef.current.get(id);
     if (conn) {
+      // Existing connection — sync its current status to the UI
       syncSlotStatus(id, conn.getStatus());
+    } else if (!slot.active) {
+      // AVAILABLE slot clicked — auto-connect it so the setup wizard opens at Step 1
+      autoConnectSlot(id);
     } else {
+      // Active slot without a tracked connection (edge case) — show current info
       const entityId = slot.entity_id || generateEntityId(slot.label, slot.suggestion?.tag);
       setConnectionInfo({
         serverUrl: MAESTRA_API_URL,
@@ -470,7 +475,7 @@ export default function Home() {
         maestraStatus: slot.maestraStatus || defaultSlotStatus(),
       });
     }
-  }, [syncSlotStatus]);
+  }, [syncSlotStatus, autoConnectSlot]);
 
   // Add slot
   const addSlot = useCallback(() => {
