@@ -1325,14 +1325,118 @@ header {
 }
 .td-role-card.selected .td-role-examples-label { color: #8888aa; }
 
-/* Advanced toggle */
-.td-advanced-toggle {
-  padding: 8px 14px; cursor: pointer;
-  font-size: 9px; letter-spacing: 0.1em;
-  text-transform: uppercase; color: #666;
-  transition: color 0.15s;
+/* ═══ Wizard Progress Indicator ═══ */
+.td-progress {
+  display: flex; align-items: center; gap: 2px;
+  padding: 8px 12px; margin-bottom: 8px;
+  font-size: 9px; font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.04em;
 }
-.td-advanced-toggle:hover { color: #aab; }
+.td-progress-step {
+  display: flex; align-items: center; gap: 4px;
+}
+.td-progress-marker { font-size: 10px; }
+.td-progress-step.completed .td-progress-marker { color: #22c55e; }
+.td-progress-step.completed .td-progress-label { color: #22c55e; }
+.td-progress-step.current .td-progress-marker { color: #5cc8ff; }
+.td-progress-step.current .td-progress-label { color: #e0e0e8; font-weight: 700; }
+.td-progress-step.upcoming .td-progress-marker { color: #444; }
+.td-progress-step.upcoming .td-progress-label { color: #555; }
+.td-progress-arrow { color: #333; margin: 0 2px; }
+
+/* ═══ Collapsed Summary Row ═══ */
+.td-collapsed-summary {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.td-collapsed-title {
+  color: #aab; font-weight: 600;
+}
+.td-collapsed-detail {
+  color: #888; margin-left: auto;
+  font-size: 9px;
+}
+
+/* ═══ Live Node Panel ═══ */
+.td-live-panel {
+  border: 1px solid rgba(34,197,94,0.2);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.td-live-section {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.td-live-section:last-child { border-bottom: none; }
+.td-live-section-title {
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: #8888aa; margin-bottom: 8px;
+}
+.td-live-status-row {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+}
+.td-live-status-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+}
+.td-live-meta {
+  display: flex; flex-direction: column; gap: 3px;
+  font-size: 10px; font-family: 'JetBrains Mono', monospace;
+}
+.td-live-meta-label { color: #666; }
+
+/* Live Signals */
+.td-live-signal-group { margin-bottom: 8px; }
+.td-live-signal-label {
+  font-size: 9px; font-weight: 600;
+  letter-spacing: 0.06em; margin-bottom: 4px;
+}
+.td-live-signal-tags {
+  display: flex; flex-wrap: wrap; gap: 4px;
+}
+.td-live-signal-tag {
+  padding: 2px 8px;
+  border: 1px solid; border-radius: 3px;
+  font-size: 9px; font-family: 'JetBrains Mono', monospace;
+}
+
+/* Live Inject */
+.td-live-inject-row {
+  display: flex; gap: 6px; align-items: center;
+}
+.td-live-inject-input {
+  flex: 1; padding: 5px 8px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; color: #e0e0e8;
+  font-size: 10px; font-family: 'JetBrains Mono', monospace;
+}
+.td-live-inject-btn {
+  padding: 5px 12px;
+  background: rgba(92,200,255,0.1); border: 1px solid rgba(92,200,255,0.3);
+  border-radius: 4px; color: #5cc8ff;
+  font-size: 10px; font-family: 'JetBrains Mono', monospace;
+  cursor: pointer; transition: all 0.15s;
+}
+.td-live-inject-btn:hover { background: rgba(92,200,255,0.2); }
+
+/* Live Activity */
+.td-live-activity {
+  max-height: 140px; overflow-y: auto;
+}
+.td-live-activity-row {
+  display: flex; gap: 8px;
+  font-size: 9px; font-family: 'JetBrains Mono', monospace;
+  padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.td-live-activity-time { color: #555; min-width: 60px; }
+.td-live-activity-msg { color: #aab; }
 
 /* Slot tag status classes */
 .slot-tag.status-live { background: rgba(0,255,136,0.15); color: var(--active); border: 1px solid rgba(0,255,136,0.35); }
