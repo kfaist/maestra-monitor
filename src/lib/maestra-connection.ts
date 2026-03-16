@@ -24,7 +24,11 @@ import {
   StreamStatus,
 } from '@/types';
 
+/** Legacy local gallery URL — kept for reference but no longer used as default */
 export const GALLERY_SERVER_URL = 'http://192.168.128.115:8080';
+
+/** The Maestra backend on Railway — HTTPS, always reachable */
+export const MAESTRA_API_URL = process.env.NEXT_PUBLIC_API_BASE || 'https://maestra-backend-v2-production.up.railway.app';
 
 // Heartbeat thresholds (ms)
 const HB_LIVE_MS = 2000;
@@ -181,7 +185,7 @@ export class MaestraConnection {
     this.slotId = config.slotId;
     this.slotLabel = config.slotLabel;
     this.entityId = config.entityId || generateEntityId(config.slotLabel, config.slotTag);
-    this.serverUrl = config.serverUrl || GALLERY_SERVER_URL;
+    this.serverUrl = config.serverUrl || MAESTRA_API_URL;
     const parsed = parseServerUrl(this.serverUrl);
     this.port = config.port || parsed.port;
     this.streamPath = config.streamPath || '/ws';

@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { FleetSlot } from '@/types';
-import { GALLERY_SERVER_URL } from '@/lib/maestra-connection';
+import { MAESTRA_API_URL } from '@/lib/maestra-connection';
 
 interface TDConnectGuideProps {
   slot: FleetSlot;
@@ -23,7 +23,7 @@ export default function TDConnectGuide({ slot }: TDConnectGuideProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const entityId = slotEntityName(slot);
-  const serverUrl = GALLERY_SERVER_URL;
+  const serverUrl = MAESTRA_API_URL;
 
   const copyToClipboard = useCallback((text: string, field: string) => {
     navigator.clipboard.writeText(text).then(() => {

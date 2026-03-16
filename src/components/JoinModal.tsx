@@ -6,7 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { MaestraSlotStatus } from '@/types';
 import {
   MaestraConnection,
-  GALLERY_SERVER_URL,
+  MAESTRA_API_URL,
   generateEntityId,
 } from '@/lib/maestra-connection';
 
@@ -100,7 +100,7 @@ export default function JoinModal({ open, onClose, onJoin }: JoinModalProps) {
 
   // Advanced settings
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [serverUrl, setServerUrl] = useState(GALLERY_SERVER_URL);
+  const [serverUrl, setServerUrl] = useState(MAESTRA_API_URL);
   const [customEntityId, setCustomEntityId] = useState('');
   const [port, setPort] = useState('8080');
   const [streamPath, setStreamPath] = useState('/ws');
@@ -115,7 +115,7 @@ export default function JoinModal({ open, onClose, onJoin }: JoinModalProps) {
       setConnectionStatus(null);
       setShowAdvanced(false);
       setEntityId(generateEntityId('operator', 'mon'));
-      setServerUrl(GALLERY_SERVER_URL);
+      setServerUrl(MAESTRA_API_URL);
       setCustomEntityId('');
       setPort('8080');
       setStreamPath('/ws');
@@ -298,7 +298,7 @@ export default function JoinModal({ open, onClose, onJoin }: JoinModalProps) {
                   <input
                     value={serverUrl}
                     onChange={e => setServerUrl(e.target.value)}
-                    placeholder={GALLERY_SERVER_URL}
+                    placeholder={MAESTRA_API_URL}
                   />
                 </div>
                 <div className="connection-advanced-field">

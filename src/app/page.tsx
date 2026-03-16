@@ -25,7 +25,7 @@ import { formatTimestamp } from '@/lib/audio-utils';
 import { FRAME_FETCH_INTERVAL } from '@/lib/constants';
 import {
   MaestraConnection,
-  GALLERY_SERVER_URL,
+  MAESTRA_API_URL,
   generateEntityId,
 } from '@/lib/maestra-connection';
 
@@ -103,7 +103,7 @@ export default function Home() {
       if (prev && prev.slotId !== slotId) return prev;
       return {
         ...prev!,
-        serverUrl: prev?.serverUrl || GALLERY_SERVER_URL,
+        serverUrl: prev?.serverUrl || MAESTRA_API_URL,
         entityId: prev?.entityId || '',
         slotId,
         connected: status.server === 'connected' && status.entity === 'registered',
@@ -152,7 +152,7 @@ export default function Home() {
       slotLabel: slot.label,
       slotTag: slot.suggestion?.tag,
       entityId,
-      serverUrl: GALLERY_SERVER_URL,
+      serverUrl: MAESTRA_API_URL,
       autoConnect: true,
       autoDiscover: true,
     });
@@ -201,7 +201,7 @@ export default function Home() {
 
     // Set initial connectionInfo
     setConnectionInfo({
-      serverUrl: GALLERY_SERVER_URL,
+      serverUrl: MAESTRA_API_URL,
       entityId,
       slotId,
       connected: false,
@@ -407,7 +407,7 @@ export default function Home() {
     } else {
       const entityId = slot.entity_id || generateEntityId(slot.label, slot.suggestion?.tag);
       setConnectionInfo({
-        serverUrl: GALLERY_SERVER_URL,
+        serverUrl: MAESTRA_API_URL,
         entityId,
         slotId: id,
         connected: false,
