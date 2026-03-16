@@ -14,12 +14,6 @@ export default function Explainer() {
       <br /><br />
       <em style={{ color: 'var(--text-dim)' }}>The TouchDesigner TOX and Maestra Live Ops Dashboard are released under AGPL-3.0, with dual licensing available for commercial deployments.</em>
       <br /><br />
-      <span style={{ color: '#ff69b4', fontSize: '11px', fontStyle: 'italic' }}>
-        Each new visitor connection to{' '}
-        <a href="https://diplomatic-trust-production-118f.up.railway.app/" style={{ color: '#ff69b4' }}>diplomatic-trust</a>{' '}
-        ends the previous session.
-      </span>
-      <br /><br />
       <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>
         Artist / Technical: <a href="mailto:kristabluedoor@gmail.com" style={{ color: 'var(--accent)', textDecoration: 'none' }}>kristabluedoor@gmail.com</a>
         &nbsp;&middot;&nbsp;

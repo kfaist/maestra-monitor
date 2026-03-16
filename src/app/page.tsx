@@ -671,8 +671,6 @@ export default function Home() {
             slot={selectedSlot}
             logEntries={logEntries}
             eventEntries={eventEntries}
-            onReconnect={reconnectStream}
-            onCycleSource={cycleStreamSource}
             injectActive={injectActive}
             onInjectToggle={setInjectActive}
             promptText={promptText}

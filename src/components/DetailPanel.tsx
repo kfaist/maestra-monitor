@@ -8,8 +8,6 @@ interface DetailPanelProps {
   slot: FleetSlot | null;
   logEntries: LogEntry[];
   eventEntries: EventEntry[];
-  onReconnect: () => void;
-  onCycleSource: () => void;
   injectActive: boolean;
   onInjectToggle: (active: boolean) => void;
   promptText: string;
@@ -22,8 +20,6 @@ export default function DetailPanel({
   slot,
   logEntries,
   eventEntries,
-  onReconnect,
-  onCycleSource,
   injectActive,
   onInjectToggle,
   promptText,
@@ -64,57 +60,6 @@ export default function DetailPanel({
         )}
       </div>
 
-      {/* Detail Content */}
-      <div>
-        {slot?.active ? (
-          <div className="detail-info">
-            <div className="detail-name">{slot.label}</div>
-            <div className="detail-type">{slot.endpoint || 'No endpoint'}</div>
-            <div className="detail-stats">
-              <div className="stat-cell">
-                <div className="stat-label">FPS</div>
-                <div className="stat-value online">{slot.fps ?? '--'}</div>
-              </div>
-              <div className="stat-cell">
-                <div className="stat-label">Status</div>
-                <div className="stat-value online">Live</div>
-              </div>
-              <div className="stat-cell">
-                <div className="stat-label">Stream</div>
-                <div className="stat-value" style={{ fontSize: '11px', letterSpacing: '0.06em' }}>/video/frame/td</div>
-              </div>
-              <div className="stat-cell">
-                <div className="stat-label">Source</div>
-                <div className="stat-value" style={{ fontSize: '13px' }}>StreamDiffusion</div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', padding: '0 0 4px' }}>
-              <button className="btn primary" onClick={onReconnect} style={{ fontSize: '9px', fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                &#x21BA; Reconnect Stream
-              </button>
-              <button className="btn" onClick={onCycleSource} style={{ fontSize: '9px', fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                &#x2630; GPU Nodes
-              </button>
-            </div>
-          </div>
-        ) : slot?.suggestion ? (
-          <div className="detail-info" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '24px' }}>
-            <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-bright)' }}>{slot.suggestion.title}</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-dim)', lineHeight: 1.7 }}>{slot.suggestion.desc}</div>
-            <span className={`suggestion-tag ${slot.suggestion.tag}`} style={{ opacity: 0.7, alignSelf: 'flex-start' }}>{slot.suggestion.tagLabel}</span>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '32px', color: 'var(--text-dim)' }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>No slot selected</p>
-          </div>
-        )}
-      </div>
-
       {/* Signal Panel */}
       <SignalPanel
         injectActive={injectActive}
@@ -124,16 +69,6 @@ export default function DetailPanel({
         onBroadcast={onBroadcast}
         onP6Flush={onP6Flush}
       />
-
-      {/* Fleet Input */}
-      <div style={{ padding: '8px 16px 0' }}>
-        <div style={{ fontSize: '9px', color: 'var(--text-dim)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>
-          // Fleet Input (P6 Live)
-        </div>
-        <div style={{ fontSize: '11px', color: 'var(--accent)', minHeight: '18px', fontFamily: 'var(--font-mono)', opacity: 0.8 }}>
-          &mdash;
-        </div>
-      </div>
 
       {/* Event Log */}
       <div className="event-log">
