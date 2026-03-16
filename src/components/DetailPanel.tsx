@@ -99,7 +99,15 @@ export default function DetailPanel({
         )}
       </div>
 
-      {/* Maestra Status + Connection — directly under preview */}
+      {/* Webcam Capture — always visible, right under preview */}
+      <WebcamCapture
+        active={webcamActive}
+        onActiveChange={onWebcamToggle}
+        onFrame={onWebcamFrame}
+        onFrameData={onWebcamFrameData}
+      />
+
+      {/* Maestra Status + Connection */}
       <ConnectionPanel
         connectionInfo={connectionInfo}
         remoteEntities={remoteEntities}
@@ -107,16 +115,6 @@ export default function DetailPanel({
         onDisconnect={onDisconnect}
         onUpdateConfig={onUpdateConfig}
       />
-
-      {/* Webcam Capture Controls */}
-      {slot && (
-        <WebcamCapture
-          active={webcamActive}
-          onActiveChange={onWebcamToggle}
-          onFrame={onWebcamFrame}
-          onFrameData={onWebcamFrameData}
-        />
-      )}
 
       {/* TD Connect Guide — shown for active/selected slots */}
       {slot && (
