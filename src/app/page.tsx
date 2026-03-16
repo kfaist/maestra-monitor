@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Header,
-  Explainer,
   TabNav,
   Footer,
   SlotGrid,
