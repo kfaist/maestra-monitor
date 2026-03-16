@@ -69,12 +69,11 @@ function isPrivateNetwork(url: string): boolean {
   }
 }
 
-/** Generate an entity ID from a slot label and tag */
+/** Generate a stable entity ID from a slot label and tag (no random suffix) */
 export function generateEntityId(label: string, tag?: string): string {
   const base = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
   const prefix = tag ? `${tag}_` : 'td_';
-  const suffix = `_${Math.random().toString(36).slice(2, 6)}`;
-  return `${prefix}${base}${suffix}`;
+  return `${prefix}${base}`;
 }
 
 /** Parse a server URL into host and port */

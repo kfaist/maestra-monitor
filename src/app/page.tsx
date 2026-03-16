@@ -68,6 +68,10 @@ export default function Home() {
   slotsRef.current = slots;
   // Track remote entity IDs (e.g. TD nodes) so we can target prompt/p6 at them
   const remoteEntitiesRef = useRef<Set<string>>(new Set());
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
+  const webcamActiveRef = useRef(webcamActive);
+  webcamActiveRef.current = webcamActive;
 
   // Maestra connection instances per slot
   const connectionsRef = useRef<Map<string, MaestraConnection>>(new Map());
@@ -264,42 +268,62 @@ export default function Home() {
     }
   }, [connectionInfo, log]);
 
-  // Frame fetching
+  // Frame fetching — fetch from backend for each active slot
+  const frameErrorCountRef = useRef(0);
   const fetchFrame = useCallback(async () => {
     const currentSlots = slotsRef.current;
-    const slot = currentSlots.find(s => s.id === 'krista1');
-    if (!slot) return;
+    // Fetch for all active slots (use their endpoint or the default)
+    const activeSlots = currentSlots.filter(s => s.active);
+    if (activeSlots.length === 0) return;
 
-    const endpoint = activeNodeUrlRef.current || `${API_BASE}/video/frame/td`;
-    try {
-      const res = await fetch(`${endpoint}?t=${Date.now()}`, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+    for (const slot of activeSlots) {
+      // Skip slots with webcam active (webcam handler sets frameUrl directly)
+      if (slot.id === selectedIdRef.current && webcamActiveRef.current) continue;
 
-      // Notify MaestraConnection that a stream frame arrived
-      const conn = connectionsRef.current.get('krista1');
-      if (conn) conn.receiveStreamFrame();
+      const endpoint = slot.endpoint
+        ? `${API_BASE}${slot.endpoint}`
+        : activeNodeUrlRef.current || `${API_BASE}/video/frame/td`;
+      try {
+        const res = await fetch(`${endpoint}?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        if (blob.size < 100) continue; // Skip tiny/empty responses
+        const url = URL.createObjectURL(blob);
 
-      setSlots(prev => prev.map(s => {
-        if (s.id !== 'krista1') return s;
-        if (s.frameUrl && s.frameUrl.startsWith('blob:')) URL.revokeObjectURL(s.frameUrl);
-        const now = performance.now();
-        const times = [...s._frameTimes, now].filter(t => now - t < 1000);
-        let fps = s.fps;
-        let smooth = s._fpsSmooth;
-        if (times.length >= 2) {
-          const span = (times[times.length - 1] - times[0]) / 1000;
-          const raw = (times.length - 1) / span;
-          smooth = smooth != null ? smooth * 0.6 + raw * 0.4 : raw;
-          fps = Math.round(smooth);
+        // Notify MaestraConnection that a stream frame arrived
+        const conn = connectionsRef.current.get(slot.id);
+        if (conn) conn.receiveStreamFrame();
+
+        // Reset error counter on success
+        if (frameErrorCountRef.current > 0) {
+          frameErrorCountRef.current = 0;
+          log('[Frames] Stream recovered', 'ok');
         }
-        return { ...s, frameUrl: url, fps, _frameTimes: times, _fpsSmooth: smooth };
-      }));
-    } catch {
-      // silent
+
+        setSlots(prev => prev.map(s => {
+          if (s.id !== slot.id) return s;
+          if (s.frameUrl && s.frameUrl.startsWith('blob:')) URL.revokeObjectURL(s.frameUrl);
+          const now = performance.now();
+          const times = [...s._frameTimes, now].filter(t => now - t < 1000);
+          let fps = s.fps;
+          let smooth = s._fpsSmooth;
+          if (times.length >= 2) {
+            const span = (times[times.length - 1] - times[0]) / 1000;
+            const raw = (times.length - 1) / span;
+            smooth = smooth != null ? smooth * 0.6 + raw * 0.4 : raw;
+            fps = Math.round(smooth);
+          }
+          return { ...s, frameUrl: url, fps, _frameTimes: times, _fpsSmooth: smooth };
+        }));
+      } catch (err) {
+        frameErrorCountRef.current++;
+        // Log first error and then every 50th to avoid flooding
+        if (frameErrorCountRef.current === 1 || frameErrorCountRef.current % 50 === 0) {
+          log(`[Frames] Fetch failed for ${slot.id}: ${(err as Error).message} (${frameErrorCountRef.current} total)`, 'warn');
+        }
+      }
     }
-  }, []);
+  }, [log]);
 
   // WebSocket connection
   const connectWS = useCallback(() => {
