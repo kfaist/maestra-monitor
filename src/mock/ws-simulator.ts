@@ -36,16 +36,16 @@ export class WSSimulator {
       });
     }, 5000);
 
-    // Audio simulation at 60fps
+    // Audio simulation at 10fps — fast enough for smooth bars without hammering React re-renders
     this.interval = setInterval(() => {
-      this.simTime += 0.016;
+      this.simTime += 0.1;
       this.simulateAudio();
       this.emit({
         type: 'audio_analysis',
         timestamp: Date.now(),
         data: { ...this.audioData } as unknown as Record<string, unknown>,
       });
-    }, 16);
+    }, 100);
 
     // Random state updates (no stream_advertised — streams only come from real backend events)
     setInterval(() => {

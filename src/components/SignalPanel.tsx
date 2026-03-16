@@ -14,22 +14,29 @@ interface SignalPanelProps {
 const AUTO_INJECT_INTERVAL = 5000;
 const P6_FLUSH_DELAY = 5000;
 
-// Extract nouns (capitalized words, 3+ chars, not at sentence start)
+// Common stop words to filter out — keep meaningful content words
+const STOP_WORDS = new Set([
+  'i','me','my','we','you','he','she','it','they','this','that','a','an','the',
+  'is','was','are','were','be','been','have','has','had','do','did','will','would',
+  'could','should','may','might','can','to','of','in','on','at','by','for','with',
+  'about','as','into','from','and','or','but','if','so','then','when','where',
+  'what','which','who','how','not','no','very','just','also','up','out','get',
+  'got','go','went','come','came','see','say','said','know','think','make',
+  'take','use','find','give','tell','like','really','yeah','okay','right',
+  'well','thing','things','some','there','here','all','more','much','than',
+]);
+
+// Extract meaningful words from speech text (works with lowercase speech recognition output)
 function extractNouns(text: string): string[] {
-  const words = text.split(/\s+/);
-  const nouns = new Set<string>();
-  words.forEach((w, i) => {
-    const clean = w.replace(/[^a-zA-Z]/g, '');
-    if (clean.length >= 3 && /^[A-Z]/.test(clean) && i > 0) {
-      nouns.add(clean.toLowerCase());
+  const words = text.toLowerCase().split(/\s+/);
+  const extracted = new Set<string>();
+  for (const w of words) {
+    const clean = w.replace(/[^a-z]/g, '');
+    if (clean.length >= 3 && !STOP_WORDS.has(clean)) {
+      extracted.add(clean);
     }
-  });
-  const pattern = /\b(?:the|a|an|this|that|my|your|our|some|each|every)\s+(\w{3,})/gi;
-  let match;
-  while ((match = pattern.exec(text)) !== null) {
-    nouns.add(match[1].toLowerCase());
   }
-  return Array.from(nouns).slice(0, 12);
+  return Array.from(extracted).slice(0, 12);
 }
 
 export default function SignalPanel({

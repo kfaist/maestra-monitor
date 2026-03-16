@@ -617,73 +617,61 @@ export default function Home() {
     return Array.from(ids);
   }, []);
 
-  // Broadcast prompt — sends via WS broadcast + targeted state_update to every known entity
+  // Helper: send a message via WS if open, plus HTTP fallback to all entity endpoints
+  const sendViaAll = useCallback((msg: Record<string, unknown>, targets: string[], label: string) => {
+    const ts = Date.now();
+    const ws = wsRef.current;
+    const wsOpen = ws && ws.readyState === WebSocket.OPEN;
+
+    const payload = msg.data as Record<string, unknown> | undefined;
+    if (wsOpen) {
+      // 1. Fleet-wide broadcast (no entity_id — backend relays to all subscribers)
+      ws.send(JSON.stringify({ ...msg, timestamp: ts }));
+
+      // 2. Fleet-wide state_update (no entity_id)
+      if (payload) {
+        ws.send(JSON.stringify({ type: 'state_update', data: payload, timestamp: ts }));
+      }
+
+      // 3. Target every known entity specifically
+      targets.forEach(entityId => {
+        ws.send(JSON.stringify({ type: 'state_update', entity_id: entityId, data: payload, timestamp: ts }));
+      });
+    }
+
+    // 4. HTTP fallback — POST state_update to each entity via REST API
+    targets.forEach(entityId => {
+      fetch(`${API_BASE}/entities/${entityId}/state`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...(payload || {}), timestamp: ts }),
+      }).catch(() => {});
+    });
+
+    log(`[${label}] → ${targets.length} entities ${wsOpen ? '(WS+HTTP)' : '(HTTP only)'}`, wsOpen ? 'ok' : 'warn');
+  }, [log]);
+
+  // Broadcast prompt — sends via WS broadcast + targeted state_update + HTTP fallback
   const broadcastPrompt = useCallback((prompt: string) => {
-    const ts = Date.now();
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      log('[Inject] WS not connected — message dropped', 'error');
-      return;
-    }
-    const ws = wsRef.current;
-
-    // 1. Broadcast message (backend relays to all subscribers)
-    ws.send(JSON.stringify({ type: 'prompt_inject', prompt, timestamp: ts }));
-
-    // 2. Also broadcast as a state_update without entity_id (fleet-wide)
-    ws.send(JSON.stringify({
-      type: 'state_update',
-      data: { prompt, field: 'prompt' },
-      timestamp: ts,
-    }));
-
-    // 3. Target every known remote entity specifically (TD listens for state_update with its entity_id)
     const targets = getAllTargetEntityIds();
-    targets.forEach(entityId => {
-      ws.send(JSON.stringify({
-        type: 'state_update',
-        entity_id: entityId,
-        data: { prompt, field: 'prompt' },
-        timestamp: ts,
-      }));
-    });
-
-    log(`[Inject] "${prompt.slice(0, 60)}${prompt.length > 60 ? '...' : ''}" → ${targets.length} entities`, 'ok');
+    sendViaAll(
+      { type: 'prompt_inject', prompt, data: { prompt, field: 'prompt' } },
+      targets,
+      'Inject',
+    );
     logEvent('state', 'fleet', `Prompt injected: ${prompt.slice(0, 40)}`);
-  }, [log, logEvent, getAllTargetEntityIds]);
+  }, [sendViaAll, logEvent, getAllTargetEntityIds]);
 
-  // P6 flush — sends the prompt to TD's p6 field via WS state_update
+  // P6 flush — sends the prompt to TD's p6 field
   const p6Flush = useCallback((prompt: string) => {
-    const ts = Date.now();
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      log('[P6] WS not connected — message dropped', 'error');
-      return;
-    }
-    const ws = wsRef.current;
-
-    // 1. Broadcast p6_flush
-    ws.send(JSON.stringify({ type: 'p6_flush', prompt, timestamp: ts }));
-
-    // 2. Broadcast as state_update (fleet-wide, no entity_id)
-    ws.send(JSON.stringify({
-      type: 'state_update',
-      data: { prompt, field: 'p6' },
-      timestamp: ts,
-    }));
-
-    // 3. Target every known remote entity
     const targets = getAllTargetEntityIds();
-    targets.forEach(entityId => {
-      ws.send(JSON.stringify({
-        type: 'state_update',
-        entity_id: entityId,
-        data: { prompt, field: 'p6' },
-        timestamp: ts,
-      }));
-    });
-
-    log(`[P6 Flush] → ${targets.length} entities`, 'info');
+    sendViaAll(
+      { type: 'p6_flush', prompt, data: { prompt, field: 'p6' } },
+      targets,
+      'P6 Flush',
+    );
     logEvent('state', 'fleet', 'P6 flush → TD');
-  }, [log, logEvent, getAllTargetEntityIds]);
+  }, [sendViaAll, logEvent, getAllTargetEntityIds]);
 
   // Send a state_update to the current target (single entity or global)
   const sendToTarget = useCallback((data: Record<string, unknown>) => {
