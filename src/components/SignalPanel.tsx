@@ -24,7 +24,6 @@ function extractNouns(text: string): string[] {
       nouns.add(clean.toLowerCase());
     }
   });
-  // Also grab any word after common articles/prepositions as likely nouns
   const pattern = /\b(?:the|a|an|this|that|my|your|our|some|each|every)\s+(\w{3,})/gi;
   let match;
   while ((match = pattern.exec(text)) !== null) {
@@ -56,10 +55,22 @@ export default function SignalPanel({
   const p6TimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const promptTextRef = useRef(promptText);
   promptTextRef.current = promptText;
+  const transcriptRef = useRef(transcript);
+  transcriptRef.current = transcript;
   const onBroadcastRef = useRef(onBroadcast);
   onBroadcastRef.current = onBroadcast;
   const onP6FlushRef = useRef(onP6Flush);
   onP6FlushRef.current = onP6Flush;
+  const onPromptChangeRef = useRef(onPromptChange);
+  onPromptChangeRef.current = onPromptChange;
+
+  // Build the combined prompt: base prompt + transcript
+  const getCombinedPrompt = useCallback(() => {
+    const base = promptTextRef.current.trim();
+    const trans = transcriptRef.current.trim();
+    if (base && trans) return `${base} | ${trans}`;
+    return trans || base;
+  }, []);
 
   // Speech Recognition
   useEffect(() => {
@@ -88,7 +99,6 @@ export default function SignalPanel({
     recognition.onstart = () => setIsListening(true);
     recognition.onend = () => {
       setIsListening(false);
-      // Auto-restart if still enabled
       if (transEnabled) {
         try { recognition.start(); } catch { /* already started */ }
       }
@@ -126,7 +136,7 @@ export default function SignalPanel({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transEnabled]);
 
-  // Auto-inject timer
+  // Auto-inject timer — broadcasts combined prompt (base + transcript)
   useEffect(() => {
     if (injectActive) {
       setAutoInjectCountdown(5);
@@ -136,15 +146,17 @@ export default function SignalPanel({
       }, 1000);
 
       autoInjectRef.current = setInterval(() => {
-        const currentPrompt = promptTextRef.current;
-        if (currentPrompt.trim()) {
+        const combined = getCombinedPrompt();
+        if (combined) {
           setLastBroadcast(Date.now());
-          onBroadcastRef.current(currentPrompt);
+          onBroadcastRef.current(combined);
         }
       }, AUTO_INJECT_INTERVAL);
 
-      if (promptTextRef.current.trim()) {
-        onBroadcastRef.current(promptTextRef.current);
+      // Immediate first broadcast
+      const combined = getCombinedPrompt();
+      if (combined) {
+        onBroadcastRef.current(combined);
         setLastBroadcast(Date.now());
       }
 
@@ -157,21 +169,30 @@ export default function SignalPanel({
       if (countdownRef.current) clearInterval(countdownRef.current);
       setAutoInjectCountdown(5);
     }
-  }, [injectActive]);
+  }, [injectActive, getCombinedPrompt]);
 
-  // P6 flush
+  // P6 flush — fires P6_FLUSH_DELAY ms after each broadcast
   useEffect(() => {
     if (lastBroadcast && injectActive) {
       setP6Flushing(false);
       if (p6TimerRef.current) clearTimeout(p6TimerRef.current);
       p6TimerRef.current = setTimeout(() => {
+        const combined = getCombinedPrompt();
         setP6Flushing(true);
-        onP6FlushRef.current(promptTextRef.current);
+        onP6FlushRef.current(combined);
         setTimeout(() => setP6Flushing(false), 1500);
       }, P6_FLUSH_DELAY);
       return () => { if (p6TimerRef.current) clearTimeout(p6TimerRef.current); };
     }
-  }, [lastBroadcast, injectActive]);
+  }, [lastBroadcast, injectActive, getCombinedPrompt]);
+
+  // Show what will actually be sent
+  const combinedPreview = (() => {
+    const base = promptText.trim();
+    const trans = transcript.trim();
+    if (base && trans) return `${base} | ${trans}`;
+    return trans || base;
+  })();
 
   return (
     <div className="signal-panel">
@@ -244,6 +265,14 @@ export default function SignalPanel({
             {injectActive ? 'Stop' : 'Inject'}
           </button>
         </div>
+
+        {/* Combined prompt preview — shows what actually gets sent */}
+        {(injectActive || transcript) && combinedPreview && (
+          <div className="sp-combined-preview">
+            <span className="sp-combined-label">Sending to TD</span>
+            <span className="sp-combined-text">{combinedPreview}</span>
+          </div>
+        )}
 
         {/* Auto-inject status bar */}
         {injectActive && (

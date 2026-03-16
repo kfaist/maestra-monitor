@@ -630,6 +630,22 @@ header {
   border-radius: 2px; animation: pulse 0.8s infinite;
 }
 
+/* Combined prompt preview */
+.sp-combined-preview {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-top: 8px; padding: 8px 10px;
+  background: rgba(0,212,255,0.03); border: 1px solid rgba(0,212,255,0.12);
+  border-radius: 4px;
+}
+.sp-combined-label {
+  font-family: var(--font-display); font-size: 8px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent);
+}
+.sp-combined-text {
+  font-size: 10px; line-height: 1.5; color: var(--text);
+  word-break: break-word;
+}
+
 /* AUDIO ANALYSIS PANEL */
 .audio-analysis-section {
   background: rgba(6, 8, 16, 0.85);

@@ -518,48 +518,48 @@ export default function Home() {
     }, 400);
   }, [fetchFrame, log]);
 
-  // Broadcast prompt
+  // Broadcast prompt — sends via WS (backend relay) and Maestra state_update
   const broadcastPrompt = useCallback((prompt: string) => {
-    const payload = JSON.stringify({ type: 'prompt_inject', prompt, timestamp: Date.now() });
+    const ts = Date.now();
+    // Send via backend WS relay
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(payload);
+      wsRef.current.send(JSON.stringify({ type: 'prompt_inject', prompt, timestamp: ts }));
     }
-    connectionsRef.current.forEach((conn) => {
-      const status = conn.getStatus();
-      if (status.server === 'connected') {
-        try {
-          fetch(`${conn.serverUrl}/entities/${conn.entityId}/prompt`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, timestamp: Date.now() }),
-          }).catch(() => {});
-        } catch { /* */ }
-      }
-    });
-    log(`[Inject] Broadcast: "${prompt.slice(0, 50)}${prompt.length > 50 ? '...' : ''}"`, 'ok');
-    logEvent('stream', 'fleet', `Prompt injected: ${prompt.slice(0, 40)}`);
+    // Also send as Maestra state_update via WS (TD listens for these)
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      connectionsRef.current.forEach((conn) => {
+        wsRef.current!.send(JSON.stringify({
+          type: 'state_update',
+          entity_id: conn.entityId,
+          data: { prompt, field: 'prompt' },
+          timestamp: ts,
+        }));
+      });
+    }
+    log(`[Inject] "${prompt.slice(0, 60)}${prompt.length > 60 ? '...' : ''}"`, 'ok');
+    logEvent('state', 'fleet', `Prompt injected: ${prompt.slice(0, 40)}`);
   }, [log, logEvent]);
 
-  // P6 flush
+  // P6 flush — sends the prompt to TD's p6 field via WS state_update
   const p6Flush = useCallback((prompt: string) => {
-    const payload = JSON.stringify({ type: 'p6_flush', prompt, timestamp: Date.now() });
+    const ts = Date.now();
+    // Send via backend WS relay
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(payload);
+      wsRef.current.send(JSON.stringify({ type: 'p6_flush', prompt, timestamp: ts }));
     }
-    connectionsRef.current.forEach((conn) => {
-      const status = conn.getStatus();
-      if (status.server === 'connected') {
-        try {
-          fetch(`${conn.serverUrl}/entities/${conn.entityId}/p6`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, timestamp: Date.now() }),
-          }).catch(() => {});
-        } catch { /* */ }
-      }
-    });
-    log('[P6 Flush] Sent prompt + p6 to TouchDesigner', 'info');
-    logEvent('stream', 'fleet', 'P6 flush sent to TD');
+    // Also send as Maestra state_update targeting p6 field
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      connectionsRef.current.forEach((conn) => {
+        wsRef.current!.send(JSON.stringify({
+          type: 'state_update',
+          entity_id: conn.entityId,
+          data: { prompt, field: 'p6' },
+          timestamp: ts,
+        }));
+      });
+    }
+    log('[P6 Flush] → TD p6 field', 'info');
+    logEvent('state', 'fleet', 'P6 flush → TD');
   }, [log, logEvent]);
 
   // Cycle to cloud nodes
