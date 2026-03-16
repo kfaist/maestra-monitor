@@ -170,12 +170,13 @@ export default function AudioAnalysis({ audioData, onSendAudio }: AudioAnalysisP
               className={`aa-send-btn ${sendActive ? 'active' : ''}`}
               onClick={() => setSendActive(!sendActive)}
               style={{
-                padding: '3px 10px',
-                fontSize: 10,
+                padding: '6px 14px',
+                fontSize: 12,
+                fontWeight: 600,
                 fontFamily: "'JetBrains Mono', monospace",
                 letterSpacing: '0.05em',
                 border: `1px solid ${sendActive ? '#22c55e' : '#333'}`,
-                borderRadius: 4,
+                borderRadius: 5,
                 background: sendActive ? 'rgba(34,197,94,0.15)' : 'transparent',
                 color: sendActive ? '#22c55e' : '#888',
                 cursor: 'pointer',

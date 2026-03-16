@@ -208,29 +208,40 @@ export default function SignalPanel({
               </span>
             )}
           </div>
-          <label className="toggle" title="Enable speech-to-text">
-            <input
-              type="checkbox"
-              checked={transEnabled}
-              onChange={(e) => setTransEnabled(e.target.checked)}
-            />
-            <div className="toggle-track">
-              <div className="toggle-thumb" />
-            </div>
-            <span className="toggle-label">{transEnabled ? 'On' : 'Off'}</span>
-          </label>
         </div>
 
-        {/* Transcript display */}
-        <div className="sp-transcript">
-          {transcript ? (
-            <span>{transcript}</span>
-          ) : (
-            <span className="sp-transcript-placeholder" style={{ color: '#e0e0e8' }}>
-              {transEnabled ? 'Speak into your microphone...' : <>Enable <span style={{ color: '#5cc8ff' }}>transcription</span> to capture speech</>}
-            </span>
-          )}
-          {transEnabled && <span className="cursor" />}
+        {/* Transcript display with inline toggle */}
+        <div className="sp-transcript" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={() => setTransEnabled(!transEnabled)}
+            className="maestra-action-btn"
+            style={{
+              padding: '6px 14px',
+              fontSize: 12,
+              fontFamily: "'JetBrains Mono', monospace",
+              fontWeight: 600,
+              letterSpacing: '0.05em',
+              border: `1px solid ${transEnabled ? '#22c55e' : '#333'}`,
+              borderRadius: 5,
+              background: transEnabled ? 'rgba(34,197,94,0.15)' : 'transparent',
+              color: transEnabled ? '#22c55e' : '#888',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              flexShrink: 0,
+            }}
+          >
+            {transEnabled ? '● ON' : '○ OFF'}
+          </button>
+          <div style={{ flex: 1 }}>
+            {transcript ? (
+              <span>{transcript}</span>
+            ) : (
+              <span style={{ color: '#e0e0e8' }}>
+                {transEnabled ? 'Speak into your microphone...' : <>Enable <span style={{ color: '#5cc8ff' }}>transcription</span> to capture speech</>}
+              </span>
+            )}
+            {transEnabled && <span className="cursor" />}
+          </div>
         </div>
 
         {/* Nouns */}
