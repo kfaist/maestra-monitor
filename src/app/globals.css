@@ -799,6 +799,23 @@ header {
 .td-guide-step-label strong {
   color: var(--accent);
 }
+.td-guide-step-hint {
+  font-size: 9px;
+  color: var(--text-dim);
+  opacity: 0.6;
+  margin-top: 3px;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+}
+.td-guide-live-msg {
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--active);
+  padding: 10px 12px;
+  background: rgba(0,255,136,0.04);
+  border: 1px solid rgba(0,255,136,0.15);
+  border-radius: 4px;
+}
 .td-guide-copyable {
   display: flex;
   align-items: center;
@@ -808,6 +825,16 @@ header {
   background: rgba(0,0,0,0.3);
   border: 1px solid var(--border);
   border-radius: 3px;
+}
+.td-guide-copyable-label {
+  font-family: var(--font-display);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  min-width: 42px;
+  flex-shrink: 0;
 }
 .td-guide-copyable code {
   flex: 1;
@@ -846,6 +873,12 @@ header {
 .td-guide-actions .btn {
   font-size: 10px;
   padding: 6px 12px;
+}
+.td-guide-download {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* Slot tag status classes */
