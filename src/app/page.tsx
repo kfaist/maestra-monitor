@@ -296,8 +296,8 @@ export default function Home() {
     if (streamingSlots.length === 0) return;
 
     for (const slot of streamingSlots) {
-      // Skip slots with webcam active (webcam handler sets frameUrl directly)
-      if (slot.id === selectedIdRef.current && webcamActiveRef.current) continue;
+      // Skip the slot that owns the webcam — webcam handler sets frameUrl directly
+      if (webcamActiveRef.current && slot.id === webcamSlotRef.current) continue;
 
       const endpoint = slot.endpoint
         ? `${API_BASE}${slot.endpoint}`
