@@ -66,6 +66,12 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
   const [sourceConfirmed, setSourceConfirmed] = useState(false);
   const [nodeRole, setNodeRole] = useState<NodeRole | null>(null);
 
+  // Step 1: connect method
+  const [connectMethod, setConnectMethod] = useState<'upload' | 'path' | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<{ name: string; size: number; type: string } | null>(null);
+  const [nodePath, setNodePath] = useState('/project1/my_node');
+  const [isDragging, setIsDragging] = useState(false);
+
   // TD-specific config
   const [tdOpPath, setTdOpPath] = useState('/project1/audio_analysis');
   const [tdSignalType, setTdSignalType] = useState<'chop' | 'dat' | 'json'>('chop');
@@ -128,6 +134,24 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
       setCopiedField(field);
       setTimeout(() => setCopiedField(null), 2000);
     });
+  }, []);
+
+  const handleFileDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file && (file.name.endsWith('.tox') || file.name.endsWith('.toe'))) {
+      setUploadedFile({ name: file.name, size: file.size, type: file.name.endsWith('.tox') ? 'tox' : 'toe' });
+      setConnectMethod('upload');
+    }
+  }, []);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && (file.name.endsWith('.tox') || file.name.endsWith('.toe'))) {
+      setUploadedFile({ name: file.name, size: file.size, type: file.name.endsWith('.tox') ? 'tox' : 'toe' });
+      setConnectMethod('upload');
+    }
   }, []);
 
   const handleSignalSourceChange = useCallback((source: SignalSource) => {
@@ -395,31 +419,107 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
           <div className="td-section-header">
             <div className="td-section-num">1</div>
             <div className="td-section-title-group">
-              <span className="td-section-title">Connect Your TouchDesigner Node</span>
+              <span className="td-section-title">Connect Your Node</span>
               <span className="td-section-subtitle">
-                Join this node to the Maestra network
+                Upload a project or point to an existing node
               </span>
             </div>
           </div>
           <div className="td-section-body">
-            <div className="td-connect-info">
-              <div className="td-connect-row">
-                <span className="td-connect-label">Server</span>
-                <code className="td-connect-value">{serverUrl}</code>
-                <button className="td-copy-btn" onClick={() => copyToClipboard(serverUrl, 'server')}>
-                  {copiedField === 'server' ? '✓' : 'Copy'}
+
+            {/* ── Two options: Upload or Point to Path ── */}
+            {!connectMethod && !uploadedFile && (
+              <div className="td-connect-options">
+                {/* Option A: Upload TOX/TOE */}
+                <div
+                  className={`td-connect-option-card ${isDragging ? 'dragging' : ''}`}
+                  onClick={() => document.getElementById(`tox-upload-${slot.id}`)?.click()}
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleFileDrop}
+                >
+                  <div className="td-option-icon">↑</div>
+                  <div className="td-option-title">Upload TOX / TOE</div>
+                  <div className="td-option-desc">
+                    Drag and drop or browse for your .tox or .toe file
+                  </div>
+                  <input
+                    id={`tox-upload-${slot.id}`}
+                    type="file"
+                    accept=".tox,.toe"
+                    style={{ display: 'none' }}
+                    onChange={handleFileSelect}
+                  />
+                </div>
+
+                {/* Option B: Point to existing node */}
+                <div
+                  className="td-connect-option-card"
+                  onClick={() => setConnectMethod('path')}
+                >
+                  <div className="td-option-icon">⊞</div>
+                  <div className="td-option-title">Point to Node</div>
+                  <div className="td-option-desc">
+                    Enter the operator path of an existing TD node
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Upload result ── */}
+            {connectMethod === 'upload' && uploadedFile && (
+              <div className="td-upload-result">
+                <div className="td-upload-file">
+                  <span className="td-upload-file-icon">{uploadedFile.type === 'tox' ? '◆' : '◇'}</span>
+                  <div>
+                    <div className="td-upload-file-name">{uploadedFile.name}</div>
+                    <div className="td-upload-file-meta">
+                      {uploadedFile.type.toUpperCase()} · {(uploadedFile.size / 1024).toFixed(1)} KB
+                    </div>
+                  </div>
+                  <button className="td-copy-btn" onClick={() => {
+                    setUploadedFile(null);
+                    setConnectMethod(null);
+                  }}>✕</button>
+                </div>
+                <div className="td-connect-row" style={{ marginTop: 8 }}>
+                  <span className="td-connect-label">Entity ID</span>
+                  <code className="td-connect-value td-connect-entity">{entityId}</code>
+                  <button className="td-copy-btn" onClick={() => copyToClipboard(entityId, 'entity')}>
+                    {copiedField === 'entity' ? '✓' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Point to path ── */}
+            {connectMethod === 'path' && (
+              <div className="td-path-input">
+                <div className="td-config-field">
+                  <label>Operator Path</label>
+                  <input
+                    type="text"
+                    value={nodePath}
+                    onChange={e => setNodePath(e.target.value)}
+                    placeholder="/project1/my_node"
+                    spellCheck={false}
+                  />
+                </div>
+                <div className="td-connect-row" style={{ marginTop: 8 }}>
+                  <span className="td-connect-label">Entity ID</span>
+                  <code className="td-connect-value td-connect-entity">{entityId}</code>
+                  <button className="td-copy-btn" onClick={() => copyToClipboard(entityId, 'entity')}>
+                    {copiedField === 'entity' ? '✓' : 'Copy'}
+                  </button>
+                </div>
+                <button className="td-copy-btn" style={{ marginTop: 4, fontSize: 9, color: '#666' }} onClick={() => setConnectMethod(null)}>
+                  ← back
                 </button>
               </div>
-              <div className="td-connect-row">
-                <span className="td-connect-label">Entity ID</span>
-                <code className="td-connect-value td-connect-entity">{entityId}</code>
-                <button className="td-copy-btn" onClick={() => copyToClipboard(entityId, 'entity')}>
-                  {copiedField === 'entity' ? '✓' : 'Copy'}
-                </button>
-              </div>
-            </div>
-            {/* Primary connect action */}
-            {onConnect && !isConnected && (
+            )}
+
+            {/* ── Connect button (shown once a method is chosen) ── */}
+            {(connectMethod || uploadedFile) && onConnect && !isConnected && (
               <button
                 className="td-action-btn td-action-connect"
                 onClick={onConnect}
@@ -434,28 +534,25 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
                   color: '#22c55e',
                   borderRadius: 6,
                   cursor: 'pointer',
-                  marginBottom: 10,
+                  marginTop: 10,
                   fontFamily: "'JetBrains Mono', monospace",
                 }}
               >
                 Connect Node
               </button>
             )}
-            <div className="td-connect-actions">
-              <a
-                href="https://github.com/kfaist/maestra-fleet-tox/raw/main/touchdesigner/maestra_fleet.tox"
-                download target="_blank" rel="noopener noreferrer"
-                className="td-action-btn td-action-primary"
-              >
-                Download TOX
-              </a>
-              <button className="td-action-btn" onClick={() => copyToClipboard(serverUrl, 'serverUrl')}>
-                {copiedField === 'serverUrl' ? '✓ Copied' : 'Copy Server URL'}
-              </button>
-              <button className="td-action-btn" onClick={() => copyToClipboard(entityId, 'entityId')}>
-                {copiedField === 'entityId' ? '✓ Copied' : 'Copy Entity ID'}
-              </button>
+
+            {/* ── Server info (collapsed) ── */}
+            <div style={{ marginTop: 12, padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              <div className="td-connect-row">
+                <span className="td-connect-label">Server</span>
+                <code className="td-connect-value" style={{ fontSize: 9 }}>{serverUrl}</code>
+                <button className="td-copy-btn" onClick={() => copyToClipboard(serverUrl, 'server')}>
+                  {copiedField === 'server' ? '✓' : 'Copy'}
+                </button>
+              </div>
             </div>
+
             <div className="td-node-status-hint">
               <div className="td-node-status-dot" style={{
                 background: isLive ? '#22c55e' : isConnected ? '#5cc8ff' : '#666',

@@ -1441,6 +1441,50 @@ header {
 .td-live-activity-time { color: #555; min-width: 60px; }
 .td-live-activity-msg { color: #aab; }
 
+/* ═══ Step 1: Connect Options ═══ */
+.td-connect-options {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;
+}
+.td-connect-option-card {
+  padding: 14px 12px; border-radius: 6px; cursor: pointer;
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08);
+  transition: all 0.15s ease; text-align: center;
+}
+.td-connect-option-card:hover {
+  background: rgba(0,212,255,0.06); border-color: rgba(0,212,255,0.3);
+}
+.td-connect-option-card.dragging {
+  background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.4);
+  box-shadow: 0 0 20px rgba(34,197,94,0.1);
+}
+.td-option-icon {
+  font-size: 20px; margin-bottom: 6px; color: var(--accent); opacity: 0.7;
+}
+.td-option-title {
+  font-size: 11px; font-weight: 700; color: #ccc; letter-spacing: .03em;
+  font-family: 'JetBrains Mono', monospace; margin-bottom: 4px;
+}
+.td-option-desc {
+  font-size: 9px; color: #777; line-height: 1.4;
+  font-family: 'JetBrains Mono', monospace;
+}
+.td-upload-result { margin-bottom: 4px; }
+.td-upload-file {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px; background: rgba(34,197,94,0.06);
+  border: 1px solid rgba(34,197,94,0.2); border-radius: 5px;
+}
+.td-upload-file-icon { font-size: 18px; color: #22c55e; }
+.td-upload-file-name {
+  font-size: 11px; font-weight: 600; color: #ddd;
+  font-family: 'JetBrains Mono', monospace;
+}
+.td-upload-file-meta {
+  font-size: 9px; color: #888; margin-top: 2px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.td-path-input { margin-bottom: 4px; }
+
 /* ═══ Reconnect / Stale Panel ═══ */
 .td-reconnect-panel {
   background: rgba(251,191,36,0.04);
