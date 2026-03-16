@@ -62,6 +62,8 @@ export default function Home() {
   const activeNodeUrlRef = useRef<string | null>(null);
   const slotsRef = useRef(slots);
   slotsRef.current = slots;
+  // Track remote entity IDs (e.g. TD nodes) so we can target prompt/p6 at them
+  const remoteEntitiesRef = useRef<Set<string>>(new Set());
 
   // Maestra connection instances per slot
   const connectionsRef = useRef<Map<string, MaestraConnection>>(new Map());
@@ -328,6 +330,10 @@ export default function Home() {
             }
             return;
           }
+          // Track remote entity IDs (TD nodes, etc.) from any event
+          if (msg.entity_id) {
+            remoteEntitiesRef.current.add(msg.entity_id);
+          }
           // Route heartbeat events to the right MaestraConnection
           if (msg.type === 'heartbeat' && msg.entity_id) {
             connectionsRef.current.forEach((conn) => {
@@ -521,49 +527,83 @@ export default function Home() {
     }, 400);
   }, [fetchFrame, log]);
 
-  // Broadcast prompt — sends via WS (backend relay) and Maestra state_update
+  // Collect all entity IDs that should receive prompt/p6 messages
+  const getAllTargetEntityIds = useCallback((): string[] => {
+    const ids = new Set<string>();
+    // Add all remote entities we've seen (TD nodes, etc.)
+    remoteEntitiesRef.current.forEach(id => ids.add(id));
+    // Add all dashboard-side connections (in case they overlap)
+    connectionsRef.current.forEach(conn => ids.add(conn.entityId));
+    return Array.from(ids);
+  }, []);
+
+  // Broadcast prompt — sends via WS broadcast + targeted state_update to every known entity
   const broadcastPrompt = useCallback((prompt: string) => {
     const ts = Date.now();
-    // Send via backend WS relay
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'prompt_inject', prompt, timestamp: ts }));
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      log('[Inject] WS not connected — message dropped', 'error');
+      return;
     }
-    // Also send as Maestra state_update via WS (TD listens for these)
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      connectionsRef.current.forEach((conn) => {
-        wsRef.current!.send(JSON.stringify({
-          type: 'state_update',
-          entity_id: conn.entityId,
-          data: { prompt, field: 'prompt' },
-          timestamp: ts,
-        }));
-      });
-    }
-    log(`[Inject] "${prompt.slice(0, 60)}${prompt.length > 60 ? '...' : ''}"`, 'ok');
+    const ws = wsRef.current;
+
+    // 1. Broadcast message (backend relays to all subscribers)
+    ws.send(JSON.stringify({ type: 'prompt_inject', prompt, timestamp: ts }));
+
+    // 2. Also broadcast as a state_update without entity_id (fleet-wide)
+    ws.send(JSON.stringify({
+      type: 'state_update',
+      data: { prompt, field: 'prompt' },
+      timestamp: ts,
+    }));
+
+    // 3. Target every known remote entity specifically (TD listens for state_update with its entity_id)
+    const targets = getAllTargetEntityIds();
+    targets.forEach(entityId => {
+      ws.send(JSON.stringify({
+        type: 'state_update',
+        entity_id: entityId,
+        data: { prompt, field: 'prompt' },
+        timestamp: ts,
+      }));
+    });
+
+    log(`[Inject] "${prompt.slice(0, 60)}${prompt.length > 60 ? '...' : ''}" → ${targets.length} entities`, 'ok');
     logEvent('state', 'fleet', `Prompt injected: ${prompt.slice(0, 40)}`);
-  }, [log, logEvent]);
+  }, [log, logEvent, getAllTargetEntityIds]);
 
   // P6 flush — sends the prompt to TD's p6 field via WS state_update
   const p6Flush = useCallback((prompt: string) => {
     const ts = Date.now();
-    // Send via backend WS relay
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'p6_flush', prompt, timestamp: ts }));
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      log('[P6] WS not connected — message dropped', 'error');
+      return;
     }
-    // Also send as Maestra state_update targeting p6 field
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      connectionsRef.current.forEach((conn) => {
-        wsRef.current!.send(JSON.stringify({
-          type: 'state_update',
-          entity_id: conn.entityId,
-          data: { prompt, field: 'p6' },
-          timestamp: ts,
-        }));
-      });
-    }
-    log('[P6 Flush] → TD p6 field', 'info');
+    const ws = wsRef.current;
+
+    // 1. Broadcast p6_flush
+    ws.send(JSON.stringify({ type: 'p6_flush', prompt, timestamp: ts }));
+
+    // 2. Broadcast as state_update (fleet-wide, no entity_id)
+    ws.send(JSON.stringify({
+      type: 'state_update',
+      data: { prompt, field: 'p6' },
+      timestamp: ts,
+    }));
+
+    // 3. Target every known remote entity
+    const targets = getAllTargetEntityIds();
+    targets.forEach(entityId => {
+      ws.send(JSON.stringify({
+        type: 'state_update',
+        entity_id: entityId,
+        data: { prompt, field: 'p6' },
+        timestamp: ts,
+      }));
+    });
+
+    log(`[P6 Flush] → ${targets.length} entities`, 'info');
     logEvent('state', 'fleet', 'P6 flush → TD');
-  }, [log, logEvent]);
+  }, [log, logEvent, getAllTargetEntityIds]);
 
   // Webcam frame handler — injects captured frames into the selected slot
   const handleWebcamFrame = useCallback((blobUrl: string, fps: number) => {
