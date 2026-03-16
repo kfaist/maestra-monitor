@@ -730,28 +730,23 @@ export default function Home() {
     }
   }, []); // no selectedId dep — uses ref
 
-  // When webcam activates, pause the remote frame polling (avoid overwriting)
+  // When webcam activates — DON'T kill frame polling for other slots
+  // fetchFrame already skips the webcam slot via webcamActiveRef check
   const handleWebcamToggle = useCallback((active: boolean) => {
     setWebcamActive(active);
     // Auto-select first slot if nothing is selected
     if (active && !selectedIdRef.current) {
       setSelectedId('krista1');
     }
+    const target = selectedIdRef.current || 'krista1';
     if (active) {
-      if (frameIntervalRef.current) {
-        clearInterval(frameIntervalRef.current);
-        frameIntervalRef.current = null;
-      }
-      const target = selectedIdRef.current || 'krista1';
-      log(`[Webcam] Started — streaming to ${target}`, 'ok');
+      log(`[Webcam] Started — streaming to ${target} (other slots still polling)`, 'ok');
       logEvent('stream', target, 'Webcam stream started');
     } else {
-      fetchFrame();
-      frameIntervalRef.current = setInterval(fetchFrame, FRAME_FETCH_INTERVAL);
-      log('[Webcam] Stopped — resuming remote frame fetch', 'info');
-      logEvent('stream', selectedIdRef.current || 'krista1', 'Webcam stream stopped');
+      log('[Webcam] Stopped', 'info');
+      logEvent('stream', target, 'Webcam stream stopped');
     }
-  }, [fetchFrame, log, logEvent]);
+  }, [log, logEvent]);
 
   // Cycle to cloud nodes
   const cycleStreamSource = useCallback(() => {

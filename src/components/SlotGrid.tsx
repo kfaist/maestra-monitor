@@ -111,7 +111,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       {statusText}
                     </span>
                   ) : (
-                    <span className="slot-tag available-tag">Available</span>
+                    <span className="slot-tag available-tag">Available · Click to connect</span>
                   )}
                 </div>
               </div>

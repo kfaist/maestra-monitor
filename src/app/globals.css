@@ -469,7 +469,10 @@ header {
 .slot-fps { font-size: 9px; color: var(--text-dim); letter-spacing: 0.05em; font-variant-numeric: tabular-nums; }
 .slot-tag { font-size: 9px; letter-spacing: 0.1em; padding: 2px 6px; border-radius: 2px; text-transform: uppercase; font-weight: 700; min-width: 70px; text-align: center; }
 .slot-tag.active-tag { background: rgba(0,255,136,0.12); color: var(--active); border: 1px solid rgba(0,255,136,0.3); }
-.slot-tag.available-tag { background: rgba(0,212,255,0.08); color: var(--cyan); border: 1px solid rgba(0,212,255,0.25); }
+.slot-tag.available-tag { background: rgba(0,212,255,0.08); color: var(--cyan); border: 1px solid rgba(0,212,255,0.25); font-size: 8px; letter-spacing: 0.06em; }
+.slot:not(.active-slot):hover .slot-tag.available-tag { background: rgba(0,212,255,0.2); border-color: rgba(0,212,255,0.5); color: #fff; }
+.slot:not(.active-slot) { cursor: pointer; }
+.slot:not(.active-slot):hover { border-color: rgba(0,212,255,0.5); box-shadow: 0 0 20px rgba(0,212,255,0.15); }
 
 .slot.cloud-node { border-color: rgba(0,212,255,0.45); box-shadow: inset 3px 0 0 var(--accent), 0 0 18px rgba(0,212,255,0.08); }
 .slot.cloud-node .slot-label { color: var(--accent); }

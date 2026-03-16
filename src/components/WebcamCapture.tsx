@@ -429,6 +429,35 @@ export default function WebcamCapture({
         </div>
       )}
 
+      {/* TD merge instructions when live */}
+      {active && status === 'live' && tdRelayActive && (
+        <div style={{
+          marginTop: 6,
+          padding: '8px 12px',
+          background: 'rgba(92,200,255,0.04)',
+          border: '1px solid rgba(92,200,255,0.15)',
+          borderRadius: 6,
+          fontSize: 10,
+          fontFamily: "'JetBrains Mono', monospace",
+          color: '#888',
+          lineHeight: 1.7,
+        }}>
+          <div style={{ color: '#5cc8ff', fontWeight: 700, fontSize: 11, marginBottom: 4 }}>
+            Merge webcam with SD in TouchDesigner:
+          </div>
+          <div><span style={{ color: '#aab' }}>1.</span> <span style={{ color: '#ccd' }}>Web Client DAT</span> → fetch URL:</div>
+          <code style={{ color: '#22c55e', display: 'block', padding: '3px 0', wordBreak: 'break-all' }}>
+            {typeof window !== 'undefined' ? window.location.origin : ''}/api/frame/browser
+          </code>
+          <div><span style={{ color: '#aab' }}>2.</span> Pipe into <span style={{ color: '#ccd' }}>Movie File In TOP</span> (or decode JPEG)</div>
+          <div><span style={{ color: '#aab' }}>3.</span> Use <span style={{ color: '#ccd' }}>Composite TOP</span> to blend with your SD output</div>
+          <div><span style={{ color: '#aab' }}>4.</span> <span style={{ color: '#ccd' }}>Over / Add / Multiply</span> — your choice of blend mode</div>
+          <div style={{ marginTop: 4, fontSize: 9, color: '#555' }}>
+            Poll at 10-15 fps · Returns raw JPEG · CORS enabled
+          </div>
+        </div>
+      )}
+
       {/* Error */}
       {status === 'error' && (
         <div style={{
