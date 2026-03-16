@@ -99,6 +99,15 @@ export default function DetailPanel({
         )}
       </div>
 
+      {/* Maestra Status + Connection — directly under preview */}
+      <ConnectionPanel
+        connectionInfo={connectionInfo}
+        remoteEntities={remoteEntities}
+        onAutoConnect={onAutoConnect}
+        onDisconnect={onDisconnect}
+        onUpdateConfig={onUpdateConfig}
+      />
+
       {/* Webcam Capture Controls */}
       {slot && (
         <WebcamCapture
@@ -122,15 +131,6 @@ export default function DetailPanel({
         onPromptChange={onPromptChange}
         onBroadcast={onBroadcast}
         onP6Flush={onP6Flush}
-      />
-
-      {/* Maestra Status + Connection */}
-      <ConnectionPanel
-        connectionInfo={connectionInfo}
-        remoteEntities={remoteEntities}
-        onAutoConnect={onAutoConnect}
-        onDisconnect={onDisconnect}
-        onUpdateConfig={onUpdateConfig}
       />
 
       {/* Event Log */}

@@ -226,8 +226,8 @@ export default function SignalPanel({
           {transcript ? (
             <span>{transcript}</span>
           ) : (
-            <span className="sp-transcript-placeholder">
-              {transEnabled ? 'Speak into your microphone...' : 'Enable transcription to capture speech'}
+            <span className="sp-transcript-placeholder" style={{ color: '#e0e0e8' }}>
+              {transEnabled ? 'Speak into your microphone...' : <>Enable <span style={{ color: '#5cc8ff' }}>transcription</span> to capture speech</>}
             </span>
           )}
           {transEnabled && <span className="cursor" />}

@@ -873,22 +873,6 @@ export default function Home() {
         <div className="fleet-layout">
           {/* Left: Slot Grid + Audio + Palette + Modulation */}
           <div className="fleet-panel">
-            {/* Big status indicators above slots */}
-            <div className="fleet-status-bar">
-              <div className={`fleet-status-badge ${wsStatus === 'online' ? 'status-green' : wsStatus === 'connecting' ? 'status-amber' : 'status-red'}`}>
-                <div className="fleet-status-dot" />
-                <span className="fleet-status-text">WS {wsStatus === 'online' ? 'LIVE' : wsStatus === 'connecting' ? '...' : 'OFF'}</span>
-              </div>
-              <div className={`fleet-status-badge ${apiStatus === 'online' ? 'status-green' : 'status-red'}`}>
-                <div className="fleet-status-dot" />
-                <span className="fleet-status-text">API {apiStatus === 'online' ? 'OK' : 'ERR'}</span>
-              </div>
-              <div className={`fleet-status-badge ${maestraHeaderStatus === 'connected' ? 'status-green' : maestraHeaderStatus === 'connecting' ? 'status-amber' : 'status-red'}`}>
-                <div className="fleet-status-dot" />
-                <span className="fleet-status-text">MAESTRA: {maestraHeaderStatus === 'connected' ? 'CONNECTED' : maestraHeaderStatus === 'connecting' ? 'CONNECTING' : maestraHeaderStatus === 'error' ? 'ERROR' : 'OFF'}</span>
-              </div>
-            </div>
-
             <SlotGrid
               slots={slots}
               selectedId={selectedId}
