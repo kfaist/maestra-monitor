@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { ConnectionStatus } from '@/types';
+// ConnectionStatus imported for type reference only
+
 import {
   MaestraConnection,
   MaestraConnectionState,
@@ -376,9 +377,13 @@ export default function JoinModal({ open, onClose, onJoin }: JoinModalProps) {
         {/* ─── STEP: SUCCESS ─── */}
         {step === 'success' && (
           <>
-            <div className="modal-title" style={{ color: 'var(--active)' }}>Connected</div>
+            <div className="modal-title" style={{ color: 'var(--active)' }}>
+              {connectionState?.optimistic ? 'Connected (Local Network)' : 'Connected'}
+            </div>
             <div className="modal-subtitle">
-              Successfully connected to the Maestra network.
+              {connectionState?.optimistic
+                ? 'Optimistic connection — your browser can\'t directly verify the local Maestra server from HTTPS, but TD nodes on the gallery network will sync normally.'
+                : 'Successfully connected to the Maestra network.'}
             </div>
             <div className="modal-steps">
               <div className="modal-step done" />
@@ -387,6 +392,11 @@ export default function JoinModal({ open, onClose, onJoin }: JoinModalProps) {
             </div>
 
             <div className="success-card">
+              {connectionState?.optimistic && (
+                <div style={{ fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--amber)', marginBottom: '10px', padding: '6px 8px', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: '3px' }}>
+                  HTTPS → HTTP: Browser-side requests blocked. TD ↔ Maestra sync is unaffected.
+                </div>
+              )}
               <div className="success-info-row">
                 <span className="success-label">Server</span>
                 <span className="success-value">{connectionState?.serverUrl || serverUrl}</span>

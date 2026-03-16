@@ -110,6 +110,8 @@ export interface SlotConnectionInfo {
   streamPath: string;
   discoveredUrl: string | null;
   errorMessage: string | null;
+  optimistic?: boolean;
+  mixedContent?: boolean;
 }
 
 export interface LogEntry {

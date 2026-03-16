@@ -113,6 +113,8 @@ export default function Home() {
         streamPath: state.streamPath,
         discoveredUrl: state.discoveredUrl,
         errorMessage: state.errorMessage,
+        optimistic: state.optimistic,
+        mixedContent: state.mixedContent,
       };
     });
 

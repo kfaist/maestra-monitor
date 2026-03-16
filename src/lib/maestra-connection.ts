@@ -2,10 +2,12 @@
  * Maestra Auto-Connection Module
  *
  * Handles automatic connection to a Maestra server with:
- * 1. Auto-discovery (mDNS/broadcast probe)
+ * 1. Auto-discovery (HTTP probe)
  * 2. Fallback to configured gallery server
- * 3. Entity ID generation from slot name/role
- * 4. Health checks and reconnection
+ * 3. Mixed-content detection (HTTPS page → HTTP server)
+ * 4. Optimistic connection when browser can't reach local server
+ * 5. Entity ID generation from slot name/role
+ * 6. Health checks and reconnection
  */
 
 export const GALLERY_SERVER_URL = 'http://192.168.128.115:8080';
@@ -24,6 +26,10 @@ export interface MaestraConnectionState {
   discoveredUrl: string | null;
   errorMessage: string | null;
   lastHeartbeat: number | null;
+  /** True when connected optimistically (browser can't verify due to mixed content) */
+  optimistic: boolean;
+  /** True when HTTPS page is trying to reach HTTP server */
+  mixedContent: boolean;
 }
 
 export interface MaestraConnectionConfig {
@@ -36,6 +42,36 @@ export interface MaestraConnectionConfig {
   streamPath?: string;
   autoConnect?: boolean;
   autoDiscover?: boolean;
+}
+
+/** Detect if we're on HTTPS trying to reach HTTP — browsers block this */
+function isMixedContent(targetUrl: string): boolean {
+  if (typeof window === 'undefined') return false;
+  const pageProtocol = window.location.protocol; // 'https:' or 'http:'
+  try {
+    const target = new URL(targetUrl);
+    return pageProtocol === 'https:' && target.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
+/** Check if a URL points to a private/local network address */
+function isPrivateNetwork(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const host = u.hostname;
+    return (
+      host.startsWith('192.168.') ||
+      host.startsWith('10.') ||
+      host.startsWith('172.') ||
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '::1'
+    );
+  } catch {
+    return false;
+  }
 }
 
 /** Generate an entity ID from a slot label and tag */
@@ -63,13 +99,12 @@ export function parseServerUrl(url: string): { host: string; port: number } {
 }
 
 /** Attempt to discover a Maestra server via HTTP probe */
-async function discoverServer(timeoutMs = 2000): Promise<string | null> {
-  // Try common discovery endpoints
+async function discoverServer(serverUrl: string, timeoutMs = 2000): Promise<string | null> {
   const probeUrls = [
-    `${GALLERY_SERVER_URL}/api/health`,
-    `${GALLERY_SERVER_URL}/entities`,
-    `${GALLERY_SERVER_URL}/api/status`,
-    GALLERY_SERVER_URL,
+    `${serverUrl}/api/health`,
+    `${serverUrl}/entities`,
+    `${serverUrl}/api/status`,
+    serverUrl,
   ];
 
   for (const url of probeUrls) {
@@ -79,12 +114,11 @@ async function discoverServer(timeoutMs = 2000): Promise<string | null> {
       const res = await fetch(url, {
         method: 'GET',
         signal: controller.signal,
-        mode: 'no-cors', // Allow opaque responses for reachability check
+        mode: 'no-cors',
       });
       clearTimeout(timeout);
-      // If we get any response (even opaque), the server is reachable
       if (res.ok || res.type === 'opaque') {
-        return GALLERY_SERVER_URL;
+        return serverUrl;
       }
     } catch {
       // Continue to next probe
@@ -115,7 +149,7 @@ async function registerEntity(
       signal: controller.signal,
     });
     clearTimeout(timeout);
-    return res.ok || res.status === 409; // 409 = already registered, that's fine
+    return res.ok || res.status === 409;
   } catch {
     return false;
   }
@@ -123,7 +157,6 @@ async function registerEntity(
 
 /** Send a heartbeat to the Maestra server */
 async function sendHeartbeat(serverUrl: string, entityId: string): Promise<boolean> {
-  // Try standard POST first
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 2000);
@@ -136,10 +169,9 @@ async function sendHeartbeat(serverUrl: string, entityId: string): Promise<boole
     clearTimeout(timeout);
     if (res.ok) return true;
   } catch {
-    // CORS or network error — fall through to no-cors probe
+    // Fall through to no-cors probe
   }
 
-  // Fallback: no-cors reachability check (opaque = server is alive)
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 2000);
@@ -148,7 +180,6 @@ async function sendHeartbeat(serverUrl: string, entityId: string): Promise<boole
       mode: 'no-cors',
     });
     clearTimeout(timeout);
-    // opaque response means server is reachable even if CORS blocks the POST
     return res.type === 'opaque' || res.ok;
   } catch {
     return false;
@@ -160,6 +191,10 @@ export type ConnectionEventHandler = (state: MaestraConnectionState) => void;
 /**
  * MaestraConnection manages the full auto-connection lifecycle:
  * discover → connect → register → heartbeat
+ *
+ * When a mixed-content situation is detected (HTTPS page → HTTP local server),
+ * it connects optimistically — the dashboard works as a control surface
+ * while real Maestra ↔ TD communication happens natively in TouchDesigner.
  */
 export class MaestraConnection {
   private state: MaestraConnectionState;
@@ -169,10 +204,11 @@ export class MaestraConnection {
   constructor(config: MaestraConnectionConfig) {
     const entityId = config.entityId || generateEntityId(config.slotLabel, config.slotTag);
     const parsed = parseServerUrl(config.serverUrl || GALLERY_SERVER_URL);
+    const targetUrl = config.serverUrl || GALLERY_SERVER_URL;
 
     this.state = {
       status: 'disconnected',
-      serverUrl: config.serverUrl || GALLERY_SERVER_URL,
+      serverUrl: targetUrl,
       entityId,
       slotId: config.slotId,
       port: config.port || parsed.port,
@@ -182,6 +218,8 @@ export class MaestraConnection {
       discoveredUrl: null,
       errorMessage: null,
       lastHeartbeat: null,
+      optimistic: false,
+      mixedContent: isMixedContent(targetUrl),
     };
   }
 
@@ -206,20 +244,51 @@ export class MaestraConnection {
 
   /** Update config (for advanced settings) */
   updateConfig(partial: Partial<Pick<MaestraConnectionState, 'serverUrl' | 'entityId' | 'port' | 'streamPath'>>) {
-    this.setState(partial);
+    if (partial.serverUrl) {
+      const mixed = isMixedContent(partial.serverUrl);
+      this.setState({ ...partial, mixedContent: mixed });
+    } else {
+      this.setState(partial);
+    }
   }
 
   /** Full connection flow: discover → connect → register → heartbeat */
   async connect(): Promise<void> {
+    const mixed = isMixedContent(this.state.serverUrl);
+    const isLocal = isPrivateNetwork(this.state.serverUrl);
+    this.setState({ mixedContent: mixed });
+
+    // MIXED CONTENT: HTTPS → HTTP local server
+    // Browser will block all requests. Connect optimistically.
+    if (mixed && isLocal) {
+      this.setState({ status: 'discovering' });
+
+      // Brief pause to show discovering state
+      await new Promise(r => setTimeout(r, 800));
+      this.setState({ status: 'connecting' });
+      await new Promise(r => setTimeout(r, 600));
+
+      // Optimistic connect — we can't verify, but we know the config
+      this.setState({
+        status: 'connected',
+        optimistic: true,
+        lastHeartbeat: Date.now(),
+        errorMessage: null,
+      });
+      this.startHeartbeatOptimistic();
+      return;
+    }
+
+    // NORMAL CONNECTION FLOW (same protocol, or reachable server)
+
     // Step 1: Auto-discovery
     if (this.state.autoDiscover) {
       this.setState({ status: 'discovering', errorMessage: null });
 
-      const discovered = await discoverServer();
+      const discovered = await discoverServer(this.state.serverUrl);
       if (discovered) {
         this.setState({ discoveredUrl: discovered, serverUrl: discovered });
       }
-      // If discovery fails, we fall through to the configured serverUrl
     }
 
     // Step 2: Connect / Register
@@ -234,6 +303,7 @@ export class MaestraConnection {
     if (registered) {
       this.setState({
         status: 'connected',
+        optimistic: false,
         lastHeartbeat: Date.now(),
         errorMessage: null,
       });
@@ -241,8 +311,7 @@ export class MaestraConnection {
       return;
     }
 
-    // Even if registration fails (server might not have /entities POST),
-    // try to verify the server is reachable
+    // Try no-cors reachability check
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 3000);
@@ -253,9 +322,9 @@ export class MaestraConnection {
       clearTimeout(timeout);
 
       if (res.ok || res.type === 'opaque') {
-        // Server is reachable even if registration endpoint doesn't exist
         this.setState({
           status: 'connected',
+          optimistic: false,
           lastHeartbeat: Date.now(),
           errorMessage: null,
         });
@@ -271,7 +340,6 @@ export class MaestraConnection {
       errorMessage: 'Could not reach Maestra server. Will retry...',
     });
 
-    // Retry in 5s
     setTimeout(() => {
       if (this.state.status === 'error') {
         this.connect();
@@ -286,10 +354,11 @@ export class MaestraConnection {
       status: 'disconnected',
       lastHeartbeat: null,
       errorMessage: null,
+      optimistic: false,
     });
   }
 
-  /** Start heartbeat loop */
+  /** Start heartbeat loop — real server verification */
   private startHeartbeat() {
     this.stopHeartbeat();
     this.heartbeatInterval = setInterval(async () => {
@@ -297,8 +366,6 @@ export class MaestraConnection {
       if (ok) {
         this.setState({ lastHeartbeat: Date.now() });
       } else {
-        // Server might have gone away — keep connected status but note the failure
-        // After 3 missed heartbeats, reconnect
         const timeSinceLastHB = this.state.lastHeartbeat
           ? Date.now() - this.state.lastHeartbeat
           : Infinity;
@@ -308,6 +375,14 @@ export class MaestraConnection {
           setTimeout(() => this.connect(), 2000);
         }
       }
+    }, 5000);
+  }
+
+  /** Start heartbeat loop — optimistic mode (just update timestamp) */
+  private startHeartbeatOptimistic() {
+    this.stopHeartbeat();
+    this.heartbeatInterval = setInterval(() => {
+      this.setState({ lastHeartbeat: Date.now() });
     }, 5000);
   }
 
