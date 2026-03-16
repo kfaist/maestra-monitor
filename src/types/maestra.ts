@@ -106,6 +106,9 @@ export interface MaestraEntity {
   registered_at: number;
 }
 
+export type SignalType = 'touchdesigner' | 'json_stream' | 'osc' | 'audio_reactive' | 'text' | 'test_signal' | 'video' | null;
+export type NodeRole = 'receive' | 'send' | 'two_way' | null;
+
 export interface FleetSlot {
   id: string;
   label: string;
@@ -122,6 +125,10 @@ export interface FleetSlot {
   suggestion?: SlotSuggestion;
   /** Granular 5-layer status */
   maestraStatus?: MaestraSlotStatus;
+  /** Signal type chosen during setup (audio, video, json, etc.) */
+  signalType?: SignalType;
+  /** Node role chosen during setup */
+  nodeRole?: NodeRole;
   _frameTimes: number[];
   _fpsSmooth: number | null;
 }

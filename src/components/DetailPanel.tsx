@@ -27,6 +27,8 @@ interface DetailPanelProps {
   onDisconnect?: () => void;
   onUpdateConfig?: (config: { serverUrl?: string; entityId?: string; port?: number; streamPath?: string }) => void;
   remoteEntities?: string[];
+  onSignalTypeChange?: (source: string) => void;
+  onNodeRoleChange?: (role: 'receive' | 'send' | 'two_way') => void;
 }
 
 export default function DetailPanel({
@@ -48,6 +50,8 @@ export default function DetailPanel({
   onDisconnect,
   onUpdateConfig,
   remoteEntities,
+  onSignalTypeChange,
+  onNodeRoleChange,
 }: DetailPanelProps) {
   // Only show remote frame if the slot genuinely has a stream with frames — not just "active"
   const hasRemoteFrame = slot?.active && slot.frameUrl && !webcamActive;
@@ -138,6 +142,8 @@ export default function DetailPanel({
           onConnect={onAutoConnect}
           onReconnect={onAutoConnect}
           onDisconnect={onDisconnect}
+          onSignalSourceChange={onSignalTypeChange ? (src) => onSignalTypeChange(src) : undefined}
+          onRoleChange={onNodeRoleChange}
         />
       )}
 

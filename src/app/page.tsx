@@ -799,6 +799,27 @@ export default function Home() {
     if (connectionInfo) disconnectSlot(connectionInfo.slotId);
   }, [connectionInfo, disconnectSlot]);
 
+  // Handle signal type / node role changes from TDConnectGuide
+  const handleSignalTypeChange = useCallback((source: string) => {
+    const slotId = selectedIdRef.current;
+    if (!slotId) return;
+    setSlots(prev => prev.map(s => {
+      if (s.id !== slotId) return s;
+      return { ...s, signalType: source as FleetSlot['signalType'] };
+    }));
+    log(`[${slotId}] Signal type → ${source}`, 'info');
+  }, [log]);
+
+  const handleNodeRoleChange = useCallback((role: 'receive' | 'send' | 'two_way') => {
+    const slotId = selectedIdRef.current;
+    if (!slotId) return;
+    setSlots(prev => prev.map(s => {
+      if (s.id !== slotId) return s;
+      return { ...s, nodeRole: role };
+    }));
+    log(`[${slotId}] Node role → ${role}`, 'info');
+  }, [log]);
+
   // Initialize
   useEffect(() => {
     simulatorRef.current = new WSSimulator();
@@ -957,6 +978,8 @@ export default function Home() {
             onDisconnect={handleDisconnect}
             onUpdateConfig={updateConnectionConfig}
             remoteEntities={remoteEntityList}
+            onSignalTypeChange={handleSignalTypeChange}
+            onNodeRoleChange={handleNodeRoleChange}
           />
         </div>
 

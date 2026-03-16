@@ -73,15 +73,38 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   slot.frameUrl ? (
                     <img src={slot.frameUrl} alt="stream" />
                   ) : (
-                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                      {/* Signal type icon when active but no frame yet */}
+                      {slot.signalType && (
+                        <span style={{ fontSize: '20px', opacity: 0.5 }}>
+                          {slot.signalType === 'audio_reactive' ? '♫'
+                            : slot.signalType === 'json_stream' ? '{ }'
+                            : slot.signalType === 'osc' ? '~'
+                            : slot.signalType === 'touchdesigner' ? '◆'
+                            : slot.signalType === 'text' ? 'A'
+                            : slot.signalType === 'video' ? '▶'
+                            : '●'}
+                        </span>
+                      )}
                       <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: mStatus ? 'var(--accent)' : 'var(--text-dim)' }}>
                         {statusText}
                       </span>
-                      {waitingStr ? (
+                      {slot.signalType && (
+                        <span style={{ fontSize: '8px', letterSpacing: '.06em', color: 'var(--accent)', opacity: 0.6 }}>
+                          {slot.signalType === 'audio_reactive' ? 'Audio'
+                            : slot.signalType === 'json_stream' ? 'JSON'
+                            : slot.signalType === 'osc' ? 'OSC'
+                            : slot.signalType === 'touchdesigner' ? 'TouchDesigner'
+                            : slot.signalType === 'text' ? 'Text'
+                            : slot.signalType === 'video' ? 'Video'
+                            : slot.signalType}
+                        </span>
+                      )}
+                      {!slot.signalType && waitingStr ? (
                         <span style={{ fontSize: '8px', letterSpacing: '.08em', color: 'var(--text-dim)', opacity: 0.6 }}>
                           {waitingStr}
                         </span>
-                      ) : mStatus && mStatus.heartbeat === 'waiting' && mStatus.entity === 'registered' ? (
+                      ) : !slot.signalType && mStatus && mStatus.heartbeat === 'waiting' && mStatus.entity === 'registered' ? (
                         <span style={{ fontSize: '8px', letterSpacing: '.08em', color: 'var(--text-dim)', opacity: 0.5 }}>
                           Awaiting first heartbeat
                         </span>
