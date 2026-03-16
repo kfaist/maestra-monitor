@@ -276,105 +276,150 @@ export default function WebcamCapture({
 
   return (
     <div className="webcam-capture">
-      <div className="webcam-header">
-        <div className="webcam-title-row">
-          <span className="webcam-title">Webcam</span>
-          {status === 'live' && (
-            <>
-              <span className="webcam-fps-badge">{fps} FPS</span>
-              <span className="webcam-res-badge">{resolution.w}×{resolution.h}</span>
-              <span className="webcam-frame-count">{frameCount} frames</span>
-            </>
-          )}
-          {status === 'requesting' && (
-            <span className="webcam-status-badge requesting">requesting camera…</span>
-          )}
+      {/* ═══ NOT ACTIVE — big prominent Start button ═══ */}
+      {!active && status !== 'requesting' && (
+        <button
+          onClick={() => onActiveChange(true)}
+          style={{
+            width: '100%',
+            padding: '14px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            background: 'linear-gradient(135deg, rgba(92,200,255,0.12), rgba(34,197,94,0.08))',
+            border: '1.5px solid rgba(92,200,255,0.35)',
+            borderRadius: 8,
+            color: '#5cc8ff',
+            fontSize: 15,
+            fontWeight: 700,
+            fontFamily: "'JetBrains Mono', monospace",
+            letterSpacing: '0.06em',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(92,200,255,0.2), rgba(34,197,94,0.15))';
+            e.currentTarget.style.borderColor = 'rgba(92,200,255,0.6)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(92,200,255,0.12), rgba(34,197,94,0.08))';
+            e.currentTarget.style.borderColor = 'rgba(92,200,255,0.35)';
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <circle cx="12" cy="12" r="3" fill="currentColor" />
+          </svg>
+          START CAMERA
+          <span style={{ fontSize: 10, fontWeight: 400, color: '#888', marginLeft: 4 }}>→ TD</span>
+        </button>
+      )}
+
+      {/* Requesting state */}
+      {status === 'requesting' && (
+        <div style={{
+          width: '100%',
+          padding: '14px 20px',
+          textAlign: 'center',
+          background: 'rgba(92,200,255,0.06)',
+          border: '1.5px solid rgba(92,200,255,0.2)',
+          borderRadius: 8,
+          color: '#5cc8ff',
+          fontSize: 13,
+          fontFamily: "'JetBrains Mono', monospace",
+        }}>
+          Requesting camera access...
         </div>
-        <div className="webcam-controls">
-          {status === 'live' && (
-            <button
-              className="webcam-td-relay-btn"
-              onClick={() => setTdRelayActive(!tdRelayActive)}
-              style={{
-                padding: '2px 8px',
-                fontSize: 9,
-                fontFamily: "'JetBrains Mono', monospace",
-                letterSpacing: '0.05em',
-                border: `1px solid ${tdRelayActive ? (tdRelayStatus === 'ok' ? '#22c55e' : '#666') : '#333'}`,
-                borderRadius: 4,
-                background: tdRelayActive && tdRelayStatus === 'ok' ? 'rgba(34,197,94,0.12)' : 'transparent',
-                color: tdRelayActive ? (tdRelayStatus === 'ok' ? '#22c55e' : '#888') : '#555',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-              }}
-              title="POST frames to /api/frame/browser for TD to poll"
-            >
-              {tdRelayActive ? (tdRelayStatus === 'ok' ? '● TD' : '○ TD') : 'TD OFF'}
-            </button>
-          )}
-          {onFrameData && status === 'live' && (
-            <label className="toggle webcam-relay-toggle" title="Relay frames to other monitors via WS">
-              <input
-                type="checkbox"
-                checked={relayEnabled}
-                onChange={(e) => setRelayEnabled(e.target.checked)}
-              />
-              <div className="toggle-track">
-                <div className="toggle-thumb" />
-              </div>
-              <span className="toggle-label">Relay</span>
-            </label>
-          )}
+      )}
+
+      {/* ═══ ACTIVE — compact live status bar ═══ */}
+      {active && status === 'live' && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '8px 12px',
+          background: 'rgba(34,197,94,0.06)',
+          border: '1px solid rgba(34,197,94,0.25)',
+          borderRadius: 6,
+        }}>
+          {/* Live dot */}
+          <div style={{
+            width: 10, height: 10, borderRadius: '50%',
+            background: '#22c55e',
+            boxShadow: '0 0 8px #22c55e',
+            flexShrink: 0,
+          }} />
+          <span style={{ color: '#22c55e', fontWeight: 700, fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>
+            LIVE
+          </span>
+          <span style={{ color: '#888', fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>
+            {fps} fps
+          </span>
+          <span style={{ color: '#555', fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>
+            {resolution.w}×{resolution.h}
+          </span>
+
+          {/* TD relay toggle */}
           <button
-            className={`webcam-btn ${active ? 'webcam-btn-stop' : 'webcam-btn-start'}`}
-            onClick={() => onActiveChange(!active)}
-            disabled={status === 'requesting'}
+            onClick={() => setTdRelayActive(!tdRelayActive)}
+            style={{
+              marginLeft: 'auto',
+              padding: '4px 10px',
+              fontSize: 11,
+              fontWeight: 600,
+              fontFamily: "'JetBrains Mono', monospace",
+              letterSpacing: '0.05em',
+              border: `1px solid ${tdRelayActive && tdRelayStatus === 'ok' ? '#22c55e' : '#333'}`,
+              borderRadius: 5,
+              background: tdRelayActive && tdRelayStatus === 'ok' ? 'rgba(34,197,94,0.15)' : 'transparent',
+              color: tdRelayActive && tdRelayStatus === 'ok' ? '#22c55e' : '#888',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
           >
-            {active ? (
-              <>
-                <svg width="10" height="10" viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor" /></svg>
-                Stop
-              </>
-            ) : (
-              <>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <circle cx="12" cy="12" r="10" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-                Start Cam
-              </>
-            )}
+            {tdRelayActive ? (tdRelayStatus === 'ok' ? '● TD' : '○ TD') : 'TD OFF'}
+          </button>
+
+          {/* Stop button */}
+          <button
+            onClick={() => onActiveChange(false)}
+            style={{
+              padding: '4px 10px',
+              fontSize: 11,
+              fontWeight: 600,
+              fontFamily: "'JetBrains Mono', monospace",
+              border: '1px solid rgba(239,68,68,0.4)',
+              borderRadius: 5,
+              background: 'rgba(239,68,68,0.1)',
+              color: '#ef4444',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            ■ STOP
           </button>
         </div>
-      </div>
-
-      {/* Live camera preview — only shown if hidePreview is false */}
-      {active && !hidePreview && (
-        <div className="webcam-preview">
-          <video
-            ref={videoRef}
-            playsInline
-            muted
-            autoPlay
-          />
-        </div>
       )}
 
-      {/* Hidden video element — always needed for capture even when preview hidden */}
-      {(!active || hidePreview) && (
-        <video
-          ref={videoRef}
-          playsInline
-          muted
-          autoPlay
-          style={{ display: 'none' }}
-        />
-      )}
-
-      {/* Camera selector */}
-      {devices.length > 1 && (
-        <div className="webcam-device-select">
-          <select value={selectedDevice} onChange={(e) => switchCamera(e.target.value)}>
+      {/* Camera selector — only when live and multiple cameras */}
+      {active && devices.length > 1 && (
+        <div style={{ marginTop: 4 }}>
+          <select
+            value={selectedDevice}
+            onChange={(e) => switchCamera(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '4px 8px',
+              background: 'var(--bg)',
+              border: '1px solid var(--border)',
+              borderRadius: 4,
+              color: '#aab',
+              fontSize: 10,
+              fontFamily: "'JetBrains Mono', monospace",
+            }}
+          >
             {devices.map((d, i) => (
               <option key={d.deviceId} value={d.deviceId}>
                 {d.label || `Camera ${i + 1}`}
@@ -384,32 +429,31 @@ export default function WebcamCapture({
         </div>
       )}
 
-      {/* TD polling info */}
-      {status === 'live' && tdRelayActive && (
-        <div className="webcam-td-info" style={{
-          margin: '6px 0 0',
-          padding: '5px 8px',
-          background: 'rgba(92,200,255,0.06)',
-          border: '1px solid rgba(92,200,255,0.15)',
-          borderRadius: 4,
-          fontSize: 9,
-          fontFamily: "'JetBrains Mono', monospace",
-          color: '#888',
-          lineHeight: 1.5,
-        }}>
-          <span style={{ color: '#5cc8ff' }}>TD → Web Client DAT</span>{' '}
-          poll: <code style={{ color: '#aab' }}>{typeof window !== 'undefined' ? window.location.origin : ''}/api/frame/browser</code>
-        </div>
-      )}
-
       {/* Error */}
       {status === 'error' && (
-        <div className="webcam-error">
+        <div style={{
+          marginTop: 6,
+          padding: '8px 12px',
+          background: 'rgba(239,68,68,0.08)',
+          border: '1px solid rgba(239,68,68,0.25)',
+          borderRadius: 6,
+          color: '#ef4444',
+          fontSize: 11,
+          fontFamily: "'JetBrains Mono', monospace",
+        }}>
           Camera access denied. Check browser permissions and try again.
         </div>
       )}
 
-      {/* Hidden canvas for frame capture */}
+      {/* Hidden video + canvas — always present for capture */}
+      {active && !hidePreview && (
+        <div className="webcam-preview">
+          <video ref={videoRef} playsInline muted autoPlay />
+        </div>
+      )}
+      {(!active || hidePreview) && (
+        <video ref={videoRef} playsInline muted autoPlay style={{ display: 'none' }} />
+      )}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
     </div>
   );

@@ -678,34 +678,48 @@ export default function Home() {
     sendToTarget({ param: paramName, source, amount, field: 'modulation' });
   }, [sendToTarget]);
 
-  // Webcam frame handler — injects captured frames into the selected slot
+  // Webcam frame handler — injects captured frames into the CURRENTLY selected slot
+  // Throttled: only updates React state every ~250ms to prevent jitter from 12fps re-renders
+  const webcamLastUpdateRef = useRef(0);
+  const webcamLatestBlobRef = useRef<string | null>(null);
   const handleWebcamFrame = useCallback((blobUrl: string, fps: number) => {
-    const slotId = selectedId || 'krista1';
-    // Notify MaestraConnection that a stream frame arrived
+    const slotId = selectedIdRef.current || 'krista1';
     const conn = connectionsRef.current.get(slotId);
     if (conn) conn.receiveStreamFrame();
 
+    // Revoke old blob immediately to prevent memory leak
+    if (webcamLatestBlobRef.current && webcamLatestBlobRef.current !== blobUrl) {
+      URL.revokeObjectURL(webcamLatestBlobRef.current);
+    }
+    webcamLatestBlobRef.current = blobUrl;
+
+    // Throttle React state updates to ~4fps (every 250ms) to prevent UI jitter
+    const now = performance.now();
+    if (now - webcamLastUpdateRef.current < 200) return;
+    webcamLastUpdateRef.current = now;
+
     setSlots(prev => prev.map(s => {
       if (s.id !== slotId) return s;
-      if (s.frameUrl && s.frameUrl.startsWith('blob:')) URL.revokeObjectURL(s.frameUrl);
-      const now = performance.now();
+      if (s.frameUrl && s.frameUrl.startsWith('blob:') && s.frameUrl !== blobUrl) {
+        URL.revokeObjectURL(s.frameUrl);
+      }
       const times = [...s._frameTimes, now].filter(t => now - t < 1000);
       let slotFps = s.fps;
       let smooth = s._fpsSmooth;
       if (times.length >= 2) {
         const span = (times[times.length - 1] - times[0]) / 1000;
         const raw = (times.length - 1) / span;
-        smooth = smooth != null ? smooth * 0.6 + raw * 0.4 : raw;
+        smooth = smooth != null ? smooth * 0.7 + raw * 0.3 : raw;
         slotFps = Math.round(smooth);
       }
       return { ...s, frameUrl: blobUrl, fps: slotFps || fps, _frameTimes: times, _fpsSmooth: smooth };
     }));
-  }, [selectedId]);
+  }, []); // no selectedId dep — uses ref
 
   // Relay webcam frame data (base64 JPEG) via WebSocket to backend
   const handleWebcamFrameData = useCallback((base64: string) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      const slotId = selectedId || 'krista1';
+      const slotId = selectedIdRef.current || 'krista1';
       const conn = connectionsRef.current.get(slotId);
       wsRef.current.send(JSON.stringify({
         type: 'stream_frame',
@@ -714,32 +728,30 @@ export default function Home() {
         timestamp: Date.now(),
       }));
     }
-  }, [selectedId]);
+  }, []); // no selectedId dep — uses ref
 
   // When webcam activates, pause the remote frame polling (avoid overwriting)
-  // When webcam deactivates, resume remote frame polling
   const handleWebcamToggle = useCallback((active: boolean) => {
     setWebcamActive(active);
-    // Auto-select krista1 if no slot is selected so preview shows webcam feed
-    if (active && !selectedId) {
+    // Auto-select first slot if nothing is selected
+    if (active && !selectedIdRef.current) {
       setSelectedId('krista1');
     }
     if (active) {
-      // Pause remote frame polling so webcam frames aren't overwritten
       if (frameIntervalRef.current) {
         clearInterval(frameIntervalRef.current);
         frameIntervalRef.current = null;
       }
-      log('[Webcam] Started — local camera streaming to slot', 'ok');
-      logEvent('stream', selectedId || 'krista1', 'Webcam stream started');
+      const target = selectedIdRef.current || 'krista1';
+      log(`[Webcam] Started — streaming to ${target}`, 'ok');
+      logEvent('stream', target, 'Webcam stream started');
     } else {
-      // Resume remote frame polling
       fetchFrame();
       frameIntervalRef.current = setInterval(fetchFrame, FRAME_FETCH_INTERVAL);
       log('[Webcam] Stopped — resuming remote frame fetch', 'info');
-      logEvent('stream', selectedId || 'krista1', 'Webcam stream stopped');
+      logEvent('stream', selectedIdRef.current || 'krista1', 'Webcam stream stopped');
     }
-  }, [fetchFrame, log, logEvent, selectedId]);
+  }, [fetchFrame, log, logEvent]);
 
   // Cycle to cloud nodes
   const cycleStreamSource = useCallback(() => {
