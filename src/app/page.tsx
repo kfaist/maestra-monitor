@@ -778,14 +778,9 @@ export default function Home() {
         setAudioData(event.data as unknown as AudioAnalysisData);
       }
       if (event.type === 'entity_connected') {
-        // Route to connection
-        const conn = connectionsRef.current.get('krista1');
+        // Route to the matching connection if one exists — do NOT force-activate slots
+        const conn = connectionsRef.current.get(event.entity_id || '');
         if (conn) conn.receiveHeartbeat();
-
-        setSlots(prev => prev.map(s => {
-          if (s.id === 'krista1') return { ...s, connection_status: 'connected', last_heartbeat: Date.now() };
-          return s;
-        }));
         log(`Entity connected: ${event.entity_id}`, 'ok');
       }
       if (event.type === 'heartbeat') {
@@ -835,12 +830,12 @@ export default function Home() {
       connectionsRef.current.forEach(conn => conn.destroy());
       connectionsRef.current.clear();
     };
-  }, [connectWS, fetchEntities, fetchFrame, selectSlot, autoConnectSlot, log]);
+  }, [connectWS, fetchEntities, fetchFrame, selectSlot, log]);
 
   // Derived values
   const selectedSlot = slots.find(s => s.id === selectedId) || null;
   const activeSlots = slots.filter(s => s.active).length;
-  const streamFps = slots.find(s => s.id === 'krista1')?.fps ?? null;
+  const streamFps = selectedSlot?.fps ?? slots.find(s => s.active && s.fps)?.fps ?? null;
   const audioActive = audioData.rms > 0.1;
 
   // Derive overall Maestra status for header
