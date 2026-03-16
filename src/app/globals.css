@@ -466,8 +466,8 @@ header {
 .slot-footer { padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border); }
 .slot-label { font-family: var(--font-display); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--text); transition: color 0.2s; }
 .slot-meta { display: flex; align-items: center; gap: 6px; }
-.slot-fps { font-size: 9px; color: var(--text-dim); letter-spacing: 0.05em; }
-.slot-tag { font-size: 9px; letter-spacing: 0.1em; padding: 2px 6px; border-radius: 2px; text-transform: uppercase; font-weight: 700; }
+.slot-fps { font-size: 9px; color: var(--text-dim); letter-spacing: 0.05em; font-variant-numeric: tabular-nums; }
+.slot-tag { font-size: 9px; letter-spacing: 0.1em; padding: 2px 6px; border-radius: 2px; text-transform: uppercase; font-weight: 700; min-width: 70px; text-align: center; }
 .slot-tag.active-tag { background: rgba(0,255,136,0.12); color: var(--active); border: 1px solid rgba(0,255,136,0.3); }
 .slot-tag.available-tag { background: rgba(0,212,255,0.08); color: var(--cyan); border: 1px solid rgba(0,212,255,0.25); }
 
@@ -533,100 +533,121 @@ header {
 .toggle input:checked + .toggle-track .toggle-thumb { left: 18px; background: var(--accent); box-shadow: 0 0 4px var(--accent); }
 .toggle-label { font-size: 10px; color: var(--text-dim); letter-spacing: 0.06em; }
 
-/* Transcript */
+/* Transcription — BLUE accent */
+.sp-title { color: #5cc8ff; }
+.sp-listening-badge { color: #5cc8ff; }
+.sp-listening-dot { background: #5cc8ff; box-shadow: 0 0 8px #5cc8ff; }
+
+/* Bigger toggle for transcription On/Off */
+.sp-header .toggle .toggle-track {
+  width: 44px; height: 22px; border-radius: 11px;
+}
+.sp-header .toggle .toggle-thumb {
+  width: 16px; height: 16px; top: 2px; left: 2px;
+}
+.sp-header .toggle input:checked + .toggle-track .toggle-thumb {
+  left: 24px; background: #5cc8ff; box-shadow: 0 0 6px #5cc8ff;
+}
+.sp-header .toggle input:checked + .toggle-track {
+  background: rgba(92, 200, 255, 0.2); border-color: rgba(92, 200, 255, 0.5);
+}
+.sp-header .toggle-label { font-size: 12px; font-weight: 600; }
+
+/* Transcript box */
 .sp-transcript {
-  background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+  background: var(--bg); border: 1px solid rgba(92, 200, 255, 0.2); border-radius: 4px;
   padding: 10px 12px; min-height: 52px; max-height: 80px; overflow-y: auto;
   font-size: 12px; color: var(--text); line-height: 1.7; margin-bottom: 10px;
 }
 .sp-transcript-placeholder { color: var(--text-dim); opacity: 0.5; }
-.cursor { display: inline-block; width: 7px; height: 13px; background: var(--accent); border-radius: 1px; animation: blink 1s step-end infinite; vertical-align: middle; margin-left: 3px; }
+.cursor { display: inline-block; width: 7px; height: 13px; background: #5cc8ff; border-radius: 1px; animation: blink 1s step-end infinite; vertical-align: middle; margin-left: 3px; }
 
-/* Section labels */
+/* Section labels — ORANGE accent for prompt/controls */
 .sp-section-label {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 6px;
   font-family: var(--font-display); font-size: 10px; font-weight: 700;
-  letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim);
+  letter-spacing: 0.12em; text-transform: uppercase; color: #ff9f43;
 }
 .sp-count {
-  font-size: 10px; color: var(--accent);
-  background: rgba(0,212,255,0.08); padding: 1px 6px; border-radius: 8px;
+  font-size: 10px; color: #5cc8ff;
+  background: rgba(92, 200, 255, 0.08); padding: 1px 6px; border-radius: 8px;
   font-weight: 700; min-width: 18px; text-align: center;
 }
 .sp-empty { font-size: 10px; color: var(--text-dim); opacity: 0.4; }
 .sp-live-indicator {
   font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
-  color: var(--active); animation: pulse 2s infinite;
+  color: #ff9f43; animation: pulse 2s infinite;
 }
 
-/* Noun tags */
+/* Noun tags — blue (part of transcription) */
 .noun-tags { display: flex; flex-wrap: wrap; gap: 5px; min-height: 24px; margin-bottom: 8px; }
 .noun-tag {
   font-size: 10px; letter-spacing: 0.06em; padding: 3px 8px; border-radius: 3px;
-  background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2);
-  color: var(--accent); transition: all 0.3s;
+  background: rgba(92, 200, 255, 0.08); border: 1px solid rgba(92, 200, 255, 0.2);
+  color: #5cc8ff; transition: all 0.3s;
 }
 .noun-tag.fresh {
-  background: rgba(0,212,255,0.18); border-color: rgba(0,212,255,0.45);
-  box-shadow: 0 0 6px rgba(0,212,255,0.2);
+  background: rgba(92, 200, 255, 0.18); border-color: rgba(92, 200, 255, 0.45);
+  box-shadow: 0 0 6px rgba(92, 200, 255, 0.2);
 }
 
-/* Prompt input */
+/* Prompt input — ORANGE */
 .sp-prompt-row { display: flex; gap: 8px; align-items: stretch; margin-bottom: 6px; }
 .sp-prompt-input {
-  flex: 1; background: var(--bg); border: 1px solid var(--border);
+  flex: 1; background: var(--bg); border: 1px solid rgba(255, 159, 67, 0.2);
   color: var(--text); font-family: var(--font-mono); font-size: 12px;
   padding: 10px 12px; border-radius: 4px; resize: none; outline: none;
   line-height: 1.6; min-height: 56px;
 }
-.sp-prompt-input:focus { border-color: rgba(0,212,255,0.4); }
+.sp-prompt-input:focus { border-color: rgba(255, 159, 67, 0.5); }
 .sp-prompt-input::placeholder { color: var(--text-dim); opacity: 0.35; }
 
-/* Inject button */
+/* Inject button — ORANGE */
 .sp-inject-btn {
   font-family: var(--font-display); font-size: 11px; font-weight: 700;
   letter-spacing: 0.12em; text-transform: uppercase;
   padding: 0 16px; border-radius: 4px;
-  border: 1px solid rgba(0,212,255,0.35); background: rgba(0,212,255,0.06);
-  color: var(--accent); cursor: pointer; transition: all 0.15s;
+  border: 1px solid rgba(255, 159, 67, 0.4); background: rgba(255, 159, 67, 0.08);
+  color: #ff9f43; cursor: pointer; transition: all 0.15s;
   white-space: nowrap; min-width: 70px;
 }
-.sp-inject-btn:hover { background: rgba(0,212,255,0.14); border-color: rgba(0,212,255,0.5); }
+.sp-inject-btn:hover { background: rgba(255, 159, 67, 0.16); border-color: rgba(255, 159, 67, 0.6); }
 .sp-inject-btn.live {
-  border-color: rgba(0,255,136,0.5); background: rgba(0,255,136,0.1);
-  color: var(--active); box-shadow: 0 0 10px rgba(0,255,136,0.12);
+  border-color: rgba(255, 159, 67, 0.6); background: rgba(255, 159, 67, 0.15);
+  color: #ffb366; box-shadow: 0 0 10px rgba(255, 159, 67, 0.15);
 }
 .sp-inject-btn.live:hover { background: rgba(248,113,113,0.1); border-color: rgba(248,113,113,0.4); color: var(--red); }
 
-/* Auto-inject bar */
+/* Auto-inject bar — ORANGE */
 .sp-auto-bar {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 10px; margin-top: 8px;
-  background: rgba(0,255,136,0.04); border: 1px solid rgba(0,255,136,0.15);
+  background: rgba(255, 159, 67, 0.04); border: 1px solid rgba(255, 159, 67, 0.18);
   border-radius: 4px;
 }
 .sp-auto-label {
   font-family: var(--font-display); font-size: 9px; font-weight: 700;
-  letter-spacing: 0.1em; text-transform: uppercase; color: var(--active);
+  letter-spacing: 0.1em; text-transform: uppercase; color: #ff9f43;
   white-space: nowrap;
 }
 .sp-auto-progress {
-  flex: 1; height: 3px; background: rgba(0,255,136,0.1);
+  flex: 1; height: 3px; background: rgba(255, 159, 67, 0.12);
   border-radius: 2px; overflow: hidden;
 }
 .sp-auto-fill {
-  height: 100%; background: var(--active); border-radius: 2px;
+  height: 100%; background: #ff9f43; border-radius: 2px;
   transition: width 1s linear;
 }
 .sp-auto-countdown {
   font-family: var(--font-display); font-size: 10px; font-weight: 700;
-  letter-spacing: 0.08em; color: var(--active); min-width: 20px; text-align: right;
+  letter-spacing: 0.08em; color: #ff9f43; min-width: 20px; text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 .sp-p6-badge {
   font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
-  color: var(--amber); padding: 2px 6px;
-  background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.2);
+  color: #ff9f43; padding: 2px 6px;
+  background: rgba(255, 159, 67, 0.1); border: 1px solid rgba(255, 159, 67, 0.25);
   border-radius: 2px; animation: pulse 0.8s infinite;
 }
 
