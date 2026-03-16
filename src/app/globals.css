@@ -1237,6 +1237,142 @@ footer { padding: 16px 28px; border-top: 1px solid var(--border); background: va
 footer a { color: var(--accent); text-decoration: none; }
 footer a:hover { text-decoration: underline; }
 
+/* ─── WEBCAM CAPTURE ─── */
+.webcam-capture {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.webcam-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.webcam-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.webcam-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.webcam-fps-badge {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--green);
+  background: rgba(52, 211, 153, 0.1);
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.webcam-res-badge {
+  font-size: 9px;
+  font-weight: 400;
+  color: var(--text-dim);
+  background: rgba(74, 101, 128, 0.1);
+  border: 1px solid rgba(74, 101, 128, 0.2);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.webcam-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.webcam-relay-toggle {
+  transform: scale(0.85);
+}
+
+.webcam-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.webcam-btn-start {
+  background: rgba(0, 212, 255, 0.08);
+  color: var(--accent);
+  border-color: rgba(0, 212, 255, 0.3);
+}
+.webcam-btn-start:hover {
+  background: rgba(0, 212, 255, 0.15);
+  border-color: var(--accent);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.15);
+}
+
+.webcam-btn-stop {
+  background: rgba(248, 113, 113, 0.1);
+  color: var(--red);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+.webcam-btn-stop:hover {
+  background: rgba(248, 113, 113, 0.18);
+  border-color: var(--red);
+}
+
+.webcam-device-select {
+  margin-top: 8px;
+}
+
+.webcam-device-select select {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 4px 8px;
+  outline: none;
+}
+.webcam-device-select select:focus {
+  border-color: var(--accent);
+}
+
+.webcam-error {
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--red);
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  border-radius: 5px;
+  padding: 6px 10px;
+}
+
+/* Webcam badge in video overlay */
+.webcam-badge {
+  background: rgba(123, 47, 255, 0.25) !important;
+  border: 1px solid rgba(123, 47, 255, 0.5) !important;
+  color: #c4a0ff !important;
+}
+.webcam-badge svg {
+  stroke: #c4a0ff;
+}
+
 /* SCROLLBAR */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }

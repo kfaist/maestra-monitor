@@ -51,6 +51,9 @@ export default function Home() {
   const [injectActive, setInjectActive] = useState(false);
   const [promptText, setPromptText] = useState('');
 
+  // Webcam state
+  const [webcamActive, setWebcamActive] = useState(false);
+
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
   const wsReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -562,6 +565,65 @@ export default function Home() {
     logEvent('state', 'fleet', 'P6 flush → TD');
   }, [log, logEvent]);
 
+  // Webcam frame handler — injects captured frames into the selected slot
+  const handleWebcamFrame = useCallback((blobUrl: string, fps: number) => {
+    const slotId = selectedId || 'krista1';
+    // Notify MaestraConnection that a stream frame arrived
+    const conn = connectionsRef.current.get(slotId);
+    if (conn) conn.receiveStreamFrame();
+
+    setSlots(prev => prev.map(s => {
+      if (s.id !== slotId) return s;
+      if (s.frameUrl && s.frameUrl.startsWith('blob:')) URL.revokeObjectURL(s.frameUrl);
+      const now = performance.now();
+      const times = [...s._frameTimes, now].filter(t => now - t < 1000);
+      let slotFps = s.fps;
+      let smooth = s._fpsSmooth;
+      if (times.length >= 2) {
+        const span = (times[times.length - 1] - times[0]) / 1000;
+        const raw = (times.length - 1) / span;
+        smooth = smooth != null ? smooth * 0.6 + raw * 0.4 : raw;
+        slotFps = Math.round(smooth);
+      }
+      return { ...s, frameUrl: blobUrl, fps: slotFps || fps, _frameTimes: times, _fpsSmooth: smooth };
+    }));
+  }, [selectedId]);
+
+  // Relay webcam frame data (base64 JPEG) via WebSocket to backend
+  const handleWebcamFrameData = useCallback((base64: string) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      const slotId = selectedId || 'krista1';
+      const conn = connectionsRef.current.get(slotId);
+      wsRef.current.send(JSON.stringify({
+        type: 'stream_frame',
+        entity_id: conn?.entityId || slotId,
+        data: { frame: base64, format: 'jpeg' },
+        timestamp: Date.now(),
+      }));
+    }
+  }, [selectedId]);
+
+  // When webcam activates, pause the remote frame polling (avoid overwriting)
+  // When webcam deactivates, resume remote frame polling
+  const handleWebcamToggle = useCallback((active: boolean) => {
+    setWebcamActive(active);
+    if (active) {
+      // Pause remote frame polling so webcam frames aren't overwritten
+      if (frameIntervalRef.current) {
+        clearInterval(frameIntervalRef.current);
+        frameIntervalRef.current = null;
+      }
+      log('[Webcam] Started — local camera streaming to slot', 'ok');
+      logEvent('stream', selectedId || 'krista1', 'Webcam stream started');
+    } else {
+      // Resume remote frame polling
+      fetchFrame();
+      frameIntervalRef.current = setInterval(fetchFrame, FRAME_FETCH_INTERVAL);
+      log('[Webcam] Stopped — resuming remote frame fetch', 'info');
+      logEvent('stream', selectedId || 'krista1', 'Webcam stream stopped');
+    }
+  }, [fetchFrame, log, logEvent, selectedId]);
+
   // Cycle to cloud nodes
   const cycleStreamSource = useCallback(() => {
     setActiveTab('scope');
@@ -729,6 +791,10 @@ export default function Home() {
             onPromptChange={setPromptText}
             onBroadcast={broadcastPrompt}
             onP6Flush={p6Flush}
+            webcamActive={webcamActive}
+            onWebcamToggle={handleWebcamToggle}
+            onWebcamFrame={handleWebcamFrame}
+            onWebcamFrameData={handleWebcamFrameData}
           />
         </div>
 

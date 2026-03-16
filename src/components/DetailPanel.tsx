@@ -4,6 +4,7 @@ import { FleetSlot, LogEntry, EventEntry } from '@/types';
 import Explainer from './Explainer';
 import SignalPanel from './SignalPanel';
 import TDConnectGuide from './TDConnectGuide';
+import WebcamCapture from './WebcamCapture';
 import WSLog from './WSLog';
 
 interface DetailPanelProps {
@@ -16,6 +17,10 @@ interface DetailPanelProps {
   onPromptChange: (text: string) => void;
   onBroadcast: (prompt: string) => void;
   onP6Flush: (prompt: string) => void;
+  webcamActive: boolean;
+  onWebcamToggle: (active: boolean) => void;
+  onWebcamFrame: (blobUrl: string, fps: number) => void;
+  onWebcamFrameData?: (base64: string) => void;
 }
 
 export default function DetailPanel({
@@ -28,21 +33,42 @@ export default function DetailPanel({
   onPromptChange,
   onBroadcast,
   onP6Flush,
+  webcamActive,
+  onWebcamToggle,
+  onWebcamFrame,
+  onWebcamFrameData,
 }: DetailPanelProps) {
+  const hasRemoteFrame = slot?.active && slot.frameUrl && !webcamActive;
+
   return (
     <div className="detail-panel">
       {/* Video Preview */}
       <div className="detail-video-container">
-        {slot?.active && slot.frameUrl ? (
+        {hasRemoteFrame ? (
           <>
-            <img src={slot.frameUrl} alt="Stream" />
+            <img src={slot!.frameUrl!} alt="Stream" />
             <div className="video-overlay">
               <div className="live-badge">
                 <div className="dot online" />
                 Live
               </div>
               <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>
-                {slot.fps ? `${slot.fps} FPS` : ''}
+                {slot!.fps ? `${slot!.fps} FPS` : ''}
+              </span>
+            </div>
+          </>
+        ) : webcamActive && slot?.frameUrl ? (
+          <>
+            <img src={slot.frameUrl} alt="Webcam" />
+            <div className="video-overlay">
+              <div className="live-badge webcam-badge">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                Webcam
+              </div>
+              <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>
+                {slot.fps ? `${slot.fps} FPS` : 'starting...'}
               </span>
             </div>
           </>
@@ -61,6 +87,16 @@ export default function DetailPanel({
           </div>
         )}
       </div>
+
+      {/* Webcam Capture Controls */}
+      {slot && (
+        <WebcamCapture
+          active={webcamActive}
+          onActiveChange={onWebcamToggle}
+          onFrame={onWebcamFrame}
+          onFrameData={onWebcamFrameData}
+        />
+      )}
 
       {/* TD Connect Guide — shown for active/selected slots */}
       {slot && (

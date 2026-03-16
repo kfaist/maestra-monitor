@@ -16,3 +16,4 @@ export { default as WSLog } from './WSLog';
 export { default as JoinModal } from './JoinModal';
 export { default as MaestraStatusPanel } from './MaestraStatusPanel';
 export { default as TDConnectGuide } from './TDConnectGuide';
+export { default as WebcamCapture } from './WebcamCapture';
