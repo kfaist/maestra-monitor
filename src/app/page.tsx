@@ -54,6 +54,10 @@ export default function Home() {
   // Webcam state
   const [webcamActive, setWebcamActive] = useState(false);
 
+  // Entity targeting for color/modulation sends
+  const [remoteEntityList, setRemoteEntityList] = useState<string[]>([]);
+  const [sendTarget, setSendTarget] = useState<string>('global'); // 'global' or a specific entity_id
+
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
   const wsReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -332,7 +336,10 @@ export default function Home() {
           }
           // Track remote entity IDs (TD nodes, etc.) from any event
           if (msg.entity_id) {
-            remoteEntitiesRef.current.add(msg.entity_id);
+            if (!remoteEntitiesRef.current.has(msg.entity_id)) {
+              remoteEntitiesRef.current.add(msg.entity_id);
+              setRemoteEntityList(Array.from(remoteEntitiesRef.current));
+            }
           }
           // Route heartbeat events to the right MaestraConnection
           if (msg.type === 'heartbeat' && msg.entity_id) {
@@ -605,6 +612,36 @@ export default function Home() {
     logEvent('state', 'fleet', 'P6 flush → TD');
   }, [log, logEvent, getAllTargetEntityIds]);
 
+  // Send a state_update to the current target (single entity or global)
+  const sendToTarget = useCallback((data: Record<string, unknown>) => {
+    const ts = Date.now();
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    const ws = wsRef.current;
+
+    if (sendTarget === 'global') {
+      // Fleet-wide broadcast (no entity_id)
+      ws.send(JSON.stringify({ type: 'state_update', data, timestamp: ts }));
+      // Also target every known entity individually
+      const targets = getAllTargetEntityIds();
+      targets.forEach(entityId => {
+        ws.send(JSON.stringify({ type: 'state_update', entity_id: entityId, data, timestamp: ts }));
+      });
+    } else {
+      // Single entity
+      ws.send(JSON.stringify({ type: 'state_update', entity_id: sendTarget, data, timestamp: ts }));
+    }
+  }, [sendTarget, getAllTargetEntityIds]);
+
+  // Color palette change — sends hue/saturation/value to TD via Maestra
+  const handleColorChange = useCallback((color: { hue: number; saturation: number; value: number }) => {
+    sendToTarget({ ...color, field: 'color' });
+  }, [sendToTarget]);
+
+  // Modulation change — sends source/amount for a parameter to TD
+  const handleModulationChange = useCallback((paramName: string, source: string, amount: number) => {
+    sendToTarget({ param: paramName, source, amount, field: 'modulation' });
+  }, [sendToTarget]);
+
   // Webcam frame handler — injects captured frames into the selected slot
   const handleWebcamFrame = useCallback((blobUrl: string, fps: number) => {
     const slotId = selectedId || 'krista1';
@@ -816,8 +853,34 @@ export default function Home() {
             />
 
             <AudioAnalysis audioData={audioData} />
-            <ColorPalette />
-            <ModulationGrid />
+
+            {/* Target selector for color/modulation sends */}
+            <div className="send-target-bar">
+              <span className="send-target-label">Send to</span>
+              <div className="send-target-options">
+                <button
+                  className={`send-target-btn ${sendTarget === 'global' ? 'active' : ''}`}
+                  onClick={() => setSendTarget('global')}
+                >
+                  Global
+                </button>
+                {remoteEntityList.map(eid => (
+                  <button
+                    key={eid}
+                    className={`send-target-btn ${sendTarget === eid ? 'active' : ''}`}
+                    onClick={() => setSendTarget(eid)}
+                  >
+                    {eid.length > 16 ? eid.slice(0, 14) + '…' : eid}
+                  </button>
+                ))}
+              </div>
+              {sendTarget !== 'global' && (
+                <span className="send-target-indicator">{sendTarget}</span>
+              )}
+            </div>
+
+            <ColorPalette onColorChange={handleColorChange} />
+            <ModulationGrid onModulationChange={handleModulationChange} />
           </div>
 
           {/* Right: Detail Panel */}

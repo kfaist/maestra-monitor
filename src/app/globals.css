@@ -1237,6 +1237,66 @@ footer { padding: 16px 28px; border-top: 1px solid var(--border); background: va
 footer a { color: var(--accent); text-decoration: none; }
 footer a:hover { text-decoration: underline; }
 
+/* ─── SEND TARGET BAR ─── */
+.send-target-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.send-target-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.send-target-options {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.send-target-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.send-target-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.send-target-btn.active {
+  background: rgba(0, 212, 255, 0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.1);
+}
+
+.send-target-indicator {
+  font-size: 9px;
+  color: var(--accent);
+  margin-left: auto;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ─── WEBCAM CAPTURE ─── */
 .webcam-capture {
   background: var(--surface);

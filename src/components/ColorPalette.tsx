@@ -1,13 +1,65 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { PALETTE_COLORS } from '@/lib/constants';
 
-export default function ColorPalette() {
+export interface ColorState {
+  hue: number;
+  saturation: number;
+  value: number;
+}
+
+interface ColorPaletteProps {
+  onColorChange?: (color: ColorState) => void;
+}
+
+const DEBOUNCE_MS = 150;
+
+export default function ColorPalette({ onColorChange }: ColorPaletteProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [hue, setHue] = useState(280);
   const [saturation, setSaturation] = useState(85);
   const [value, setValue] = useState(50);
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onColorChangeRef = useRef(onColorChange);
+  onColorChangeRef.current = onColorChange;
+
+  // Debounced send — fires after slider stops moving
+  const sendColor = useCallback((h: number, s: number, v: number) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      onColorChangeRef.current?.({ hue: h, saturation: s, value: v });
+    }, DEBOUNCE_MS);
+  }, []);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, []);
+
+  const handleHue = useCallback((h: number) => {
+    setHue(h);
+    sendColor(h, saturation, value);
+  }, [saturation, value, sendColor]);
+
+  const handleSaturation = useCallback((s: number) => {
+    setSaturation(s);
+    sendColor(hue, s, value);
+  }, [hue, value, sendColor]);
+
+  const handleValue = useCallback((v: number) => {
+    setValue(v);
+    sendColor(hue, saturation, v);
+  }, [hue, saturation, sendColor]);
+
+  const handlePreset = useCallback((i: number) => {
+    setActiveIndex(i);
+    const h = PALETTE_COLORS[i].hue;
+    setHue(h);
+    // Presets send immediately (no debounce needed)
+    onColorChangeRef.current?.({ hue: h, saturation, value });
+  }, [saturation, value]);
 
   return (
     <div className="palette-section">
@@ -23,10 +75,7 @@ export default function ColorPalette() {
               animationDelay: `${i * 0.1}s`,
             } as React.CSSProperties}
             title={color.name}
-            onClick={() => {
-              setActiveIndex(i);
-              setHue(color.hue);
-            }}
+            onClick={() => handlePreset(i)}
           />
         ))}
       </div>
@@ -38,7 +87,7 @@ export default function ColorPalette() {
             min="0"
             max="360"
             value={hue}
-            onChange={(e) => setHue(parseInt(e.target.value))}
+            onChange={(e) => handleHue(parseInt(e.target.value))}
             style={{
               background: 'linear-gradient(to right, hsl(0,85%,55%), hsl(60,85%,55%), hsl(120,85%,55%), hsl(180,85%,55%), hsl(240,85%,55%), hsl(300,85%,55%), hsl(360,85%,55%))',
               height: '6px',
@@ -47,11 +96,11 @@ export default function ColorPalette() {
         </div>
         <div className="sl">
           <label>Saturation <span>{saturation}%</span></label>
-          <input type="range" min="0" max="100" value={saturation} onChange={(e) => setSaturation(parseInt(e.target.value))} />
+          <input type="range" min="0" max="100" value={saturation} onChange={(e) => handleSaturation(parseInt(e.target.value))} />
         </div>
         <div className="sl">
           <label>Value <span>{value}%</span></label>
-          <input type="range" min="0" max="100" value={value} onChange={(e) => setValue(parseInt(e.target.value))} />
+          <input type="range" min="0" max="100" value={value} onChange={(e) => handleValue(parseInt(e.target.value))} />
         </div>
       </div>
     </div>

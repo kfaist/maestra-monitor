@@ -1,18 +1,38 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { ModulationParam, AudioSource } from '@/types';
 import { INITIAL_MODULATION_PARAMS } from '@/mock/modulation';
 import { AUDIO_SOURCE_COLORS } from '@/lib/constants';
 
 const SOURCES: AudioSource[] = ['none', 'rms', 'bpm', 'sub', 'bass', 'mid', 'high'];
+const DEBOUNCE_MS = 200;
 
-export default function ModulationGrid() {
+interface ModulationGridProps {
+  onModulationChange?: (paramName: string, source: string, amount: number) => void;
+}
+
+export default function ModulationGrid({ onModulationChange }: ModulationGridProps) {
   const [params, setParams] = useState<ModulationParam[]>(INITIAL_MODULATION_PARAMS);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onChangeRef = useRef(onModulationChange);
+  onChangeRef.current = onModulationChange;
 
-  const updateParam = (index: number, field: 'source' | 'amount', value: AudioSource | number) => {
-    setParams(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p));
-  };
+  const sendChange = useCallback((name: string, source: string, amount: number) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      onChangeRef.current?.(name, source, amount);
+    }, DEBOUNCE_MS);
+  }, []);
+
+  const updateParam = useCallback((index: number, field: 'source' | 'amount', value: AudioSource | number) => {
+    setParams(prev => {
+      const updated = prev.map((p, i) => i === index ? { ...p, [field]: value } : p);
+      const param = updated[index];
+      sendChange(param.name, param.source, param.amount);
+      return updated;
+    });
+  }, [sendChange]);
 
   return (
     <div className="modulation-section">
