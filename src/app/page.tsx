@@ -17,7 +17,7 @@ import {
   ConnectionPanel,
   JoinModal,
 } from '@/components';
-import { JoinNodeData } from '@/components/JoinModal';
+import { JoinMaestraResult } from '@/components/JoinModal';
 import { FleetSlot, LogEntry, EventEntry, AudioAnalysisData, SlotConnectionInfo } from '@/types';
 import { createInitialSlots, SUGGESTIONS } from '@/mock';
 import { WSSimulator } from '@/mock/ws-simulator';
@@ -385,51 +385,64 @@ export default function Home() {
     });
   }, []);
 
-  // Join node from modal
-  const handleJoinNode = useCallback((data: JoinNodeData) => {
+  // Join Maestra from modal
+  const handleJoinMaestra = useCallback((result: JoinMaestraResult) => {
     setJoinModalOpen(false);
+
+    const label = result.method === 'monitor_only' ? 'Monitor' : `Operator`;
 
     // Find first available (non-active) slot
     const availableSlot = slotsRef.current.find(s => !s.active);
     if (!availableSlot) {
       // Create a new slot
       const n = slotsRef.current.length + 1;
-      const newId = `slot${n}`;
+      const newId = result.slotId || `slot${n}`;
       setSlots(prev => [...prev, {
         id: newId,
-        label: data.name,
-        entity_id: null,
+        label,
+        entity_id: result.entityId,
         endpoint: null,
-        active: false,
+        active: true,
         fps: null,
         frameUrl: null,
         cloudNode: false,
-        connection_status: 'disconnected',
-        last_heartbeat: null,
+        connection_status: 'connected',
+        last_heartbeat: Date.now(),
         active_stream: null,
         state_summary: {},
         _frameTimes: [],
         _fpsSmooth: null,
       }]);
-      // Auto-connect after creation
       setTimeout(() => {
-        setSlots(prev => prev.map(s => s.id === newId ? { ...s, label: data.name } : s));
-        autoConnectSlot(newId);
         selectSlot(newId);
+        saveConnectedSlots();
       }, 50);
     } else {
       // Claim the available slot
       setSlots(prev => prev.map(s => {
         if (s.id !== availableSlot.id) return s;
-        return { ...s, label: data.name, suggestion: undefined };
+        return {
+          ...s,
+          label,
+          entity_id: result.entityId,
+          active: true,
+          connection_status: 'connected',
+          last_heartbeat: Date.now(),
+          suggestion: undefined,
+        };
       }));
-      autoConnectSlot(availableSlot.id);
       selectSlot(availableSlot.id);
+      saveConnectedSlots();
     }
 
-    log(`[JoinNode] ${data.name} (${data.role}) — ${data.intent}`, 'ok');
-    logEvent('connect', data.name, `${data.name} joined as ${data.role}`);
-  }, [autoConnectSlot, selectSlot, log, logEvent]);
+    const methodLabel = result.method === 'join_show' ? 'Join Show'
+      : result.method === 'claim_station' ? 'Claim Station'
+      : 'Monitor Only';
+    const roleLabel = result.tdRole ? ` (${result.tdRole})` : '';
+
+    log(`[Maestra] ${methodLabel}${roleLabel} — Entity: ${result.entityId}`, 'ok');
+    logEvent('connect', result.entityId, `${methodLabel}${roleLabel} joined the fleet`);
+  }, [selectSlot, log, logEvent, saveConnectedSlots]);
 
   // Reconnect stream
   const reconnectStream = useCallback(() => {
@@ -626,11 +639,18 @@ export default function Home() {
       <Header
         wsStatus={wsStatus}
         apiStatus={apiStatus}
+        maestraStatus={
+          // Derive overall Maestra status from connected slots
+          slots.some(s => s.connection_status === 'connected') ? 'connected'
+          : slots.some(s => s.connection_status === 'connecting') ? 'connecting'
+          : slots.some(s => s.connection_status === 'error') ? 'error'
+          : 'disconnected'
+        }
         streamFps={streamFps}
         activeSlots={activeSlots}
         totalSlots={slots.length}
         audioActive={audioActive}
-        onJoinNode={() => setJoinModalOpen(true)}
+        onJoinMaestra={() => setJoinModalOpen(true)}
       />
       <Explainer />
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
@@ -700,7 +720,7 @@ export default function Home() {
       <JoinModal
         open={joinModalOpen}
         onClose={() => setJoinModalOpen(false)}
-        onJoin={handleJoinNode}
+        onJoin={handleJoinMaestra}
       />
     </>
   );
