@@ -155,15 +155,6 @@ export default function ConnectionPanel({
             Disconnect
           </button>
         )}
-        <a
-          href="https://github.com/kfaist/maestra-fleet-tox/raw/main/touchdesigner/maestra_fleet.tox"
-          download
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn primary"
-        >
-          Download TOX
-        </a>
         <button className="btn primary" onClick={handleCopy}>
           {copied ? 'Copied!' : 'Copy Info'}
         </button>
