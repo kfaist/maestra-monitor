@@ -99,12 +99,23 @@ export default function DetailPanel({
         )}
       </div>
 
-      {/* Webcam Capture — always visible, right under preview */}
+      {/* Webcam Capture — controls only, no duplicate preview */}
       <WebcamCapture
         active={webcamActive}
         onActiveChange={onWebcamToggle}
         onFrame={onWebcamFrame}
         onFrameData={onWebcamFrameData}
+        hidePreview
+      />
+
+      {/* Signal Panel — Transcription, Nouns, Prompt, Inject */}
+      <SignalPanel
+        injectActive={injectActive}
+        onInjectToggle={onInjectToggle}
+        promptText={promptText}
+        onPromptChange={onPromptChange}
+        onBroadcast={onBroadcast}
+        onP6Flush={onP6Flush}
       />
 
       {/* Maestra Status + Connection */}
@@ -120,16 +131,6 @@ export default function DetailPanel({
       {slot && (
         <TDConnectGuide slot={slot} />
       )}
-
-      {/* Signal Panel */}
-      <SignalPanel
-        injectActive={injectActive}
-        onInjectToggle={onInjectToggle}
-        promptText={promptText}
-        onPromptChange={onPromptChange}
-        onBroadcast={onBroadcast}
-        onP6Flush={onP6Flush}
-      />
 
       {/* Event Log */}
       <div className="event-log">

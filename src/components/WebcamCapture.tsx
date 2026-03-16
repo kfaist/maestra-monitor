@@ -12,6 +12,7 @@ interface WebcamCaptureProps {
   quality?: number;
   width?: number;
   height?: number;
+  hidePreview?: boolean;
 }
 
 const DEFAULT_INTERVAL = 80; // ~12fps — reliable without overwhelming
@@ -28,6 +29,7 @@ export default function WebcamCapture({
   quality = DEFAULT_QUALITY,
   width = 640,
   height = 480,
+  hidePreview = false,
 }: WebcamCaptureProps) {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<string>('');
@@ -346,8 +348,8 @@ export default function WebcamCapture({
         </div>
       </div>
 
-      {/* Live camera preview — shown when active */}
-      {active && (
+      {/* Live camera preview — only shown if hidePreview is false */}
+      {active && !hidePreview && (
         <div className="webcam-preview">
           <video
             ref={videoRef}
@@ -358,12 +360,13 @@ export default function WebcamCapture({
         </div>
       )}
 
-      {/* Hidden video element when not showing preview */}
-      {!active && (
+      {/* Hidden video element — always needed for capture even when preview hidden */}
+      {(!active || hidePreview) && (
         <video
           ref={videoRef}
           playsInline
           muted
+          autoPlay
           style={{ display: 'none' }}
         />
       )}

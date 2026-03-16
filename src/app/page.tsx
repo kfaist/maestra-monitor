@@ -720,6 +720,10 @@ export default function Home() {
   // When webcam deactivates, resume remote frame polling
   const handleWebcamToggle = useCallback((active: boolean) => {
     setWebcamActive(active);
+    // Auto-select krista1 if no slot is selected so preview shows webcam feed
+    if (active && !selectedId) {
+      setSelectedId('krista1');
+    }
     if (active) {
       // Pause remote frame polling so webcam frames aren't overwritten
       if (frameIntervalRef.current) {
