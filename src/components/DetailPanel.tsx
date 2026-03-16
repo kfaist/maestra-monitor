@@ -2,6 +2,7 @@
 
 import { FleetSlot, LogEntry, EventEntry } from '@/types';
 import SignalPanel from './SignalPanel';
+import TDConnectGuide from './TDConnectGuide';
 import WSLog from './WSLog';
 
 interface DetailPanelProps {
@@ -59,6 +60,11 @@ export default function DetailPanel({
           </div>
         )}
       </div>
+
+      {/* TD Connect Guide — shown for active/selected slots */}
+      {slot && (
+        <TDConnectGuide slot={slot} />
+      )}
 
       {/* Signal Panel */}
       <SignalPanel

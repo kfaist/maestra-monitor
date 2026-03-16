@@ -15,3 +15,4 @@ export { default as UseCases } from './UseCases';
 export { default as WSLog } from './WSLog';
 export { default as JoinModal } from './JoinModal';
 export { default as MaestraStatusPanel } from './MaestraStatusPanel';
+export { default as TDConnectGuide } from './TDConnectGuide';

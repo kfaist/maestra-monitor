@@ -391,8 +391,9 @@ export default function JoinModal({ open, onClose, onJoin }: JoinModalProps) {
 
             <div className="success-card">
               {connectionStatus?.optimistic && (
-                <div style={{ fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--amber)', marginBottom: '10px', padding: '6px 8px', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: '3px' }}>
-                  HTTPS → HTTP: Browser-side requests blocked. TD ↔ Maestra sync is unaffected.
+                <div style={{ fontSize: '9px', letterSpacing: '0.06em', color: 'var(--amber)', marginBottom: '10px', padding: '8px 10px', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: '3px', lineHeight: '1.5' }}>
+                  <strong style={{ display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Browser connection limited</strong>
+                  This dashboard runs over HTTPS, so your browser cannot directly verify the gallery&apos;s HTTP Maestra server. TouchDesigner can still connect normally.
                 </div>
               )}
               <div className="success-info-row">

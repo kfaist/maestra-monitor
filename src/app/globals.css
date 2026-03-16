@@ -710,6 +710,144 @@ header {
   border-radius: 3px;
 }
 
+/* TD CONNECT GUIDE */
+.td-connect-guide {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin: 0 0 2px 0;
+}
+.td-guide-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.td-guide-title {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.td-guide-notice {
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  background: rgba(251,191,36,0.05);
+  border: 1px solid rgba(251,191,36,0.18);
+  border-radius: 4px;
+}
+.td-guide-notice-title {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-bottom: 6px;
+}
+.td-guide-notice-body {
+  font-size: 10px;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+.td-guide-notice-body strong {
+  color: var(--text);
+}
+.td-guide-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 14px;
+}
+.td-guide-step {
+  display: flex;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(30,45,61,0.5);
+}
+.td-guide-step:last-child {
+  border-bottom: none;
+}
+.td-guide-step-num {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  border: 1px solid rgba(0,212,255,0.3);
+  border-radius: 50%;
+  background: rgba(0,212,255,0.06);
+}
+.td-guide-step-content {
+  flex: 1;
+  min-width: 0;
+}
+.td-guide-step-label {
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+.td-guide-step-label strong {
+  color: var(--accent);
+}
+.td-guide-copyable {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 5px 8px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+.td-guide-copyable code {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent);
+  letter-spacing: 0.03em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.td-guide-copy-btn {
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border: 1px solid rgba(0,212,255,0.3);
+  border-radius: 2px;
+  background: rgba(0,212,255,0.06);
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.td-guide-copy-btn:hover {
+  background: rgba(0,212,255,0.14);
+  border-color: rgba(0,212,255,0.5);
+}
+.td-guide-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.td-guide-actions .btn {
+  font-size: 10px;
+  padding: 6px 12px;
+}
+
 /* Slot tag status classes */
 .slot-tag.status-live { background: rgba(0,255,136,0.15); color: var(--active); border: 1px solid rgba(0,255,136,0.35); }
 .slot-tag.status-ok { background: rgba(0,212,255,0.1); color: var(--accent); border: 1px solid rgba(0,212,255,0.25); }

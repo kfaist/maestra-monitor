@@ -99,7 +99,7 @@ export default function MaestraStatusPanel({ status }: MaestraStatusPanelProps) 
       <div className="msp-title">Maestra Status</div>
       {status.optimistic && (
         <div className="msp-optimistic-badge">
-          OPTIMISTIC — HTTPS → HTTP
+          <strong>Browser connection limited</strong> — Dashboard is HTTPS, Maestra server is HTTP. TD connects normally.
         </div>
       )}
       <div className="msp-grid">
