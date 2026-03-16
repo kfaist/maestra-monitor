@@ -1,6 +1,7 @@
 'use client';
 
-import { FleetSlot, slotStatusLabel, slotStatusClass } from '@/types';
+import { useState, useEffect } from 'react';
+import { FleetSlot, slotStatusLabel, slotStatusClass, formatAge } from '@/types';
 
 interface SlotGridProps {
   slots: FleetSlot[];
@@ -13,6 +14,13 @@ interface SlotGridProps {
 export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, onJoinNode }: SlotGridProps) {
   const activeCount = slots.filter(s => s.active).length;
   const hasActiveNodes = activeCount > 0;
+
+  // Tick every 200ms so "last seen" ages stay fresh
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 200);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <>
@@ -31,6 +39,20 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
             slot.active ? (slot.connection_status === 'connected' ? 'Active' : 'Connecting') : ''
           );
           const statusCls = mStatus ? slotStatusClass(mStatus) : '';
+
+          // "last seen" age string for the footer
+          let lastSeenStr = '';
+          if (mStatus) {
+            if (mStatus.lastHeartbeatAt && (mStatus.heartbeat === 'live' || mStatus.heartbeat === 'stale')) {
+              lastSeenStr = `last seen ${formatAge(now - mStatus.lastHeartbeatAt)}`;
+            }
+          }
+
+          // Waiting timer for video area
+          let waitingStr = '';
+          if (mStatus && mStatus.heartbeat === 'waiting' && mStatus.entity === 'registered' && mStatus.registeredAt) {
+            waitingStr = `${formatAge(now - mStatus.registeredAt)} since registration`;
+          }
 
           return (
             <div
@@ -52,11 +74,15 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: mStatus ? 'var(--accent)' : 'var(--text-dim)' }}>
                         {statusText}
                       </span>
-                      {mStatus && mStatus.heartbeat === 'waiting' && mStatus.entity === 'registered' && (
+                      {waitingStr ? (
+                        <span style={{ fontSize: '8px', letterSpacing: '.08em', color: 'var(--text-dim)', opacity: 0.6 }}>
+                          {waitingStr}
+                        </span>
+                      ) : mStatus && mStatus.heartbeat === 'waiting' && mStatus.entity === 'registered' ? (
                         <span style={{ fontSize: '8px', letterSpacing: '.08em', color: 'var(--text-dim)', opacity: 0.5 }}>
                           Awaiting first heartbeat
                         </span>
-                      )}
+                      ) : null}
                     </div>
                   )
                 ) : slot.suggestion ? (
@@ -71,7 +97,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
               <div className="slot-footer">
                 <div className="slot-label">{slot.label}</div>
                 <div className="slot-meta">
-                  <span className="slot-fps">{slot.fps != null ? `${slot.fps}fps` : ''}</span>
+                  <span className="slot-fps">
+                    {slot.fps != null ? `${slot.fps}fps` : ''}
+                    {slot.fps != null && lastSeenStr ? ' · ' : ''}
+                    {lastSeenStr}
+                  </span>
                   {slot.cloudNode && <span className="cloud-badge">&#x2601; Cloud</span>}
                   {slot.active ? (
                     <span className={`slot-tag active-tag ${statusCls}`}>

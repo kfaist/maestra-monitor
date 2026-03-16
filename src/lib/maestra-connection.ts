@@ -232,7 +232,7 @@ export class MaestraConnection {
 
       this.emit({ entity: 'registering' });
       await new Promise(r => setTimeout(r, 400));
-      this.emit({ entity: 'registered' });
+      this.emit({ entity: 'registered', registeredAt: Date.now() });
 
       // Heartbeat starts in "waiting" — the UI will show this truthfully
       this.emit({ heartbeat: 'waiting', lastHeartbeatAt: null });
@@ -257,10 +257,10 @@ export class MaestraConnection {
     this.emit({ entity: 'registering' });
     const registered = await registerEntity(this.serverUrl, this.entityId, this.slotLabel);
     if (registered) {
-      this.emit({ entity: 'registered' });
+      this.emit({ entity: 'registered', registeredAt: Date.now() });
     } else {
       // Server reachable but registration endpoint may not exist — treat as registered (opaque)
-      this.emit({ entity: 'registered', errorMessage: null });
+      this.emit({ entity: 'registered', registeredAt: Date.now(), errorMessage: null });
     }
 
     // Layer 3: Start heartbeat

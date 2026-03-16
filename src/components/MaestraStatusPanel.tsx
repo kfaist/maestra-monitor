@@ -1,6 +1,7 @@
 'use client';
 
-import { MaestraSlotStatus } from '@/types';
+import { useState, useEffect } from 'react';
+import { MaestraSlotStatus, formatAge } from '@/types';
 
 interface MaestraStatusPanelProps {
   status: MaestraSlotStatus;
@@ -33,7 +34,7 @@ function displayLabel(value: string): string {
   }
 }
 
-function StatusRow({ label, value }: { label: string; value: string }) {
+function StatusRow({ label, value, detail }: { label: string; value: string; detail?: string }) {
   const color = layerColor(value);
   const isActive = ['connected', 'registered', 'live', 'active'].includes(value);
   const isPulsing = ['connecting', 'registering', 'syncing', 'waiting'].includes(value);
@@ -52,12 +53,47 @@ function StatusRow({ label, value }: { label: string; value: string }) {
         <span className="msp-value" style={{ color }}>
           {displayLabel(value)}
         </span>
+        {detail && (
+          <span className="msp-detail" style={{ color: 'var(--text-dim)', fontSize: '10px', marginLeft: '6px' }}>
+            {detail}
+          </span>
+        )}
       </span>
     </div>
   );
 }
 
 export default function MaestraStatusPanel({ status }: MaestraStatusPanelProps) {
+  const [now, setNow] = useState(Date.now());
+
+  // Tick every 200ms to keep ages current
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 200);
+    return () => clearInterval(id);
+  }, []);
+
+  // Heartbeat detail
+  let hbDetail: string | undefined;
+  if (status.heartbeat === 'live' || status.heartbeat === 'stale' || status.heartbeat === 'lost') {
+    if (status.lastHeartbeatAt) {
+      hbDetail = `last seen ${formatAge(now - status.lastHeartbeatAt)}`;
+    }
+  } else if (status.heartbeat === 'waiting' && status.registeredAt) {
+    hbDetail = `${formatAge(now - status.registeredAt)} since registration`;
+  }
+
+  // State sync detail
+  let ssDetail: string | undefined;
+  if (status.stateSync === 'active' && status.lastStateUpdateAt) {
+    ssDetail = `last ${formatAge(now - status.lastStateUpdateAt)}`;
+  }
+
+  // Stream detail
+  let stDetail: string | undefined;
+  if ((status.stream === 'live' || status.stream === 'stale') && status.lastStreamFrameAt) {
+    stDetail = `last frame ${formatAge(now - status.lastStreamFrameAt)}`;
+  }
+
   return (
     <div className="maestra-status-panel">
       <div className="msp-title">Maestra Status</div>
@@ -69,9 +105,9 @@ export default function MaestraStatusPanel({ status }: MaestraStatusPanelProps) 
       <div className="msp-grid">
         <StatusRow label="Server" value={status.server} />
         <StatusRow label="Entity" value={status.entity} />
-        <StatusRow label="Heartbeat" value={status.heartbeat} />
-        <StatusRow label="State Sync" value={status.stateSync} />
-        <StatusRow label="Stream" value={status.stream} />
+        <StatusRow label="Heartbeat" value={status.heartbeat} detail={hbDetail} />
+        <StatusRow label="State Sync" value={status.stateSync} detail={ssDetail} />
+        <StatusRow label="Stream" value={status.stream} detail={stDetail} />
       </div>
       {status.errorMessage && (
         <div className="msp-error">{status.errorMessage}</div>
