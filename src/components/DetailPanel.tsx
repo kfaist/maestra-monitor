@@ -1,6 +1,7 @@
 'use client';
 
 import { FleetSlot, LogEntry, EventEntry } from '@/types';
+import Explainer from './Explainer';
 import SignalPanel from './SignalPanel';
 import TDConnectGuide from './TDConnectGuide';
 import WSLog from './WSLog';
@@ -98,6 +99,9 @@ export default function DetailPanel({
 
       {/* WS Log */}
       <WSLog entries={logEntries} />
+
+      {/* About — below logs */}
+      <Explainer />
     </div>
   );
 }

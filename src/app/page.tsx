@@ -692,7 +692,6 @@ export default function Home() {
         audioActive={audioActive}
         onJoinMaestra={() => setJoinModalOpen(true)}
       />
-      <Explainer />
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* DASHBOARD TAB */}
