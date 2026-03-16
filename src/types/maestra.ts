@@ -1,4 +1,4 @@
-export type ConnectionStatus = 'connected' | 'disconnected' | 'connecting' | 'error';
+export type ConnectionStatus = 'connected' | 'disconnected' | 'connecting' | 'discovering' | 'error';
 
 export interface MaestraEntity {
   entity_id: string;
@@ -103,6 +103,13 @@ export interface SlotConnectionInfo {
   entityId: string;
   slotId: string;
   connected: boolean;
+  status: ConnectionStatus;
+  autoConnect: boolean;
+  autoDiscover: boolean;
+  port: number;
+  streamPath: string;
+  discoveredUrl: string | null;
+  errorMessage: string | null;
 }
 
 export interface LogEntry {

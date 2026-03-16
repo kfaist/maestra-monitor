@@ -22,6 +22,12 @@ import { WSSimulator } from '@/mock/ws-simulator';
 import { API_BASE } from '@/mock/gpu-nodes';
 import { formatTimestamp } from '@/lib/audio-utils';
 import { FRAME_FETCH_INTERVAL } from '@/lib/constants';
+import {
+  MaestraConnection,
+  MaestraConnectionState,
+  GALLERY_SERVER_URL,
+  generateEntityId,
+} from '@/lib/maestra-connection';
 
 export default function Home() {
   // State
@@ -46,6 +52,9 @@ export default function Home() {
   const slotsRef = useRef(slots);
   slotsRef.current = slots;
 
+  // Maestra connection instances per slot
+  const connectionsRef = useRef<Map<string, MaestraConnection>>(new Map());
+
   // Logging
   const log = useCallback((msg: string, type: LogEntry['type'] = 'info') => {
     setLogEntries(prev => {
@@ -55,6 +64,135 @@ export default function Home() {
       return next;
     });
   }, []);
+
+  // Sync MaestraConnectionState → SlotConnectionInfo for UI
+  const syncConnectionInfo = useCallback((slotId: string, state: MaestraConnectionState) => {
+    setConnectionInfo(prev => {
+      // Only update if this is the currently selected slot
+      if (prev && prev.slotId !== slotId) return prev;
+      return {
+        serverUrl: state.serverUrl,
+        entityId: state.entityId,
+        slotId: state.slotId,
+        connected: state.status === 'connected',
+        status: state.status,
+        autoConnect: state.autoConnect,
+        autoDiscover: state.autoDiscover,
+        port: state.port,
+        streamPath: state.streamPath,
+        discoveredUrl: state.discoveredUrl,
+        errorMessage: state.errorMessage,
+      };
+    });
+
+    // Also update the slot's connection_status
+    setSlots(prev => prev.map(s => {
+      if (s.id !== slotId) return s;
+      return {
+        ...s,
+        connection_status: state.status === 'connected' ? 'connected'
+          : state.status === 'error' ? 'error'
+          : state.status === 'connecting' || state.status === 'discovering' ? 'connecting'
+          : 'disconnected',
+        entity_id: state.entityId || s.entity_id,
+        last_heartbeat: state.lastHeartbeat || s.last_heartbeat,
+      };
+    }));
+  }, []);
+
+  // Auto-connect a slot to the gallery Maestra server
+  const autoConnectSlot = useCallback((slotId: string) => {
+    const slot = slotsRef.current.find(s => s.id === slotId);
+    if (!slot) return;
+
+    // Destroy existing connection for this slot
+    const existing = connectionsRef.current.get(slotId);
+    if (existing) existing.destroy();
+
+    const entityId = slot.entity_id || generateEntityId(slot.label, slot.suggestion?.tag);
+    const conn = new MaestraConnection({
+      slotId,
+      slotLabel: slot.label,
+      slotTag: slot.suggestion?.tag,
+      entityId,
+      serverUrl: GALLERY_SERVER_URL,
+      autoConnect: true,
+      autoDiscover: true,
+    });
+
+    conn.onStateChange((state) => {
+      syncConnectionInfo(slotId, state);
+
+      // Log status transitions
+      if (state.status === 'discovering') {
+        log(`[${slotId}] Discovering Maestra server...`, 'info');
+      } else if (state.status === 'connecting') {
+        log(`[${slotId}] Connecting to ${state.serverUrl}...`, 'info');
+      } else if (state.status === 'connected') {
+        log(`[${slotId}] Connected to Maestra as ${state.entityId}`, 'ok');
+      } else if (state.status === 'error') {
+        log(`[${slotId}] ${state.errorMessage || 'Connection error'}`, 'error');
+      }
+    });
+
+    connectionsRef.current.set(slotId, conn);
+
+    // Activate the slot
+    setSlots(prev => prev.map(s => {
+      if (s.id !== slotId) return s;
+      return {
+        ...s,
+        active: true,
+        entity_id: entityId,
+        connection_status: 'connecting',
+      };
+    }));
+
+    // Show connection info immediately
+    const initialState = conn.getState();
+    syncConnectionInfo(slotId, initialState);
+
+    // Start the connection flow
+    conn.connect();
+  }, [log, syncConnectionInfo]);
+
+  // Disconnect a slot
+  const disconnectSlot = useCallback((slotId: string) => {
+    const conn = connectionsRef.current.get(slotId);
+    if (conn) {
+      conn.disconnect();
+      connectionsRef.current.delete(slotId);
+    }
+
+    setSlots(prev => prev.map(s => {
+      if (s.id !== slotId) return s;
+      return { ...s, connection_status: 'disconnected' };
+    }));
+
+    setConnectionInfo(prev => {
+      if (prev && prev.slotId === slotId) {
+        return { ...prev, connected: false, status: 'disconnected', errorMessage: null };
+      }
+      return prev;
+    });
+
+    log(`[${slotId}] Disconnected from Maestra`, 'warn');
+  }, [log]);
+
+  // Update connection config (from Advanced Settings)
+  const updateConnectionConfig = useCallback((config: { serverUrl?: string; entityId?: string; port?: number; streamPath?: string }) => {
+    if (!connectionInfo) return;
+    const slotId = connectionInfo.slotId;
+    const conn = connectionsRef.current.get(slotId);
+
+    if (conn) {
+      conn.updateConfig(config);
+      // Reconnect with new settings
+      conn.disconnect();
+      conn.connect();
+      log(`[${slotId}] Reconnecting with updated settings...`, 'info');
+    }
+  }, [connectionInfo, log]);
 
   // Frame fetching
   const fetchFrame = useCallback(async () => {
@@ -153,21 +291,49 @@ export default function Home() {
     }
   }, []);
 
-  // Slot selection
+  // Slot selection — also shows connection panel for any selected slot
   const selectSlot = useCallback((id: string) => {
     setSelectedId(id);
     const slot = slotsRef.current.find(s => s.id === id);
-    if (slot?.active && slot.entity_id) {
+    if (!slot) return;
+
+    // Check if we have a MaestraConnection for this slot
+    const conn = connectionsRef.current.get(id);
+    if (conn) {
+      const state = conn.getState();
+      syncConnectionInfo(id, state);
+    } else if (slot.active && slot.entity_id) {
+      // Legacy: slot was active before MaestraConnection was created (e.g., krista1)
       setConnectionInfo({
-        serverUrl: API_BASE,
+        serverUrl: GALLERY_SERVER_URL,
         entityId: slot.entity_id,
         slotId: id,
-        connected: true,
+        connected: slot.connection_status === 'connected',
+        status: slot.connection_status === 'connected' ? 'connected' : 'disconnected',
+        autoConnect: true,
+        autoDiscover: true,
+        port: 8080,
+        streamPath: '/ws',
+        discoveredUrl: null,
+        errorMessage: null,
       });
     } else {
-      setConnectionInfo(null);
+      // Inactive slot — show connection panel in disconnected state so user can claim it
+      setConnectionInfo({
+        serverUrl: GALLERY_SERVER_URL,
+        entityId: generateEntityId(slot.label, slot.suggestion?.tag),
+        slotId: id,
+        connected: false,
+        status: 'disconnected',
+        autoConnect: true,
+        autoDiscover: true,
+        port: 8080,
+        streamPath: '/ws',
+        discoveredUrl: null,
+        errorMessage: null,
+      });
     }
-  }, []);
+  }, [syncConnectionInfo]);
 
   // Add slot
   const addSlot = useCallback(() => {
@@ -214,6 +380,20 @@ export default function Home() {
     setActiveTab('scope');
   }, []);
 
+  // Handle auto-connect button click
+  const handleAutoConnect = useCallback(() => {
+    if (connectionInfo) {
+      autoConnectSlot(connectionInfo.slotId);
+    }
+  }, [connectionInfo, autoConnectSlot]);
+
+  // Handle disconnect button click
+  const handleDisconnect = useCallback(() => {
+    if (connectionInfo) {
+      disconnectSlot(connectionInfo.slotId);
+    }
+  }, [connectionInfo, disconnectSlot]);
+
   // Initialize
   useEffect(() => {
     // Start WS simulator for audio data
@@ -256,8 +436,12 @@ export default function Home() {
     fetchFrame();
     frameIntervalRef.current = setInterval(fetchFrame, FRAME_FETCH_INTERVAL);
 
-    // Auto-select krista1
-    setTimeout(() => selectSlot('krista1'), 100);
+    // Auto-select and auto-connect krista1
+    setTimeout(() => {
+      selectSlot('krista1');
+      // Auto-connect krista1 to the gallery Maestra server
+      autoConnectSlot('krista1');
+    }, 100);
 
     return () => {
       simulatorRef.current?.stop();
@@ -265,8 +449,11 @@ export default function Home() {
       if (wsReconnectTimerRef.current) clearTimeout(wsReconnectTimerRef.current);
       if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
       clearInterval(entityInterval);
+      // Clean up all connections
+      connectionsRef.current.forEach(conn => conn.destroy());
+      connectionsRef.current.clear();
     };
-  }, [connectWS, fetchEntities, fetchFrame, selectSlot, log]);
+  }, [connectWS, fetchEntities, fetchFrame, selectSlot, autoConnectSlot, log]);
 
   const selectedSlot = slots.find(s => s.id === selectedId) || null;
 
@@ -288,8 +475,13 @@ export default function Home() {
               onAddSlot={addSlot}
             />
 
-            {/* Connection Panel (shown when a connected slot is selected) */}
-            <ConnectionPanel connectionInfo={connectionInfo} />
+            {/* Connection Panel (shown for any selected slot) */}
+            <ConnectionPanel
+              connectionInfo={connectionInfo}
+              onAutoConnect={handleAutoConnect}
+              onDisconnect={handleDisconnect}
+              onUpdateConfig={updateConnectionConfig}
+            />
 
             {/* Audio Analysis */}
             <AudioAnalysis audioData={audioData} />
