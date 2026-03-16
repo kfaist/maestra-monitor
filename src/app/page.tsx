@@ -813,11 +813,10 @@ export default function Home() {
     fetchFrame();
     frameIntervalRef.current = setInterval(fetchFrame, FRAME_FETCH_INTERVAL);
 
-    // On init, just select the first slot — do NOT auto-connect anything.
-    // Slots start as "available". Connections only happen when a user
-    // explicitly connects via the setup wizard, or when a stream_advertised
-    // event arrives via WebSocket.
+    // Auto-connect slot 1 on load — SD stream appears immediately, zero clicks needed.
+    // Other slots stay available — users connect them explicitly via the setup wizard.
     setTimeout(() => {
+      autoConnectSlot('krista1');
       selectSlot('krista1');
     }, 100);
 
@@ -830,7 +829,7 @@ export default function Home() {
       connectionsRef.current.forEach(conn => conn.destroy());
       connectionsRef.current.clear();
     };
-  }, [connectWS, fetchEntities, fetchFrame, selectSlot, log]);
+  }, [connectWS, fetchEntities, fetchFrame, selectSlot, autoConnectSlot, log]);
 
   // Derived values
   const selectedSlot = slots.find(s => s.id === selectedId) || null;
