@@ -10,6 +10,7 @@ interface TDConnectGuideProps {
   onSignalSourceChange?: (source: SignalSource) => void;
   onReconnect?: () => void;
   onDisconnect?: () => void;
+  onConnect?: () => void;
 }
 
 type SignalSource = 'touchdesigner' | 'json_stream' | 'osc' | 'audio_reactive' | 'text' | 'test_signal';
@@ -59,7 +60,7 @@ const STEPS: { key: SetupStage; label: string }[] = [
   { key: 'live', label: 'Live Node' },
 ];
 
-export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChange, onReconnect, onDisconnect }: TDConnectGuideProps) {
+export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChange, onReconnect, onDisconnect, onConnect }: TDConnectGuideProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [signalSource, setSignalSource] = useState<SignalSource | null>(null);
   const [sourceConfirmed, setSourceConfirmed] = useState(false);
@@ -417,6 +418,29 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
                 </button>
               </div>
             </div>
+            {/* Primary connect action */}
+            {onConnect && !isConnected && (
+              <button
+                className="td-action-btn td-action-connect"
+                onClick={onConnect}
+                style={{
+                  width: '100%',
+                  padding: '10px 16px',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  letterSpacing: '.04em',
+                  background: 'rgba(34,197,94,0.15)',
+                  border: '1px solid rgba(34,197,94,0.5)',
+                  color: '#22c55e',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  marginBottom: 10,
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}
+              >
+                Connect Node
+              </button>
+            )}
             <div className="td-connect-actions">
               <a
                 href="https://github.com/kfaist/maestra-fleet-tox/raw/main/touchdesigner/maestra_fleet.tox"
