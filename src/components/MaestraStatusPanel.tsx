@@ -11,17 +11,17 @@ interface MaestraStatusPanelProps {
 function layerColor(value: string): string {
   switch (value) {
     case 'connected': case 'registered': case 'live': case 'active':
-      return 'var(--active)';
+      return '#22c55e'; // bright green
     case 'connecting': case 'registering': case 'syncing': case 'advertised':
-      return 'var(--accent)';
+      return '#5cc8ff'; // cyan-blue
     case 'waiting': case 'none':
-      return 'var(--text-dim)';
+      return '#8888aa';
     case 'stale':
-      return 'var(--amber)';
+      return '#fbbf24'; // amber
     case 'lost': case 'error': case 'disconnected': case 'not_registered':
-      return 'var(--red)';
+      return '#ef4444'; // red
     default:
-      return 'var(--text-dim)';
+      return '#8888aa';
   }
 }
 
@@ -47,14 +47,14 @@ function StatusRow({ label, value, detail }: { label: string; value: string; det
           className={`msp-dot ${isPulsing ? 'pulsing' : ''}`}
           style={{
             background: color,
-            boxShadow: isActive ? `0 0 6px ${color}` : 'none',
+            boxShadow: isActive ? `0 0 8px ${color}` : 'none',
           }}
         />
-        <span className="msp-value" style={{ color }}>
+        <span className="msp-value" style={{ color: isActive ? '#fff' : color, fontWeight: isActive ? 600 : 500 }}>
           {displayLabel(value)}
         </span>
         {detail && (
-          <span className="msp-detail" style={{ color: 'var(--text-dim)', fontSize: '10px', marginLeft: '6px' }}>
+          <span className="msp-detail" style={{ color: '#aab', fontSize: '10px', marginLeft: '6px' }}>
             {detail}
           </span>
         )}
@@ -66,9 +66,9 @@ function StatusRow({ label, value, detail }: { label: string; value: string; det
 export default function MaestraStatusPanel({ status }: MaestraStatusPanelProps) {
   const [now, setNow] = useState(Date.now());
 
-  // Tick every 200ms to keep ages current
+  // Tick every 500ms to keep ages current (slower to reduce jitter)
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 200);
+    const id = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(id);
   }, []);
 
@@ -76,22 +76,22 @@ export default function MaestraStatusPanel({ status }: MaestraStatusPanelProps) 
   let hbDetail: string | undefined;
   if (status.heartbeat === 'live' || status.heartbeat === 'stale' || status.heartbeat === 'lost') {
     if (status.lastHeartbeatAt) {
-      hbDetail = `last seen ${formatAge(now - status.lastHeartbeatAt)}`;
+      hbDetail = `last seen ${formatAge(Math.max(0, now - status.lastHeartbeatAt))}`;
     }
   } else if (status.heartbeat === 'waiting' && status.registeredAt) {
-    hbDetail = `${formatAge(now - status.registeredAt)} since registration`;
+    hbDetail = `${formatAge(Math.max(0, now - status.registeredAt))} since registration`;
   }
 
   // State sync detail
   let ssDetail: string | undefined;
   if (status.stateSync === 'active' && status.lastStateUpdateAt) {
-    ssDetail = `last ${formatAge(now - status.lastStateUpdateAt)}`;
+    ssDetail = `last ${formatAge(Math.max(0, now - status.lastStateUpdateAt))}`;
   }
 
   // Stream detail
   let stDetail: string | undefined;
   if ((status.stream === 'live' || status.stream === 'stale') && status.lastStreamFrameAt) {
-    stDetail = `last frame ${formatAge(now - status.lastStreamFrameAt)}`;
+    stDetail = `last frame ${formatAge(Math.max(0, now - status.lastStreamFrameAt))}`;
   }
 
   return (

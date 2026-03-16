@@ -232,16 +232,28 @@ export default function Home() {
   const disconnectSlot = useCallback((slotId: string) => {
     const conn = connectionsRef.current.get(slotId);
     if (conn) {
-      conn.disconnect();
+      conn.destroy();
       connectionsRef.current.delete(slotId);
     }
 
     const slot = slotsRef.current.find(s => s.id === slotId);
     logEvent('disconnect', slot?.entity_id || slotId, `${slotId} left the fleet`);
 
+    // Fully deactivate the slot — revoke blob, clear frame, mark inactive
     setSlots(prev => prev.map(s => {
       if (s.id !== slotId) return s;
-      return { ...s, connection_status: 'disconnected', maestraStatus: defaultSlotStatus() };
+      if (s.frameUrl && s.frameUrl.startsWith('blob:')) URL.revokeObjectURL(s.frameUrl);
+      return {
+        ...s,
+        active: false,
+        fps: null,
+        frameUrl: null,
+        connection_status: 'disconnected',
+        maestraStatus: defaultSlotStatus(),
+        _frameTimes: [],
+        _fpsSmooth: null,
+        suggestion: SUGGESTIONS[(prev.indexOf(s)) % SUGGESTIONS.length],
+      };
     }));
 
     setConnectionInfo(prev => {
@@ -861,6 +873,22 @@ export default function Home() {
         <div className="fleet-layout">
           {/* Left: Slot Grid + Audio + Palette + Modulation */}
           <div className="fleet-panel">
+            {/* Big status indicators above slots */}
+            <div className="fleet-status-bar">
+              <div className={`fleet-status-badge ${wsStatus === 'online' ? 'status-green' : wsStatus === 'connecting' ? 'status-amber' : 'status-red'}`}>
+                <div className="fleet-status-dot" />
+                <span className="fleet-status-text">WS {wsStatus === 'online' ? 'LIVE' : wsStatus === 'connecting' ? '...' : 'OFF'}</span>
+              </div>
+              <div className={`fleet-status-badge ${apiStatus === 'online' ? 'status-green' : 'status-red'}`}>
+                <div className="fleet-status-dot" />
+                <span className="fleet-status-text">API {apiStatus === 'online' ? 'OK' : 'ERR'}</span>
+              </div>
+              <div className={`fleet-status-badge ${maestraHeaderStatus === 'connected' ? 'status-green' : maestraHeaderStatus === 'connecting' ? 'status-amber' : 'status-red'}`}>
+                <div className="fleet-status-dot" />
+                <span className="fleet-status-text">MAESTRA: {maestraHeaderStatus === 'connected' ? 'CONNECTED' : maestraHeaderStatus === 'connecting' ? 'CONNECTING' : maestraHeaderStatus === 'error' ? 'ERROR' : 'OFF'}</span>
+              </div>
+            </div>
+
             <SlotGrid
               slots={slots}
               selectedId={selectedId}
@@ -919,6 +947,7 @@ export default function Home() {
             onAutoConnect={handleAutoConnect}
             onDisconnect={handleDisconnect}
             onUpdateConfig={updateConnectionConfig}
+            remoteEntities={remoteEntityList}
           />
         </div>
 

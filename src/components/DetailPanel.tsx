@@ -26,6 +26,7 @@ interface DetailPanelProps {
   onAutoConnect?: () => void;
   onDisconnect?: () => void;
   onUpdateConfig?: (config: { serverUrl?: string; entityId?: string; port?: number; streamPath?: string }) => void;
+  remoteEntities?: string[];
 }
 
 export default function DetailPanel({
@@ -46,6 +47,7 @@ export default function DetailPanel({
   onAutoConnect,
   onDisconnect,
   onUpdateConfig,
+  remoteEntities,
 }: DetailPanelProps) {
   const hasRemoteFrame = slot?.active && slot.frameUrl && !webcamActive;
 
@@ -125,6 +127,7 @@ export default function DetailPanel({
       {/* Maestra Status + Connection */}
       <ConnectionPanel
         connectionInfo={connectionInfo}
+        remoteEntities={remoteEntities}
         onAutoConnect={onAutoConnect}
         onDisconnect={onDisconnect}
         onUpdateConfig={onUpdateConfig}

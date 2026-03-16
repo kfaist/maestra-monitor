@@ -6,16 +6,20 @@ import MaestraStatusPanel from './MaestraStatusPanel';
 
 interface ConnectionPanelProps {
   connectionInfo: SlotConnectionInfo | null;
+  remoteEntities?: string[];
   onAutoConnect?: () => void;
   onDisconnect?: () => void;
   onUpdateConfig?: (config: { serverUrl?: string; entityId?: string; port?: number; streamPath?: string }) => void;
+  onSelectEntity?: (entityId: string) => void;
 }
 
 export default function ConnectionPanel({
   connectionInfo,
+  remoteEntities = [],
   onAutoConnect,
   onDisconnect,
   onUpdateConfig,
+  onSelectEntity,
 }: ConnectionPanelProps) {
   const [copied, setCopied] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -81,9 +85,29 @@ export default function ConnectionPanel({
               boxShadow: `0 0 8px ${isConnected ? '#22c55e' : connectionInfo.status === 'error' ? '#ef4444' : '#eab308'}`,
             }}
           />
-          <span className="connection-status-label">
-            {isConnected ? 'Connected to gallery Maestra' : connectionInfo.status === 'error' ? 'Server unreachable' : 'Attempting connection'}
+          <span className="connection-status-label" style={{ color: '#fff' }}>
+            {isConnected ? 'Connected to Maestra' : connectionInfo.status === 'error' ? 'Server unreachable' : 'Attempting connection'}
           </span>
+        </div>
+      )}
+
+      {/* Remote Node Picker */}
+      {remoteEntities.length > 0 && (
+        <div className="node-picker">
+          <div className="node-picker-label">// Connected Nodes</div>
+          <div className="node-picker-list">
+            {remoteEntities.map(eid => (
+              <button
+                key={eid}
+                className={`node-picker-btn ${connectionInfo.entityId === eid ? 'current' : ''}`}
+                onClick={() => onSelectEntity?.(eid)}
+                title={eid}
+              >
+                <span className="node-dot" style={{ background: '#22c55e' }} />
+                <span className="node-id">{eid.length > 20 ? eid.slice(0, 18) + '…' : eid}</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -91,15 +115,15 @@ export default function ConnectionPanel({
       <div className="connection-info">
         <div className="connection-info-row">
           <span className="connection-info-label">Server:</span>
-          <span className="connection-info-value">{connectionInfo.serverUrl}</span>
+          <span className="connection-info-value" style={{ color: '#ccd' }}>{connectionInfo.serverUrl}</span>
         </div>
         <div className="connection-info-row">
           <span className="connection-info-label">Slot:</span>
-          <span className="connection-info-value">{connectionInfo.slotId}</span>
+          <span className="connection-info-value" style={{ color: '#ccd' }}>{connectionInfo.slotId}</span>
         </div>
         <div className="connection-info-row">
           <span className="connection-info-label">Entity ID:</span>
-          <span className="connection-info-value" style={{ fontFamily: 'monospace', fontSize: '10px' }}>
+          <span className="connection-info-value" style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5cc8ff' }}>
             {connectionInfo.entityId}
           </span>
         </div>
@@ -127,7 +151,7 @@ export default function ConnectionPanel({
             Connect Automatically
           </button>
         ) : (
-          <button className="btn" onClick={onDisconnect} style={{ borderColor: '#ef4444', color: '#ef4444' }}>
+          <button className="btn disconnect-btn" onClick={onDisconnect}>
             Disconnect
           </button>
         )}
@@ -147,7 +171,7 @@ export default function ConnectionPanel({
 
       {/* Advanced Settings Toggle */}
       <div className="connection-advanced-toggle" onClick={handleToggleAdvanced}>
-        <span style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-dim)', cursor: 'pointer' }}>
+        <span style={{ fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#aab', cursor: 'pointer' }}>
           {showAdvanced ? '▾ Hide' : '▸ Advanced'} Settings
         </span>
       </div>
@@ -156,7 +180,7 @@ export default function ConnectionPanel({
         <div className="connection-advanced">
           <div className="connection-advanced-field">
             <label>Server URL</label>
-            <input type="text" value={editUrl} onChange={e => setEditUrl(e.target.value)} placeholder="http://192.168.128.115:8080" />
+            <input type="text" value={editUrl} onChange={e => setEditUrl(e.target.value)} placeholder="https://maestra-backend-v2-production.up.railway.app" />
           </div>
           <div className="connection-advanced-field">
             <label>Entity ID</label>
