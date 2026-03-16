@@ -190,6 +190,11 @@ export default function Home() {
           log(`[${slotId}] Entity registered as ${conn.entityId}`, 'ok');
           logEvent('connect', conn.entityId, `${slotId} registered`);
           saveConnectedSlots();
+          // Add to remote entities so prompt/p6 targets this entity
+          if (!remoteEntitiesRef.current.has(conn.entityId)) {
+            remoteEntitiesRef.current.add(conn.entityId);
+            setRemoteEntityList(Array.from(remoteEntitiesRef.current));
+          }
         }
         prevEntity = status.entity;
       }
@@ -353,7 +358,7 @@ export default function Home() {
           }).catch(() => { frameRelayPostingRef.current = false; });
         }
 
-        // HTTP relay — POST frame to entity state endpoint (fallback / dual-delivery)
+        // HTTP delivery — POST frame to Maestra entity state (persisted for TD to poll)
         if (!httpRelayPostingRef.current) {
           httpRelayPostingRef.current = true;
           blob.arrayBuffer().then(buf => {
@@ -361,11 +366,13 @@ export default function Home() {
             let binary = '';
             for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
             const b64 = btoa(binary);
+            // POST to the entity's state — Maestra stores this, TD can poll it
             fetch(`${API_BASE}/entities/${entityId}/state`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 type: 'stream_frame',
+                entity_id: entityId,
                 frame: b64,
                 format: 'jpeg',
                 source: slot.active_stream || 'unknown',
@@ -646,22 +653,28 @@ export default function Home() {
   // Collect all entity IDs that should receive prompt/p6 messages
   const getAllTargetEntityIds = useCallback((): string[] => {
     const ids = new Set<string>();
-    // Add all remote entities we've seen (TD nodes, etc.)
+    // Add all remote entities we've seen via WS (TD nodes, etc.)
     remoteEntitiesRef.current.forEach(id => ids.add(id));
-    // Add all dashboard-side connections (in case they overlap)
+    // Add all dashboard-side connections
     connectionsRef.current.forEach(conn => ids.add(conn.entityId));
+    // Add entity_ids from active slots (covers cases where WS hasn't delivered any messages yet)
+    slotsRef.current.forEach(s => {
+      if (s.active && s.entity_id) ids.add(s.entity_id);
+    });
     return Array.from(ids);
   }, []);
 
-  // Helper: send a message via WS if open, plus HTTP fallback to all entity endpoints
+  // Helper: send a message via WS if open, plus HTTP POST to Maestra entity state
   const sendViaAll = useCallback((msg: Record<string, unknown>, targets: string[], label: string) => {
     const ts = Date.now();
     const ws = wsRef.current;
     const wsOpen = ws && ws.readyState === WebSocket.OPEN;
 
     const payload = msg.data as Record<string, unknown> | undefined;
+
+    // ── WS delivery (3 routes for redundancy) ──
     if (wsOpen) {
-      // 1. Fleet-wide broadcast (no entity_id — backend relays to all subscribers)
+      // 1. Fleet-wide broadcast (backend relays to all WS subscribers)
       ws.send(JSON.stringify({ ...msg, timestamp: ts }));
 
       // 2. Fleet-wide state_update (no entity_id)
@@ -675,14 +688,27 @@ export default function Home() {
       });
     }
 
-    // 4. HTTP fallback — POST state_update to each entity via REST API
+    // ── HTTP delivery — POST to Maestra entity state (persisted, TD polls this) ──
+    // Send the full message (type, prompt, data) so the backend stores it all
     targets.forEach(entityId => {
       fetch(`${API_BASE}/entities/${entityId}/state`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...(payload || {}), timestamp: ts }),
+        body: JSON.stringify({
+          ...msg,
+          ...(payload || {}),
+          entity_id: entityId,
+          timestamp: ts,
+        }),
       }).catch(() => {});
     });
+
+    // Also POST to the fleet-wide state endpoint (no specific entity)
+    fetch(`${API_BASE}/state`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...msg, ...(payload || {}), timestamp: ts }),
+    }).catch(() => {});
 
     log(`[${label}] → ${targets.length} entities ${wsOpen ? '(WS+HTTP)' : '(HTTP only)'}`, wsOpen ? 'ok' : 'warn');
   }, [log]);
