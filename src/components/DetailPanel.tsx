@@ -49,7 +49,11 @@ export default function DetailPanel({
   onUpdateConfig,
   remoteEntities,
 }: DetailPanelProps) {
+  // Only show remote frame if the slot genuinely has a stream with frames — not just "active"
   const hasRemoteFrame = slot?.active && slot.frameUrl && !webcamActive;
+  // True stream = maestraStatus says stream is live/advertised, or we have actual frames
+  const hasRealStream = slot?.maestraStatus?.stream === 'live' || slot?.maestraStatus?.stream === 'advertised';
+  const isSlotActive = slot?.active ?? false;
 
   return (
     <div className="detail-panel">

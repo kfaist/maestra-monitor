@@ -108,11 +108,11 @@ export default function Home() {
 
   // Sync MaestraSlotStatus → UI state for a given slot
   const syncSlotStatus = useCallback((slotId: string, status: MaestraSlotStatus) => {
-    // Update connectionInfo if this is the selected slot
+    // Update connectionInfo ONLY if this is the selected slot — never overwrite another slot's info
     setConnectionInfo(prev => {
-      if (prev && prev.slotId !== slotId) return prev;
+      if (!prev || prev.slotId !== slotId) return prev;
       return {
-        ...prev!,
+        ...prev,
         serverUrl: prev?.serverUrl || MAESTRA_API_URL,
         entityId: prev?.entityId || '',
         slotId,
@@ -197,14 +197,18 @@ export default function Home() {
 
     connectionsRef.current.set(slotId, conn);
 
-    // Set slot active immediately
+    // Set slot active immediately — derive endpoint from slot's suggestion tag
     setSlots(prev => prev.map(s => {
       if (s.id !== slotId) return s;
+      // Only set endpoint for krista1 (the SD slot) — other slots get endpoint from backend
+      const endpoint = s.id === 'krista1' ? '/video/frame/td' : s.endpoint;
       return {
         ...s,
         active: true,
         entity_id: entityId,
+        endpoint,
         connection_status: 'connecting',
+        active_stream: s.id === 'krista1' ? 'StreamDiffusion' : s.active_stream,
         maestraStatus: { ...defaultSlotStatus(), server: 'connecting' },
       };
     }));
@@ -685,12 +689,21 @@ export default function Home() {
     sendToTarget({ param: paramName, source, amount, field: 'modulation' });
   }, [sendToTarget]);
 
-  // Webcam frame handler — injects captured frames into the CURRENTLY selected slot
-  // Throttled: only updates React state every ~250ms to prevent jitter from 12fps re-renders
+  // Webcam frame handler — injects captured frames into the CURRENTLY selected slot,
+  // but ONLY if that slot is active (has a connection). Prevents frame leakage to inactive slots.
   const webcamLastUpdateRef = useRef(0);
   const webcamLatestBlobRef = useRef<string | null>(null);
+  const webcamSlotRef = useRef<string | null>(null); // tracks which slot "owns" the webcam
   const handleWebcamFrame = useCallback((blobUrl: string, fps: number) => {
-    const slotId = selectedIdRef.current || 'krista1';
+    const currentSelected = selectedIdRef.current || 'krista1';
+    // Lock webcam to the first slot that started it — don't follow selection changes
+    if (!webcamSlotRef.current) webcamSlotRef.current = currentSelected;
+    const slotId = webcamSlotRef.current;
+
+    // Only send frames to active/connected slots
+    const slot = slotsRef.current.find(s => s.id === slotId);
+    if (!slot?.active) return;
+
     const conn = connectionsRef.current.get(slotId);
     if (conn) conn.receiveStreamFrame();
 
@@ -741,15 +754,17 @@ export default function Home() {
   // fetchFrame already skips the webcam slot via webcamActiveRef check
   const handleWebcamToggle = useCallback((active: boolean) => {
     setWebcamActive(active);
-    // Auto-select first slot if nothing is selected
-    if (active && !selectedIdRef.current) {
-      setSelectedId('krista1');
-    }
-    const target = selectedIdRef.current || 'krista1';
     if (active) {
+      // Auto-select first slot if nothing is selected
+      if (!selectedIdRef.current) setSelectedId('krista1');
+      // Lock webcam to the currently selected slot
+      webcamSlotRef.current = selectedIdRef.current || 'krista1';
+      const target = webcamSlotRef.current;
       log(`[Webcam] Started — streaming to ${target} (other slots still polling)`, 'ok');
       logEvent('stream', target, 'Webcam stream started');
     } else {
+      const target = webcamSlotRef.current || 'krista1';
+      webcamSlotRef.current = null; // release lock
       log('[Webcam] Stopped', 'info');
       logEvent('stream', target, 'Webcam stream stopped');
     }
@@ -778,9 +793,10 @@ export default function Home() {
         setAudioData(event.data as unknown as AudioAnalysisData);
       }
       if (event.type === 'entity_connected') {
-        // Route to the matching connection if one exists — do NOT force-activate slots
-        const conn = connectionsRef.current.get(event.entity_id || '');
-        if (conn) conn.receiveHeartbeat();
+        // Route to the matching connection by entityId (not slotId)
+        connectionsRef.current.forEach((conn) => {
+          if (conn.entityId === event.entity_id) conn.receiveHeartbeat();
+        });
         log(`Entity connected: ${event.entity_id}`, 'ok');
       }
       if (event.type === 'heartbeat') {

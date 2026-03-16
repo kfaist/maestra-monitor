@@ -47,17 +47,13 @@ export class WSSimulator {
       });
     }, 16);
 
-    // Random state updates
+    // Random state updates (no stream_advertised — streams only come from real backend events)
     setInterval(() => {
-      const events: WSEventType[] = ['state_update', 'stream_advertised'];
-      const type = events[Math.floor(Math.random() * events.length)];
       this.emit({
-        type,
+        type: 'state_update',
         entity_id: '576f16e7-873f-4ace-9e59-f7c0a5ed9110',
         timestamp: Date.now(),
-        data: type === 'state_update'
-          ? { brightness: Math.round(Math.random() * 100), scene: Math.floor(Math.random() * 5) }
-          : { stream_name: 'Stage Visuals', stream_type: 'ndi' },
+        data: { brightness: Math.round(Math.random() * 100), scene: Math.floor(Math.random() * 5) },
       });
     }, 8000);
 
