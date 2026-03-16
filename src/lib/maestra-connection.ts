@@ -123,6 +123,7 @@ async function registerEntity(
 
 /** Send a heartbeat to the Maestra server */
 async function sendHeartbeat(serverUrl: string, entityId: string): Promise<boolean> {
+  // Try standard POST first
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 2000);
@@ -133,7 +134,22 @@ async function sendHeartbeat(serverUrl: string, entityId: string): Promise<boole
       signal: controller.signal,
     });
     clearTimeout(timeout);
-    return res.ok;
+    if (res.ok) return true;
+  } catch {
+    // CORS or network error — fall through to no-cors probe
+  }
+
+  // Fallback: no-cors reachability check (opaque = server is alive)
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2000);
+    const res = await fetch(serverUrl, {
+      signal: controller.signal,
+      mode: 'no-cors',
+    });
+    clearTimeout(timeout);
+    // opaque response means server is reachable even if CORS blocks the POST
+    return res.type === 'opaque' || res.ok;
   } catch {
     return false;
   }
@@ -286,7 +302,7 @@ export class MaestraConnection {
         const timeSinceLastHB = this.state.lastHeartbeat
           ? Date.now() - this.state.lastHeartbeat
           : Infinity;
-        if (timeSinceLastHB > 20000) {
+        if (timeSinceLastHB > 45000) {
           this.setState({ status: 'error', errorMessage: 'Heartbeat lost. Reconnecting...' });
           this.stopHeartbeat();
           setTimeout(() => this.connect(), 2000);

@@ -7,6 +7,8 @@ interface SignalPanelProps {
   onInjectToggle: (active: boolean) => void;
   promptText: string;
   onPromptChange: (text: string) => void;
+  onBroadcast: (prompt: string) => void;
+  onP6Flush: (prompt: string) => void;
 }
 
 const AUTO_INJECT_INTERVAL = 5000; // 5s
@@ -17,6 +19,8 @@ export default function SignalPanel({
   onInjectToggle,
   promptText,
   onPromptChange,
+  onBroadcast,
+  onP6Flush,
 }: SignalPanelProps) {
   const [transEnabled, setTransEnabled] = useState(false);
   const [debounceMs, setDebounceMs] = useState(800);
@@ -27,11 +31,20 @@ export default function SignalPanel({
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const p6TimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Use refs for values accessed inside intervals (avoids resetting timers on change)
+  const promptTextRef = useRef(promptText);
+  promptTextRef.current = promptText;
+  const onBroadcastRef = useRef(onBroadcast);
+  onBroadcastRef.current = onBroadcast;
+  const onP6FlushRef = useRef(onP6Flush);
+  onP6FlushRef.current = onP6Flush;
+
   const handleTransToggle = useCallback((checked: boolean) => {
     setTransEnabled(checked);
   }, []);
 
   // Auto-inject every 5s when inject is live
+  // Only depends on injectActive — promptText is read via ref
   useEffect(() => {
     if (injectActive) {
       setAutoInjectCountdown(5);
@@ -44,12 +57,20 @@ export default function SignalPanel({
         });
       }, 1000);
 
-      // Auto-inject timer
+      // Auto-inject timer — reads promptText via ref, doesn't reset on typing
       autoInjectRef.current = setInterval(() => {
-        // Simulate broadcast: log that we're injecting
-        setLastBroadcast(Date.now());
-        console.log('[AutoInject] Broadcasting prompt to fleet:', promptText.slice(0, 60));
+        const currentPrompt = promptTextRef.current;
+        if (currentPrompt.trim()) {
+          setLastBroadcast(Date.now());
+          onBroadcastRef.current(currentPrompt);
+        }
       }, AUTO_INJECT_INTERVAL);
+
+      // Do an immediate first broadcast
+      if (promptTextRef.current.trim()) {
+        onBroadcastRef.current(promptTextRef.current);
+        setLastBroadcast(Date.now());
+      }
 
       return () => {
         if (autoInjectRef.current) clearInterval(autoInjectRef.current);
@@ -60,7 +81,7 @@ export default function SignalPanel({
       if (countdownRef.current) clearInterval(countdownRef.current);
       setAutoInjectCountdown(5);
     }
-  }, [injectActive, promptText]);
+  }, [injectActive]);
 
   // Prompt + p6 flush to TD 5s after broadcast
   useEffect(() => {
@@ -70,7 +91,7 @@ export default function SignalPanel({
 
       p6TimerRef.current = setTimeout(() => {
         setP6Flushing(true);
-        console.log('[P6 Flush] Flushing prompt + p6 to TouchDesigner');
+        onP6FlushRef.current(promptTextRef.current);
         // Reset after brief display
         setTimeout(() => setP6Flushing(false), 1500);
       }, P6_FLUSH_DELAY);

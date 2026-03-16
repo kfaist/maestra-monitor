@@ -14,6 +14,8 @@ interface DetailPanelProps {
   onInjectToggle: (active: boolean) => void;
   promptText: string;
   onPromptChange: (text: string) => void;
+  onBroadcast: (prompt: string) => void;
+  onP6Flush: (prompt: string) => void;
 }
 
 export default function DetailPanel({
@@ -26,6 +28,8 @@ export default function DetailPanel({
   onInjectToggle,
   promptText,
   onPromptChange,
+  onBroadcast,
+  onP6Flush,
 }: DetailPanelProps) {
   return (
     <div className="detail-panel">
@@ -117,6 +121,8 @@ export default function DetailPanel({
         onInjectToggle={onInjectToggle}
         promptText={promptText}
         onPromptChange={onPromptChange}
+        onBroadcast={onBroadcast}
+        onP6Flush={onP6Flush}
       />
 
       {/* Fleet Input */}

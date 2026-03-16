@@ -447,6 +447,73 @@ export default function Home() {
     }, 400);
   }, [fetchFrame, log]);
 
+  // Broadcast prompt to all connected nodes via WS + Maestra
+  const broadcastPrompt = useCallback((prompt: string) => {
+    const payload = JSON.stringify({
+      type: 'prompt_inject',
+      prompt,
+      timestamp: Date.now(),
+    });
+
+    // Send via WebSocket if connected
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(payload);
+    }
+
+    // Send via each MaestraConnection
+    connectionsRef.current.forEach((conn, slotId) => {
+      const state = conn.getState();
+      if (state.status === 'connected') {
+        try {
+          fetch(`${state.serverUrl}/entities/${state.entityId}/prompt`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, timestamp: Date.now() }),
+          }).catch(() => {
+            // Silently handle CORS/network errors
+          });
+        } catch {
+          // ignore
+        }
+      }
+      void slotId; // suppress unused
+    });
+
+    log(`[Inject] Broadcast: "${prompt.slice(0, 50)}${prompt.length > 50 ? '...' : ''}"`, 'ok');
+    logEvent('stream', 'fleet', `Prompt injected: ${prompt.slice(0, 40)}`);
+  }, [log, logEvent]);
+
+  // P6 flush to TD
+  const p6Flush = useCallback((prompt: string) => {
+    const payload = JSON.stringify({
+      type: 'p6_flush',
+      prompt,
+      timestamp: Date.now(),
+    });
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(payload);
+    }
+
+    connectionsRef.current.forEach((conn) => {
+      const state = conn.getState();
+      if (state.status === 'connected') {
+        try {
+          fetch(`${state.serverUrl}/entities/${state.entityId}/p6`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, timestamp: Date.now() }),
+          }).catch(() => {});
+        } catch {
+          // ignore
+        }
+      }
+    });
+
+    log('[P6 Flush] Sent prompt + p6 to TouchDesigner', 'info');
+    logEvent('stream', 'fleet', 'P6 flush sent to TD');
+  }, [log, logEvent]);
+
   // Cycle to cloud nodes
   const cycleStreamSource = useCallback(() => {
     setActiveTab('scope');
@@ -610,6 +677,8 @@ export default function Home() {
             onInjectToggle={setInjectActive}
             promptText={promptText}
             onPromptChange={setPromptText}
+            onBroadcast={broadcastPrompt}
+            onP6Flush={p6Flush}
           />
         </div>
 
