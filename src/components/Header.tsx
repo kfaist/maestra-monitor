@@ -11,6 +11,7 @@ interface HeaderProps {
   activeSlots: number;
   totalSlots: number;
   audioActive: boolean;
+  frameRelayCount?: number;
   onJoinMaestra?: () => void;
 }
 
@@ -20,6 +21,7 @@ export default function Header({
   activeSlots,
   totalSlots,
   audioActive,
+  frameRelayCount,
 }: HeaderProps) {
   const [clock, setClock] = useState('--:--:--');
 
@@ -57,6 +59,16 @@ export default function Header({
             <span>Audio</span>
             <span className="sys-stat-val">{audioActive ? 'RX' : 'OFF'}</span>
           </div>
+          {frameRelayCount != null && frameRelayCount > 0 && (
+            <>
+              <div className="sys-stat-sep" />
+              <div className="sys-stat">
+                <div className="dot online" style={{ animation: 'pulse-dot 1s ease-in-out infinite' }} />
+                <span>Relay</span>
+                <span className="sys-stat-val">{frameRelayCount > 999 ? `${(frameRelayCount / 1000).toFixed(1)}k` : frameRelayCount}</span>
+              </div>
+            </>
+          )}
           <div className="sys-stat-sep" />
           <div className="sys-stat">
             <span>{clock}</span>

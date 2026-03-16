@@ -292,7 +292,12 @@ export default function Home() {
   // Frame fetching — only fetch for slots with an advertised/live stream
   // Streams are NOT attached on slot click — only via stream_advertised WS event
   const frameErrorCountRef = useRef(0);
-  const frameRelayPostingRef = useRef(false); // gate: one relay POST at a time
+  const frameRelayPostingRef = useRef(false); // gate: one WS relay at a time
+  const httpRelayPostingRef = useRef(false);  // gate: one HTTP relay at a time
+  const frameRelayCountRef = useRef(0);       // total frames relayed
+  const [frameRelayCount, setFrameRelayCount] = useState(0);
+  const frameRelayCountUpdateRef = useRef(0); // throttle UI updates
+
   const fetchFrame = useCallback(async () => {
     const currentSlots = slotsRef.current;
     // Only fetch for slots that have a stream advertised or live (not just "active")
@@ -319,24 +324,55 @@ export default function Home() {
         const conn = connectionsRef.current.get(slot.id);
         if (conn) conn.receiveStreamFrame();
 
-        // ── Relay frame to Maestra backend via WS (continuous ~80ms) ──
-        // This lets other connected nodes (TD, browsers) receive the stream
+        const entityId = conn?.entityId || slot.entity_id || slot.id;
+
+        // ── Relay frame to Maestra backend via WS + HTTP (continuous ~80ms) ──
+        // WS relay — fast path for connected nodes
         if (wsRef.current?.readyState === WebSocket.OPEN && !frameRelayPostingRef.current) {
           frameRelayPostingRef.current = true;
           blob.arrayBuffer().then(buf => {
-            // Convert to base64 and send as stream_frame
             const bytes = new Uint8Array(buf);
             let binary = '';
             for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
             const b64 = btoa(binary);
             wsRef.current?.send(JSON.stringify({
               type: 'stream_frame',
-              entity_id: conn?.entityId || slot.entity_id || slot.id,
+              entity_id: entityId,
               data: { frame: b64, format: 'jpeg', source: slot.active_stream || 'unknown' },
               timestamp: Date.now(),
             }));
             frameRelayPostingRef.current = false;
+
+            // Bump relay counter
+            frameRelayCountRef.current++;
+            const now = Date.now();
+            if (now - frameRelayCountUpdateRef.current > 500) {
+              frameRelayCountUpdateRef.current = now;
+              setFrameRelayCount(frameRelayCountRef.current);
+            }
           }).catch(() => { frameRelayPostingRef.current = false; });
+        }
+
+        // HTTP relay — POST frame to entity state endpoint (fallback / dual-delivery)
+        if (!httpRelayPostingRef.current) {
+          httpRelayPostingRef.current = true;
+          blob.arrayBuffer().then(buf => {
+            const bytes = new Uint8Array(buf);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            const b64 = btoa(binary);
+            fetch(`${API_BASE}/entities/${entityId}/state`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'stream_frame',
+                frame: b64,
+                format: 'jpeg',
+                source: slot.active_stream || 'unknown',
+                timestamp: Date.now(),
+              }),
+            }).catch(() => {}).finally(() => { httpRelayPostingRef.current = false; });
+          }).catch(() => { httpRelayPostingRef.current = false; });
         }
 
         // Reset error counter on success
@@ -750,17 +786,41 @@ export default function Home() {
     }));
   }, []); // no selectedId dep — uses ref
 
-  // Relay webcam frame data (base64 JPEG) via WebSocket to backend
+  // Relay webcam frame data (base64 JPEG) via WS + HTTP to backend
   const handleWebcamFrameData = useCallback((base64: string) => {
+    const slotId = selectedIdRef.current || 'krista1';
+    const conn = connectionsRef.current.get(slotId);
+    const entityId = conn?.entityId || slotId;
+    const ts = Date.now();
+
+    // WS relay
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      const slotId = selectedIdRef.current || 'krista1';
-      const conn = connectionsRef.current.get(slotId);
       wsRef.current.send(JSON.stringify({
         type: 'stream_frame',
-        entity_id: conn?.entityId || slotId,
+        entity_id: entityId,
         data: { frame: base64, format: 'jpeg' },
-        timestamp: Date.now(),
+        timestamp: ts,
       }));
+    }
+
+    // HTTP relay — POST to entity state endpoint
+    fetch(`${API_BASE}/entities/${entityId}/state`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'stream_frame',
+        frame: base64,
+        format: 'jpeg',
+        source: 'webcam',
+        timestamp: ts,
+      }),
+    }).catch(() => {});
+
+    // Bump relay counter
+    frameRelayCountRef.current++;
+    if (ts - frameRelayCountUpdateRef.current > 500) {
+      frameRelayCountUpdateRef.current = ts;
+      setFrameRelayCount(frameRelayCountRef.current);
     }
   }, []); // no selectedId dep — uses ref
 
@@ -911,6 +971,7 @@ export default function Home() {
         activeSlots={activeSlots}
         totalSlots={slots.length}
         audioActive={audioActive}
+        frameRelayCount={frameRelayCount}
         onJoinMaestra={() => setJoinModalOpen(true)}
       />
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
