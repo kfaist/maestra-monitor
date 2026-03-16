@@ -20,6 +20,8 @@ export interface MaestraSlotStatus {
   heartbeat: HeartbeatStatus;
   stateSync: StateSyncStatus;
   stream: StreamStatus;
+  /** Timestamp when entity was registered (ms epoch) */
+  registeredAt: number | null;
   /** Timestamp of last heartbeat received (ms) */
   lastHeartbeatAt: number | null;
   /** Timestamp of last state update received (ms) */
@@ -42,6 +44,7 @@ export function defaultSlotStatus(): MaestraSlotStatus {
     heartbeat: 'waiting',
     stateSync: 'waiting',
     stream: 'none',
+    registeredAt: null,
     lastHeartbeatAt: null,
     lastStateUpdateAt: null,
     lastStreamFrameAt: null,
@@ -49,6 +52,14 @@ export function defaultSlotStatus(): MaestraSlotStatus {
     mixedContent: false,
     errorMessage: null,
   };
+}
+
+/** Format a millisecond age as a compact human-readable string */
+export function formatAge(ms: number): string {
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  if (ms < 10000) return `${(ms / 1000).toFixed(1)}s`;
+  if (ms < 60000) return `${Math.round(ms / 1000)}s`;
+  return `${Math.round(ms / 60000)}m`;
 }
 
 /** Derive a human-readable summary label from a MaestraSlotStatus */
