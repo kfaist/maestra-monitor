@@ -17,3 +17,4 @@ export { default as JoinModal } from './JoinModal';
 export { default as MaestraStatusPanel } from './MaestraStatusPanel';
 export { default as TDConnectGuide } from './TDConnectGuide';
 export { default as WebcamCapture } from './WebcamCapture';
+export { default as ScenePanel } from './ScenePanel';

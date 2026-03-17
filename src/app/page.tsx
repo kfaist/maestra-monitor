@@ -16,8 +16,10 @@ import {
   UseCases,
   ConnectionPanel,
   JoinModal,
+  ScenePanel,
 } from '@/components';
 import { JoinMaestraResult } from '@/components/JoinModal';
+import { SceneDefinition } from '@/components/ScenePanel';
 import { FleetSlot, LogEntry, EventEntry, AudioAnalysisData, SlotConnectionInfo, MaestraSlotStatus, defaultSlotStatus } from '@/types';
 import { createInitialSlots, SUGGESTIONS } from '@/mock';
 import { WSSimulator } from '@/mock/ws-simulator';
@@ -922,6 +924,29 @@ export default function Home() {
     autoConnectSlot(slotId);
   }, [log, autoConnectSlot]);
 
+  // ═══ Signal injection from Live Node Panel ═══
+  const handleInjectSignal = useCallback((slotId: string, field: string, value: string) => {
+    const slot = slotsRef.current.find(s => s.id === slotId);
+    const entityId = slot?.entity_id || slotId;
+    const payload = { type: 'state_update', entity_id: entityId, data: { [field]: value } };
+    // Send via WS
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(payload));
+    }
+    log(`[${slotId}] Injected ${field} = ${value}`, 'ok');
+    logEvent('state', entityId, `${field} injected → ${value}`);
+  }, [log, logEvent]);
+
+  // ═══ Scene activation — publish scene state to all listeners ═══
+  const handleActivateScene = useCallback((scene: SceneDefinition) => {
+    const payload = { type: 'state_update', entity_id: 'scene_controller', data: scene.state };
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(payload));
+    }
+    log(`Scene activated: ${scene.label}`, 'ok');
+    logEvent('state', 'scene_controller', `Scene → ${scene.label}`);
+  }, [log, logEvent]);
+
   // Initialize
   useEffect(() => {
     simulatorRef.current = new WSSimulator();
@@ -1059,6 +1084,8 @@ export default function Home() {
               onAddSlot={addSlot}
               onJoinNode={() => setJoinModalOpen(true)}
               onSlotSetupComplete={handleSlotSetupComplete}
+              onInjectSignal={handleInjectSignal}
+              eventEntries={eventEntries}
             />
 
             <SignalPanel
@@ -1071,6 +1098,8 @@ export default function Home() {
             />
 
             <AudioAnalysis audioData={audioData} onSendAudio={sendToTarget} />
+
+            <ScenePanel onActivateScene={handleActivateScene} />
 
             {/* Target selector for color/modulation sends */}
             <div className="send-target-bar">

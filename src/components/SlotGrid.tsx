@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { FleetSlot, slotStatusLabel, slotStatusClass, formatAge } from '@/types';
+import { FleetSlot, slotStatusLabel, slotStatusClass, formatAge, EventEntry } from '@/types';
 
 type InlineStage = 'idle' | 'connect' | 'role' | 'signal' | 'reference';
 type NodeRole = 'receive' | 'send' | 'two_way';
@@ -12,7 +12,12 @@ interface SlotSetup {
   role: NodeRole | null;
   signal: SignalSource | null;
   refPath: string;
-  refFile: string | null; // uploaded TOX filename
+  refFile: string | null;
+}
+
+interface InjectState {
+  field: string;
+  value: string;
 }
 
 interface SlotGridProps {
@@ -22,6 +27,8 @@ interface SlotGridProps {
   onAddSlot: () => void;
   onJoinNode: () => void;
   onSlotSetupComplete?: (slotId: string, role: NodeRole, signal: SignalSource) => void;
+  onInjectSignal?: (slotId: string, field: string, value: string) => void;
+  eventEntries?: EventEntry[];
 }
 
 const ROLES: { value: NodeRole; label: string; icon: string; color: string }[] = [
@@ -39,14 +46,41 @@ const SIGNALS: { value: SignalSource; label: string; icon: string }[] = [
   { value: 'test_signal', label: 'Test', icon: '▶' },
 ];
 
-export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, onJoinNode, onSlotSetupComplete }: SlotGridProps) {
+/** Derive publishing signals from signal type */
+function getPublishingSignals(slot: FleetSlot): string[] {
+  const role = slot.nodeRole;
+  if (role === 'receive') return [];
+  const sig = slot.signalType;
+  if (sig === 'audio_reactive') return ['bpm', 'bass', 'energy', 'rms'];
+  if (sig === 'touchdesigner') return ['frame', 'render.state'];
+  if (sig === 'json_stream') return ['data.payload'];
+  if (sig === 'osc') return ['osc.msg'];
+  if (sig === 'text') return ['text.content'];
+  if (sig === 'test_signal') return ['test.ping'];
+  return ['frame'];
+}
+
+/** Derive listening signals from signal type */
+function getListeningSignals(slot: FleetSlot): string[] {
+  const role = slot.nodeRole;
+  if (role === 'send') return [];
+  const sig = slot.signalType;
+  if (sig === 'audio_reactive') return ['lighting.scene', 'visual.palette'];
+  if (sig === 'touchdesigner') return ['prompt.keyword', 'visual.palette', 'lighting.scene'];
+  if (sig === 'json_stream') return ['data.config'];
+  if (sig === 'osc') return ['osc.control'];
+  if (sig === 'text') return ['prompt.keyword'];
+  if (sig === 'test_signal') return ['test.pong'];
+  return ['prompt.keyword', 'lighting.scene'];
+}
+
+export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, onJoinNode, onSlotSetupComplete, onInjectSignal, eventEntries = [] }: SlotGridProps) {
   const activeCount = slots.filter(s => s.active).length;
   const hasActiveNodes = activeCount > 0;
 
-  // Per-slot inline setup wizard state
   const [setupState, setSetupState] = useState<Record<string, SlotSetup>>({});
+  const [injectState, setInjectState] = useState<Record<string, InjectState>>({});
 
-  // Tick every 500ms for age display (slower = less jitter)
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 500);
@@ -70,18 +104,14 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
 
   const handleSlotClick = useCallback((slot: FleetSlot) => {
     if (slot.active) {
-      // Active slot — just select it
       onSelectSlot(slot.id);
       return;
     }
-    // Inactive slot — check if already in setup mode
     const current = setupState[slot.id];
     if (current && current.stage !== 'idle') {
-      // Already in setup — just select it too
       onSelectSlot(slot.id);
       return;
     }
-    // Start the inline wizard at 'connect' stage
     onSelectSlot(slot.id);
     setSetupState(prev => ({
       ...prev,
@@ -91,7 +121,6 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
 
   const handleConnect = useCallback((slotId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    // Advance to role selection
     setSetupState(prev => ({
       ...prev,
       [slotId]: { ...prev[slotId], stage: 'role' },
@@ -108,7 +137,6 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
 
   const handleSignalSelect = useCallback((slotId: string, signal: SignalSource, e: React.MouseEvent) => {
     e.stopPropagation();
-    // Go to reference step instead of completing
     setSetupState(prev => ({
       ...prev,
       [slotId]: { ...prev[slotId], signal, stage: 'reference' },
@@ -148,12 +176,29 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
       if (current.stage === 'reference') return { ...prev, [slotId]: { ...current, stage: 'signal', signal: null } };
       if (current.stage === 'signal') return { ...prev, [slotId]: { ...current, stage: 'role', role: null } };
       if (current.stage === 'role') return { ...prev, [slotId]: { ...current, stage: 'connect' } };
-      // 'connect' stage — cancel setup
       const next = { ...prev };
       delete next[slotId];
       return next;
     });
   }, []);
+
+  // ═══ Signal Injection handlers ═══
+  const handleInjectFieldChange = useCallback((slotId: string, field: string) => {
+    setInjectState(prev => ({ ...prev, [slotId]: { ...prev[slotId] || { field: '', value: '' }, field } }));
+  }, []);
+
+  const handleInjectValueChange = useCallback((slotId: string, value: string) => {
+    setInjectState(prev => ({ ...prev, [slotId]: { ...prev[slotId] || { field: '', value: '' }, value } }));
+  }, []);
+
+  const handleInjectSend = useCallback((slotId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const state = injectState[slotId];
+    if (!state?.field || !state?.value) return;
+    onInjectSignal?.(slotId, state.field, state.value);
+    // Clear value after send
+    setInjectState(prev => ({ ...prev, [slotId]: { ...prev[slotId], value: '' } }));
+  }, [injectState, onInjectSignal]);
 
   return (
     <>
@@ -166,14 +211,12 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
       </div>
       <div className="slot-grid">
         {slots.map(slot => {
-          // Derive truthful status label from 5-layer model
           const mStatus = slot.maestraStatus;
           const statusText = mStatus ? slotStatusLabel(mStatus) : (
             slot.active ? (slot.connection_status === 'connected' ? 'Active' : 'Connecting') : ''
           );
           const statusCls = mStatus ? slotStatusClass(mStatus) : '';
 
-          // "Last event" — pick the most recent timestamp across all layers
           let lastEventStr = '';
           if (mStatus && slot.active) {
             const timestamps = [mStatus.lastHeartbeatAt, mStatus.lastStateUpdateAt, mStatus.lastStreamFrameAt].filter(Boolean) as number[];
@@ -184,7 +227,6 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
             }
           }
 
-          // Waiting timer for video area
           let waitingStr = '';
           if (mStatus && mStatus.heartbeat === 'waiting' && mStatus.entity === 'registered' && mStatus.registeredAt) {
             waitingStr = `${formatAge(Math.max(0, now - mStatus.registeredAt))} since registration`;
@@ -192,6 +234,25 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
 
           const setup = setupState[slot.id];
           const inSetup = setup && setup.stage !== 'idle';
+
+          // Heartbeat latency display
+          let heartbeatMs = '';
+          if (mStatus && mStatus.lastHeartbeatAt) {
+            const age = Math.max(0, now - mStatus.lastHeartbeatAt);
+            heartbeatMs = age < 1000 ? `${Math.round(age)} ms` : formatAge(age);
+          }
+
+          // Recent events for this slot
+          const slotEvents = slot.entity_id
+            ? eventEntries.filter(e => e.entityId === slot.entity_id || e.entityId === slot.id).slice(-4)
+            : eventEntries.filter(e => e.entityId === slot.id).slice(-4);
+
+          // Inject state for this slot
+          const inject = injectState[slot.id] || { field: 'audio.bpm', value: '' };
+
+          // Publishing / listening signals
+          const publishing = slot.active ? getPublishingSignals(slot) : [];
+          const listening = slot.active ? getListeningSignals(slot) : [];
 
           return (
             <div
@@ -202,211 +263,287 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                 slot.id === selectedId ? 'selected' : '',
                 slot.cloudNode ? 'cloud-node' : '',
                 inSetup ? 'setup-mode' : '',
+                slot.active ? 'live-mode' : '',
               ].filter(Boolean).join(' ')}
               onClick={() => handleSlotClick(slot)}
             >
-              <div className="slot-video-area">
-                {slot.active ? (
-                  slot.frameUrl ? (
-                    <img src={slot.frameUrl} alt="stream" />
-                  ) : (
-                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                      {/* Signal type icon when active but no frame yet */}
-                      {slot.signalType && (
-                        <span style={{ fontSize: '20px', opacity: 0.5 }}>
+              {/* ═══════ ACTIVE SLOT: LIVE NODE PANEL ═══════ */}
+              {slot.active ? (
+                <div className="live-node-panel">
+                  {/* Thumbnail frame at top */}
+                  <div className="live-node-thumb">
+                    {slot.frameUrl ? (
+                      <img src={slot.frameUrl} alt="stream" />
+                    ) : (
+                      <div className="live-node-thumb-placeholder">
+                        <span className="live-node-thumb-icon">
                           {slot.signalType === 'audio_reactive' ? '♫'
-                            : slot.signalType === 'json_stream' ? '{ }'
+                            : slot.signalType === 'json_stream' ? '{}'
                             : slot.signalType === 'osc' ? '~'
                             : slot.signalType === 'touchdesigner' ? '◆'
                             : slot.signalType === 'text' ? 'A'
-                            : slot.signalType === 'video' ? '▶'
                             : '●'}
                         </span>
-                      )}
-                      <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: mStatus ? 'var(--accent)' : 'var(--text-dim)' }}>
-                        {statusText}
+                        <span className="live-node-thumb-status">{statusText}</span>
+                      </div>
+                    )}
+                    <div className={`live-node-badge ${statusCls}`}>LIVE</div>
+                  </div>
+
+                  {/* ── Section 1: Node Status ── */}
+                  <div className="live-section">
+                    <div className="live-section-head">Node Status</div>
+                    <div className="live-kv-grid">
+                      <span className="live-kv-key">Entity</span>
+                      <span className="live-kv-val">{slot.entity_id || slot.id}</span>
+                      <span className="live-kv-key">Server</span>
+                      <span className={`live-kv-val ${mStatus?.server === 'connected' ? 'val-ok' : 'val-warn'}`}>
+                        {mStatus?.server || 'unknown'}
                       </span>
-                      {slot.signalType && (
-                        <span style={{ fontSize: '8px', letterSpacing: '.06em', color: 'var(--accent)', opacity: 0.6 }}>
-                          {slot.signalType === 'audio_reactive' ? 'Audio'
-                            : slot.signalType === 'json_stream' ? 'JSON'
-                            : slot.signalType === 'osc' ? 'OSC'
-                            : slot.signalType === 'touchdesigner' ? 'TouchDesigner'
-                            : slot.signalType === 'text' ? 'Text'
-                            : slot.signalType === 'video' ? 'Video'
-                            : slot.signalType}
-                        </span>
+                      <span className="live-kv-key">Heartbeat</span>
+                      <span className={`live-kv-val ${mStatus?.heartbeat === 'live' ? 'val-ok' : mStatus?.heartbeat === 'stale' ? 'val-warn' : ''}`}>
+                        {heartbeatMs || 'waiting'}
+                      </span>
+                      <span className="live-kv-key">Stream</span>
+                      <span className={`live-kv-val ${mStatus?.stream === 'live' ? 'val-ok' : ''}`}>
+                        {mStatus?.stream || 'none'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* ── Section 2: Signals ── */}
+                  <div className="live-section">
+                    <div className="live-section-head">Signals</div>
+                    {publishing.length > 0 && (
+                      <div className="live-signal-group">
+                        <span className="live-signal-dir">Publishing</span>
+                        <div className="live-signal-list">
+                          {publishing.map(s => <span key={s} className="live-signal-tag pub">{s}</span>)}
+                        </div>
+                      </div>
+                    )}
+                    {listening.length > 0 && (
+                      <div className="live-signal-group">
+                        <span className="live-signal-dir">Listening</span>
+                        <div className="live-signal-list">
+                          {listening.map(s => <span key={s} className="live-signal-tag sub">{s}</span>)}
+                        </div>
+                      </div>
+                    )}
+                    {publishing.length === 0 && listening.length === 0 && (
+                      <span className="live-empty">No signals configured</span>
+                    )}
+                  </div>
+
+                  {/* ── Section 3: Signal Injection ── */}
+                  <div className="live-section">
+                    <div className="live-section-head">Inject Signal</div>
+                    <div className="live-inject-form">
+                      <div className="live-inject-row">
+                        <span className="live-inject-label">field</span>
+                        <input
+                          className="live-inject-input"
+                          type="text"
+                          value={inject.field}
+                          onClick={e => e.stopPropagation()}
+                          onChange={e => handleInjectFieldChange(slot.id, e.target.value)}
+                          placeholder="audio.bpm"
+                        />
+                      </div>
+                      <div className="live-inject-row">
+                        <span className="live-inject-label">value</span>
+                        <input
+                          className="live-inject-input"
+                          type="text"
+                          value={inject.value}
+                          onClick={e => e.stopPropagation()}
+                          onChange={e => handleInjectValueChange(slot.id, e.target.value)}
+                          placeholder="120"
+                        />
+                      </div>
+                      <button
+                        className="live-inject-send"
+                        onClick={e => handleInjectSend(slot.id, e)}
+                        disabled={!inject.field || !inject.value}
+                      >
+                        Send
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ── Section 4: Recent Activity ── */}
+                  <div className="live-section">
+                    <div className="live-section-head">Recent Activity</div>
+                    <div className="live-activity-log">
+                      {slotEvents.length > 0 ? slotEvents.map((ev, i) => (
+                        <div key={i} className="live-activity-row">
+                          <span className="live-activity-time">{ev.timestamp}</span>
+                          <span className="live-activity-msg">{ev.message}</span>
+                        </div>
+                      )) : (
+                        <span className="live-empty">No recent events</span>
                       )}
-                      {!slot.signalType && waitingStr ? (
-                        <span style={{ fontSize: '8px', letterSpacing: '.08em', color: 'var(--text-dim)', opacity: 0.6 }}>
-                          {waitingStr}
-                        </span>
-                      ) : !slot.signalType && mStatus && mStatus.heartbeat === 'waiting' && mStatus.entity === 'registered' ? (
-                        <span style={{ fontSize: '8px', letterSpacing: '.08em', color: 'var(--text-dim)', opacity: 0.5 }}>
-                          Awaiting first heartbeat
-                        </span>
-                      ) : null}
                     </div>
-                  )
-                ) : inSetup ? (
-                  /* ════ INLINE SETUP WIZARD ════ */
-                  <div className="slot-inline-wizard">
-                    {/* Step indicator — 4 steps */}
-                    <div className="slot-wizard-steps">
-                      <span className={`slot-wizard-dot ${setup.stage === 'connect' ? 'active' : 'done'}`} />
-                      <span className="slot-wizard-line" />
-                      <span className={`slot-wizard-dot ${setup.stage === 'role' ? 'active' : (setup.stage === 'signal' || setup.stage === 'reference') ? 'done' : ''}`} />
-                      <span className="slot-wizard-line" />
-                      <span className={`slot-wizard-dot ${setup.stage === 'signal' ? 'active' : setup.stage === 'reference' ? 'done' : ''}`} />
-                      <span className="slot-wizard-line" />
-                      <span className={`slot-wizard-dot ${setup.stage === 'reference' ? 'active' : ''}`} />
-                    </div>
-
-                    {/* STAGE: Connect */}
-                    {setup.stage === 'connect' && (
-                      <div className="slot-wizard-content">
-                        <div className="slot-wizard-title">Connect a Node</div>
-                        <button
-                          className="slot-wizard-btn slot-wizard-btn-primary"
-                          onClick={(e) => handleConnect(slot.id, e)}
-                        >
-                          <span style={{ fontSize: 12 }}>⚡</span> Connect
-                        </button>
-                        <button
-                          className="slot-wizard-btn slot-wizard-btn-ghost"
-                          onClick={(e) => { e.stopPropagation(); handleBack(slot.id, e); }}
-                        >
-                          Cancel
-                        </button>
+                  </div>
+                </div>
+              ) : (
+                /* ═══════ INACTIVE SLOT ═══════ */
+                <div className="slot-video-area">
+                  {inSetup ? (
+                    /* ════ INLINE SETUP WIZARD ════ */
+                    <div className="slot-inline-wizard">
+                      {/* Step indicator — 4 steps */}
+                      <div className="slot-wizard-steps">
+                        <span className={`slot-wizard-dot ${setup.stage === 'connect' ? 'active' : 'done'}`} />
+                        <span className="slot-wizard-line" />
+                        <span className={`slot-wizard-dot ${setup.stage === 'role' ? 'active' : (setup.stage === 'signal' || setup.stage === 'reference') ? 'done' : ''}`} />
+                        <span className="slot-wizard-line" />
+                        <span className={`slot-wizard-dot ${setup.stage === 'signal' ? 'active' : setup.stage === 'reference' ? 'done' : ''}`} />
+                        <span className="slot-wizard-line" />
+                        <span className={`slot-wizard-dot ${setup.stage === 'reference' ? 'active' : ''}`} />
                       </div>
-                    )}
 
-                    {/* STAGE: Role */}
-                    {setup.stage === 'role' && (
-                      <div className="slot-wizard-content">
-                        <div className="slot-wizard-title">Behavior</div>
-                        <div className="slot-wizard-options">
-                          {ROLES.map(r => (
-                            <button
-                              key={r.value}
-                              className="slot-wizard-option"
-                              style={{ '--opt-color': r.color } as React.CSSProperties}
-                              onClick={(e) => handleRoleSelect(slot.id, r.value, e)}
-                            >
-                              <span className="slot-wizard-option-icon">{r.icon}</span>
-                              <span>{r.label}</span>
-                            </button>
-                          ))}
+                      {/* STAGE: Connect */}
+                      {setup.stage === 'connect' && (
+                        <div className="slot-wizard-content">
+                          <div className="slot-wizard-title">Connect a Node</div>
+                          <button
+                            className="slot-wizard-btn slot-wizard-btn-primary"
+                            onClick={(e) => handleConnect(slot.id, e)}
+                          >
+                            <span style={{ fontSize: 12 }}>⚡</span> Connect
+                          </button>
+                          <button
+                            className="slot-wizard-btn slot-wizard-btn-ghost"
+                            onClick={(e) => { e.stopPropagation(); handleBack(slot.id, e); }}
+                          >
+                            Cancel
+                          </button>
                         </div>
-                        <button
-                          className="slot-wizard-btn slot-wizard-btn-ghost"
-                          onClick={(e) => handleBack(slot.id, e)}
-                        >
-                          ← Back
-                        </button>
-                      </div>
-                    )}
+                      )}
 
-                    {/* STAGE: Signal */}
-                    {setup.stage === 'signal' && (
-                      <div className="slot-wizard-content">
-                        <div className="slot-wizard-title">Signal Type</div>
-                        <div className="slot-wizard-options slot-wizard-options-grid">
-                          {SIGNALS.map(s => (
-                            <button
-                              key={s.value}
-                              className="slot-wizard-option slot-wizard-option-sm"
-                              onClick={(e) => handleSignalSelect(slot.id, s.value, e)}
-                            >
-                              <span className="slot-wizard-option-icon">{s.icon}</span>
-                              <span>{s.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                        <button
-                          className="slot-wizard-btn slot-wizard-btn-ghost"
-                          onClick={(e) => handleBack(slot.id, e)}
-                        >
-                          ← Back
-                        </button>
-                      </div>
-                    )}
-
-                    {/* STAGE: Reference — upload file or enter local path */}
-                    {setup.stage === 'reference' && (
-                      <div className="slot-wizard-content">
-                        <div className="slot-wizard-title">Source File</div>
-
-                        {/* Upload button */}
-                        <label
-                          className="slot-wizard-btn slot-wizard-btn-primary"
-                          style={{ cursor: 'pointer', textAlign: 'center', position: 'relative' }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <span style={{ fontSize: 11 }}>↑</span>
-                          {setup.refFile ? setup.refFile : 'Upload File'}
-                          <input
-                            type="file"
-                            accept=".tox,.wav,.mp3,.mp4,.mov,.json,.txt,.py,.obj,.fbx,.glb,.gltf,.hdr,.exr,.png,.jpg,.jpeg,.gif,.svg"
-                            style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
-                            onChange={(e) => {
-                              const f = e.target.files?.[0];
-                              if (f) handleFileUpload(slot.id, f);
-                            }}
-                          />
-                        </label>
-
-                        {/* Or: local path */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%', fontSize: 8, color: '#666' }}>
-                          <span style={{ flex: '0 0 auto' }}>or path:</span>
-                          <input
-                            type="text"
-                            value={setup.refPath}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => handleRefPathChange(slot.id, e.target.value)}
-                            placeholder="project1/myfile.tox"
-                            style={{
-                              flex: 1, padding: '2px 5px', fontSize: 9,
-                              fontFamily: "'JetBrains Mono', monospace",
-                              background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)',
-                              borderRadius: 2, color: '#a78bfa', outline: 'none', minWidth: 0,
-                            }}
-                          />
-                        </div>
-
-                        {/* Go / Skip */}
-                        <div style={{ display: 'flex', gap: 6, width: '100%' }}>
+                      {/* STAGE: Role */}
+                      {setup.stage === 'role' && (
+                        <div className="slot-wizard-content">
+                          <div className="slot-wizard-title">Behavior</div>
+                          <div className="slot-wizard-options">
+                            {ROLES.map(r => (
+                              <button
+                                key={r.value}
+                                className="slot-wizard-option"
+                                style={{ '--opt-color': r.color } as React.CSSProperties}
+                                onClick={(e) => handleRoleSelect(slot.id, r.value, e)}
+                              >
+                                <span className="slot-wizard-option-icon">{r.icon}</span>
+                                <span>{r.label}</span>
+                              </button>
+                            ))}
+                          </div>
                           <button
                             className="slot-wizard-btn slot-wizard-btn-ghost"
                             onClick={(e) => handleBack(slot.id, e)}
                           >
                             ← Back
                           </button>
+                        </div>
+                      )}
+
+                      {/* STAGE: Signal */}
+                      {setup.stage === 'signal' && (
+                        <div className="slot-wizard-content">
+                          <div className="slot-wizard-title">Signal Type</div>
+                          <div className="slot-wizard-options slot-wizard-options-grid">
+                            {SIGNALS.map(s => (
+                              <button
+                                key={s.value}
+                                className="slot-wizard-option slot-wizard-option-sm"
+                                onClick={(e) => handleSignalSelect(slot.id, s.value, e)}
+                              >
+                                <span className="slot-wizard-option-icon">{s.icon}</span>
+                                <span>{s.label}</span>
+                              </button>
+                            ))}
+                          </div>
                           <button
-                            className="slot-wizard-btn slot-wizard-btn-primary"
-                            style={{ flex: 1 }}
-                            onClick={(e) => handleReferenceComplete(slot.id, e)}
+                            className="slot-wizard-btn slot-wizard-btn-ghost"
+                            onClick={(e) => handleBack(slot.id, e)}
                           >
-                            {setup.refFile ? 'Connect' : 'Skip'}
+                            ← Back
                           </button>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  /* ════ DEFAULT AVAILABLE STATE ════ */
-                  <div className="slot-available-state">
-                    <div className="slot-available-label">AVAILABLE</div>
-                    {slot.suggestion && (
-                      <span className={`suggestion-tag ${slot.suggestion.tag}`}>{slot.suggestion.tagLabel}</span>
-                    )}
-                    <div className="slot-available-hover-btn">
-                      <span className="slot-available-hover-icon">+</span>
-                      Click to Connect
+                      )}
+
+                      {/* STAGE: Reference */}
+                      {setup.stage === 'reference' && (
+                        <div className="slot-wizard-content">
+                          <div className="slot-wizard-title">Source File</div>
+                          <label
+                            className="slot-wizard-btn slot-wizard-btn-primary"
+                            style={{ cursor: 'pointer', textAlign: 'center', position: 'relative' }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span style={{ fontSize: 11 }}>↑</span>
+                            {setup.refFile ? setup.refFile : 'Upload File'}
+                            <input
+                              type="file"
+                              accept=".tox,.wav,.mp3,.mp4,.mov,.json,.txt,.py,.obj,.fbx,.glb,.gltf,.hdr,.exr,.png,.jpg,.jpeg,.gif,.svg"
+                              style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                if (f) handleFileUpload(slot.id, f);
+                              }}
+                            />
+                          </label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%', fontSize: 8, color: '#666' }}>
+                            <span style={{ flex: '0 0 auto' }}>or path:</span>
+                            <input
+                              type="text"
+                              value={setup.refPath}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => handleRefPathChange(slot.id, e.target.value)}
+                              placeholder="project1/myfile.tox"
+                              style={{
+                                flex: 1, padding: '2px 5px', fontSize: 9,
+                                fontFamily: "'JetBrains Mono', monospace",
+                                background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)',
+                                borderRadius: 2, color: '#a78bfa', outline: 'none', minWidth: 0,
+                              }}
+                            />
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, width: '100%' }}>
+                            <button
+                              className="slot-wizard-btn slot-wizard-btn-ghost"
+                              onClick={(e) => handleBack(slot.id, e)}
+                            >
+                              ← Back
+                            </button>
+                            <button
+                              className="slot-wizard-btn slot-wizard-btn-primary"
+                              style={{ flex: 1 }}
+                              onClick={(e) => handleReferenceComplete(slot.id, e)}
+                            >
+                              {setup.refFile ? 'Connect' : 'Skip'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
-              </div>
+                  ) : (
+                    /* ════ DEFAULT AVAILABLE STATE ════ */
+                    <div className="slot-available-state">
+                      <div className="slot-available-label">AVAILABLE</div>
+                      {slot.suggestion && (
+                        <span className={`suggestion-tag ${slot.suggestion.tag}`}>{slot.suggestion.tagLabel}</span>
+                      )}
+                      <div className="slot-available-hover-btn">
+                        <span className="slot-available-hover-icon">+</span>
+                        Click to Connect
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="slot-footer">
                 <div className="slot-label">{slot.label}</div>
                 <div className="slot-meta">
