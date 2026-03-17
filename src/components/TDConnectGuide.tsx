@@ -15,7 +15,6 @@ interface TDConnectGuideProps {
 
 type SignalSource = 'touchdesigner' | 'json_stream' | 'osc' | 'audio_reactive' | 'text' | 'test_signal';
 type NodeRole = 'receive' | 'send' | 'two_way';
-type SetupStage = 'get_connector' | 'waiting' | 'role' | 'signal' | 'live' | 'reconnect';
 
 function slotEntityName(slot: FleetSlot): string {
   if (slot.entity_id) return slot.entity_id;
@@ -34,32 +33,25 @@ const SIGNAL_SOURCES: { value: SignalSource; title: string; desc: string; icon: 
 
 const ROLES: { value: NodeRole; title: string; desc: string; color: string; icon: string }[] = [
   {
-    value: 'send', title: 'Send State',
+    value: 'send', title: 'Send Signals',
     desc: 'This node publishes signals to the network.',
     color: '#22c55e', icon: '↑',
   },
   {
-    value: 'receive', title: 'Receive State',
+    value: 'receive', title: 'Receive Signals',
     desc: 'This node listens for state updates.',
     color: '#5cc8ff', icon: '↓',
   },
   {
-    value: 'two_way', title: 'Two-Way Sync',
-    desc: 'This node both sends and receives.',
+    value: 'two_way', title: 'Both',
+    desc: 'This node sends and receives.',
     color: '#fbbf24', icon: '↕',
   },
 ];
 
-const FLOW_STEPS: { key: SetupStage; label: string }[] = [
-  { key: 'get_connector', label: 'Get Connector' },
-  { key: 'waiting', label: 'Connecting' },
-  { key: 'role', label: 'Behavior' },
-  { key: 'signal', label: 'Signal Type' },
-];
-
 export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChange, onReconnect, onDisconnect, onConnect }: TDConnectGuideProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [connectorAction, setConnectorAction] = useState<'download' | 'copy' | 'have' | null>(null);
+  const [waitingForNode, setWaitingForNode] = useState(false);
   const [nodeRole, setNodeRole] = useState<NodeRole | null>(null);
   const [signalSource, setSignalSource] = useState<SignalSource | null>(null);
 
@@ -75,6 +67,7 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
   const serverUrl = MAESTRA_API_URL;
   const isLive = slot.maestraStatus?.heartbeat === 'live';
   const isConnected = slot.maestraStatus?.server === 'connected' && slot.maestraStatus?.entity === 'registered';
+  const nodeIsUp = isLive || isConnected;
   const hasStream = slot.maestraStatus?.stream === 'live';
   const isStale = slot.maestraStatus?.heartbeat === 'stale' || slot.maestraStatus?.heartbeat === 'lost';
 
@@ -82,18 +75,21 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
     ? Math.max(0, Date.now() - slot.maestraStatus.lastHeartbeatAt)
     : null;
 
-  // Derive stage from state — linear progression
-  const setupStage: SetupStage =
+  // ── Derive current stage from state ──
+  // Linear: attach → waiting → (auto-advance when node connects) → role → signal → live
+  type Stage = 'attach' | 'waiting' | 'role' | 'signal' | 'live' | 'reconnect';
+  const stage: Stage =
     isStale && isConnected ? 'reconnect' :
     signalSource !== null ? 'live' :
     nodeRole !== null ? 'signal' :
-    (isLive || isConnected) && connectorAction !== null ? 'role' :
-    connectorAction !== null ? 'waiting' :
-    'get_connector';
+    nodeIsUp && waitingForNode ? 'role' :       // auto-advance: node connected!
+    waitingForNode ? 'waiting' :
+    nodeIsUp ? 'role' :                          // already connected (e.g. krista1 auto-connect)
+    'attach';
 
   // Track activity in live mode
   useEffect(() => {
-    if (setupStage !== 'live') return;
+    if (stage !== 'live') return;
     const interval = setInterval(() => {
       if (slot.maestraStatus?.lastHeartbeatAt) {
         const age = Math.max(0, Date.now() - slot.maestraStatus.lastHeartbeatAt);
@@ -106,7 +102,7 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
       }
     }, 2000);
     return () => clearInterval(interval);
-  }, [setupStage, slot.maestraStatus]);
+  }, [stage, slot.maestraStatus]);
 
   const copyToClipboard = useCallback((text: string, field: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -125,17 +121,23 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
     onSignalSourceChange?.(source);
   }, [onSignalSourceChange]);
 
-  const handleConnectorAction = useCallback((action: 'download' | 'copy' | 'have') => {
-    setConnectorAction(action);
-    // Auto-trigger connection when user picks any option
+  // "I already have the connector" → start connection + enter waiting
+  const handleConnectExisting = useCallback(() => {
+    setWaitingForNode(true);
     onConnect?.();
   }, [onConnect]);
 
-  // Step index for progress
-  const stageIndex = FLOW_STEPS.findIndex(s => s.key === setupStage);
+  // Progress steps for the breadcrumb
+  const STEPS = [
+    { key: 'attach', label: 'Attach' },
+    { key: 'waiting', label: 'Connect' },
+    { key: 'role', label: 'Behavior' },
+    { key: 'signal', label: 'Signal' },
+  ];
+  const stageIndex = STEPS.findIndex(s => s.key === stage);
 
-  // ════════════ RECONNECT / STALE MODE ════════════
-  if (setupStage === 'reconnect') {
+  // ════════════ RECONNECT / STALE ════════════
+  if (stage === 'reconnect') {
     const heartbeatAge = slot.maestraStatus?.lastHeartbeatAt
       ? Math.max(0, Date.now() - slot.maestraStatus.lastHeartbeatAt)
       : null;
@@ -156,7 +158,6 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
               </div>
             </div>
           </div>
-
           <div className="td-reconnect-details">
             <div className="td-reconnect-row">
               <span className="td-reconnect-label">Last Heartbeat</span>
@@ -164,41 +165,13 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
                 {heartbeatAge != null ? `${formatAge(heartbeatAge)} ago` : 'Never received'}
               </span>
             </div>
-            <div className="td-reconnect-row">
-              <span className="td-reconnect-label">Server</span>
-              <span style={{ color: isConnected ? '#22c55e' : '#ef4444' }}>
-                {isConnected ? 'Connected' : 'Disconnected'}
-              </span>
-            </div>
           </div>
-
           <div className="td-reconnect-actions">
-            {onReconnect && (
-              <button className="td-action-btn td-action-primary" onClick={onReconnect}>
-                Reconnect Node
-              </button>
-            )}
-            {onDisconnect && (
-              <button className="td-action-btn" onClick={onDisconnect}>
-                Disconnect
-              </button>
-            )}
-            <button className="td-action-btn" onClick={() => {
-              setNodeRole(null);
-              setSignalSource(null);
-              setConnectorAction(null);
-            }}>
+            {onReconnect && <button className="td-action-btn td-action-primary" onClick={onReconnect}>Reconnect Node</button>}
+            {onDisconnect && <button className="td-action-btn" onClick={onDisconnect}>Disconnect</button>}
+            <button className="td-action-btn" onClick={() => { setNodeRole(null); setSignalSource(null); setWaitingForNode(false); }}>
               Re-run Setup
             </button>
-          </div>
-
-          <div className="td-reconnect-troubleshoot">
-            <div style={{ fontSize: 10, fontWeight: 600, color: '#888', marginBottom: 6, letterSpacing: '.06em', textTransform: 'uppercase' }}>
-              Troubleshooting
-            </div>
-            <div className="td-reconnect-tip">Check that TouchDesigner is running and the TOX is loaded</div>
-            <div className="td-reconnect-tip">Verify the entity ID matches: <code style={{ color: '#5cc8ff' }}>{entityId}</code></div>
-            <div className="td-reconnect-tip">Confirm network connectivity to <code style={{ color: '#aab' }}>{serverUrl}</code></div>
           </div>
         </div>
       </div>
@@ -206,13 +179,13 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
   }
 
   // ════════════ LIVE MODE ════════════
-  if (setupStage === 'live') {
+  if (stage === 'live') {
     const selectedRole = ROLES.find(r => r.value === nodeRole);
     const selectedSource = SIGNAL_SOURCES.find(s => s.value === signalSource);
 
     return (
       <div className="td-connect-guide">
-        {/* Compact setup summary */}
+        {/* Compact summary */}
         <div style={{ padding: '8px 12px', background: 'rgba(34,197,94,0.06)', borderRadius: 6, border: '1px solid rgba(34,197,94,0.15)', marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
@@ -223,7 +196,6 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
           </div>
         </div>
 
-        {/* ═══ LIVE NODE PANEL ═══ */}
         <div className="td-live-panel">
           <div className="td-live-section">
             <div className="td-live-section-title">Node Status</div>
@@ -237,13 +209,12 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
               </span>
             </div>
             <div className="td-live-meta">
-              <div><span className="td-live-meta-label">Heartbeat:</span> <span style={{ color: isLive ? '#22c55e' : '#888' }}>{lastEventAge != null ? `${formatAge(lastEventAge)}` : '—'}</span></div>
+              <div><span className="td-live-meta-label">Heartbeat:</span> <span style={{ color: isLive ? '#22c55e' : '#888' }}>{lastEventAge != null ? formatAge(lastEventAge) : '—'}</span></div>
               <div><span className="td-live-meta-label">Server:</span> <span style={{ color: isConnected ? '#22c55e' : '#888' }}>{isConnected ? 'connected' : 'disconnected'}</span></div>
               <div><span className="td-live-meta-label">Stream:</span> <span style={{ color: hasStream ? '#22c55e' : '#888' }}>{hasStream ? 'live' : 'none'}</span></div>
             </div>
           </div>
 
-          {/* Signal Injection */}
           <div className="td-live-section">
             <div className="td-live-section-title">Inject Signal</div>
             <div className="td-live-inject">
@@ -255,14 +226,11 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
                   activityRef.current.unshift({ time: t, msg: `${injectField} → ${injectValue} (injected)` });
                   if (activityRef.current.length > 8) activityRef.current.pop();
                   setActivityTick(p => p + 1);
-                }}>
-                  Send
-                </button>
+                }}>Send</button>
               </div>
             </div>
           </div>
 
-          {/* Recent Activity */}
           <div className="td-live-section">
             <div className="td-live-section-title">Recent Activity</div>
             <div className="td-live-activity">
@@ -277,13 +245,10 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
             </div>
           </div>
 
-          {/* Reconfigure */}
           <button className="td-action-btn" style={{ width: '100%', marginTop: 6, fontSize: 9, opacity: 0.5 }} onClick={() => {
             setNodeRole(null);
             setSignalSource(null);
-          }}>
-            Reconfigure
-          </button>
+          }}>Reconfigure</button>
         </div>
       </div>
     );
@@ -293,73 +258,66 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
   return (
     <div className="td-connect-guide">
 
-      {/* Progress dots */}
+      {/* Progress breadcrumb */}
       <div className="td-progress">
-        {FLOW_STEPS.map((step, i) => {
+        {STEPS.map((step, i) => {
           const completed = i < stageIndex;
           const current = i === stageIndex;
           return (
             <div key={step.key} className={`td-progress-step ${completed ? 'completed' : current ? 'current' : 'upcoming'}`}>
-              <span className="td-progress-marker">
-                {completed ? '✓' : current ? '●' : '○'}
-              </span>
+              <span className="td-progress-marker">{completed ? '✓' : current ? '●' : '○'}</span>
               <span className="td-progress-label">{step.label}</span>
-              {i < FLOW_STEPS.length - 1 && <span className="td-progress-arrow">→</span>}
+              {i < STEPS.length - 1 && <span className="td-progress-arrow">→</span>}
             </div>
           );
         })}
       </div>
 
-      {/* ═══ STEP 1: GET CONNECTOR ═══ */}
-      {setupStage === 'get_connector' && (
+      {/* ═══ STEP 1: ATTACH — "Connect a Node to {Slot}" ═══ */}
+      {stage === 'attach' && (
         <div className="td-section expanded">
           <div className="td-section-header">
             <div className="td-section-num">1</div>
             <div className="td-section-title-group">
-              <span className="td-section-title">Get the Connector</span>
+              <span className="td-section-title">Connect a Node to {slot.label}</span>
               <span className="td-section-subtitle">
-                Load the Maestra connector into your TouchDesigner project
+                Attach a TouchDesigner node or signal source to this slot.
               </span>
             </div>
           </div>
           <div className="td-section-body">
-            {/* Three options as large buttons */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button
-                className="td-onboard-action-btn"
-                onClick={() => handleConnectorAction('download')}
-              >
-                <span className="td-onboard-action-icon">↓</span>
+
+              {/* Option 1: I already have the connector */}
+              <button className="td-onboard-action-btn td-onboard-primary" onClick={handleConnectExisting}>
+                <span className="td-onboard-action-icon">⚡</span>
                 <div className="td-onboard-action-text">
-                  <span className="td-onboard-action-title">Download Connector for This Slot</span>
-                  <span className="td-onboard-action-desc">Get a .tox file pre-configured for <span style={{ color: '#5cc8ff' }}>{slot.label}</span></span>
+                  <span className="td-onboard-action-title">Connect an Existing Node</span>
+                  <span className="td-onboard-action-desc">I already have the Maestra connector running in TD</span>
                 </div>
               </button>
 
-              <button
-                className="td-onboard-action-btn"
-                onClick={() => handleConnectorAction('copy')}
-              >
-                <span className="td-onboard-action-icon">⎘</span>
-                <div className="td-onboard-action-text">
-                  <span className="td-onboard-action-title">Copy Setup Info</span>
-                  <span className="td-onboard-action-desc">Copy server URL and entity ID to paste into an existing node</span>
-                </div>
-              </button>
+              {/* Option 2: Need the connector? */}
+              <div className="td-onboard-divider">
+                <span>or</span>
+              </div>
 
-              <button
-                className="td-onboard-action-btn td-onboard-subtle"
-                onClick={() => handleConnectorAction('have')}
-              >
-                <span className="td-onboard-action-icon" style={{ opacity: 0.5 }}>✓</span>
-                <div className="td-onboard-action-text">
-                  <span className="td-onboard-action-title">I Already Have the Connector</span>
-                  <span className="td-onboard-action-desc">Skip ahead — my TD node is ready to connect</span>
-                </div>
-              </button>
+              <div className="td-onboard-secondary-row">
+                <span style={{ fontSize: 10, color: '#888' }}>Need the connector?</span>
+                <button className="td-onboard-link-btn" onClick={() => {
+                  // Copy setup info to clipboard as a quick action
+                  const info = `Server: ${serverUrl}\nEntity ID: ${entityId}\nSlot: ${slot.label}`;
+                  navigator.clipboard.writeText(info).then(() => {
+                    setCopiedField('setup');
+                    setTimeout(() => setCopiedField(null), 2000);
+                  });
+                }}>
+                  {copiedField === 'setup' ? '✓ Copied!' : 'Copy Setup Info'}
+                </button>
+              </div>
             </div>
 
-            {/* Server info — always visible but subtle */}
+            {/* Setup details — always visible, subtle */}
             <div style={{ marginTop: 14, padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
               <div className="td-connect-row">
                 <span className="td-connect-label">Server</span>
@@ -375,69 +333,71 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
                   {copiedField === 'entity' ? '✓' : 'Copy'}
                 </button>
               </div>
+              <div className="td-connect-row" style={{ marginTop: 4 }}>
+                <span className="td-connect-label">Slot</span>
+                <code className="td-connect-value">{slot.label}</code>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ═══ STEP 2: WAITING FOR CONNECTION ═══ */}
-      {setupStage === 'waiting' && (
+      {/* ═══ STEP 2: WAITING FOR NODE ═══ */}
+      {stage === 'waiting' && (
         <div className="td-section expanded">
           <div className="td-section-header">
             <div className="td-section-num">2</div>
             <div className="td-section-title-group">
-              <span className="td-section-title">Waiting for Node...</span>
+              <span className="td-section-title">Waiting for Node Connection…</span>
               <span className="td-section-subtitle">
-                Open TouchDesigner and load the connector
+                Listening for your TouchDesigner node
               </span>
             </div>
           </div>
           <div className="td-section-body">
             <div className="td-waiting-container">
-              {/* Pulsing dot */}
               <div className="td-waiting-pulse-wrap">
                 <div className="td-waiting-pulse" />
                 <div className="td-waiting-dot" />
               </div>
               <div className="td-waiting-text">
-                Waiting for TouchDesigner node...
+                Waiting for TouchDesigner node…
               </div>
 
-              {/* Connection details */}
               <div className="td-waiting-details">
                 <div className="td-waiting-detail-row">
                   <span className="td-waiting-detail-label">Slot</span>
                   <span style={{ color: 'var(--text)' }}>{slot.label}</span>
                 </div>
                 <div className="td-waiting-detail-row">
-                  <span className="td-waiting-detail-label">Entity</span>
-                  <span style={{ color: '#5cc8ff' }}>{entityId}</span>
-                </div>
-                <div className="td-waiting-detail-row">
                   <span className="td-waiting-detail-label">Server</span>
                   <span style={{ color: slot.maestraStatus?.server === 'connected' ? '#22c55e' : '#888' }}>
-                    {slot.maestraStatus?.server === 'connected' ? 'Connected' : slot.maestraStatus?.server === 'connecting' ? 'Connecting...' : 'Waiting'}
+                    {slot.maestraStatus?.server === 'connected' ? 'Connected' : slot.maestraStatus?.server === 'connecting' ? 'Connecting…' : 'Waiting'}
+                  </span>
+                </div>
+                <div className="td-waiting-detail-row">
+                  <span className="td-waiting-detail-label">Status</span>
+                  <span style={{ color: '#888' }}>
+                    {slot.maestraStatus?.entity === 'registered' ? 'Registered — awaiting heartbeat' : 'Listening…'}
                   </span>
                 </div>
               </div>
 
-              {/* Helpful nudge */}
               <div style={{ fontSize: 9, color: '#555', lineHeight: 1.6, marginTop: 10, textAlign: 'center' }}>
-                Make sure the connector TOX is loaded and<br />
-                the entity ID matches: <code style={{ color: '#5cc8ff' }}>{entityId}</code>
+                In TouchDesigner, paste the server URL and entity ID<br />
+                into the connector, then press Connect.
               </div>
 
-              {/* Back button */}
-              <button className="td-action-btn" style={{ width: '100%', marginTop: 12, fontSize: 9, opacity: 0.4 }} onClick={() => setConnectorAction(null)}>
-                ← Back to connector options
+              <button className="td-action-btn" style={{ width: '100%', marginTop: 12, fontSize: 9, opacity: 0.4 }} onClick={() => setWaitingForNode(false)}>
+                ← Back
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ═══ STEP 3: NODE ROLE ═══ */}
-      {setupStage === 'role' && (
+      {/* ═══ STEP 3: ROLE — "What should this node do?" ═══ */}
+      {stage === 'role' && (
         <div className="td-section expanded">
           <div className="td-section-header">
             <div className="td-section-num">3</div>
@@ -449,7 +409,7 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
             </div>
           </div>
           <div className="td-section-body">
-            {/* Connected indicator */}
+            {/* Connected success banner */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, padding: '6px 10px', background: 'rgba(34,197,94,0.08)', borderRadius: 4, border: '1px solid rgba(34,197,94,0.2)' }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
               <span style={{ fontSize: 10, color: '#22c55e', fontWeight: 600 }}>Node connected</span>
@@ -477,19 +437,19 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
       )}
 
       {/* ═══ STEP 4: SIGNAL TYPE ═══ */}
-      {setupStage === 'signal' && (
+      {stage === 'signal' && (
         <div className="td-section expanded">
           <div className="td-section-header">
             <div className="td-section-num">4</div>
             <div className="td-section-title-group">
-              <span className="td-section-title">Signal Type</span>
+              <span className="td-section-title">What Kind of Signals?</span>
               <span className="td-section-subtitle">
-                What kind of data will this node {nodeRole === 'send' ? 'publish' : nodeRole === 'receive' ? 'listen for' : 'sync'}?
+                {nodeRole === 'send' ? 'What will this node publish?' : nodeRole === 'receive' ? 'What will this node listen for?' : 'What data will this node sync?'}
               </span>
             </div>
           </div>
           <div className="td-section-body">
-            {/* Role summary */}
+            {/* Role summary chip */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, padding: '6px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 4, border: '1px solid rgba(255,255,255,0.06)' }}>
               <span style={{ fontSize: 12, color: ROLES.find(r => r.value === nodeRole)?.color }}>{ROLES.find(r => r.value === nodeRole)?.icon}</span>
               <span style={{ fontSize: 10, color: '#aab' }}>{ROLES.find(r => r.value === nodeRole)?.title}</span>
