@@ -426,8 +426,8 @@ header {
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 
-/* FLEET LAYOUT — 60/40 split */
-.fleet-layout { display: grid; grid-template-columns: 60fr 40fr; min-height: calc(100vh - 150px); }
+/* FLEET LAYOUT — wide slots, narrow detail sidebar */
+.fleet-layout { display: grid; grid-template-columns: 1fr 320px; min-height: calc(100vh - 150px); }
 .fleet-panel { padding: 24px; overflow-y: auto; border-right: 1px solid var(--border); }
 
 /* PANEL HEADER */
@@ -436,7 +436,7 @@ header {
 .entity-count { font-size: 10px; color: var(--text-dim); background: var(--surface2); border: 1px solid var(--border); padding: 3px 8px; border-radius: 2px; letter-spacing: 0.05em; }
 
 /* SLOT GRID */
-.slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px; }
 .slot {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -532,7 +532,7 @@ header {
 .selected-badge svg { width: 10px; height: 10px; }
 
 /* DETAIL PANEL */
-.detail-panel { display: flex; flex-direction: column; background: var(--surface); overflow-y: auto; }
+.detail-panel { display: flex; flex-direction: column; background: var(--surface); overflow-y: auto; max-width: 320px; }
 .detail-inactive-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 16px; border-bottom: 1px solid var(--border);
