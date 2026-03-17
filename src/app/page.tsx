@@ -715,27 +715,31 @@ export default function Home() {
     }
   }, [log]);
 
-  // Broadcast prompt — sends via WS broadcast + targeted state_update + HTTP fallback
+  // Broadcast prompt — sends via WS broadcast + targeted state_update
   const broadcastPrompt = useCallback((prompt: string) => {
     const targets = getAllTargetEntityIds();
+    // Send as prompt_inject (fleet-wide) AND as state_update with { prompt } key
     sendViaAll(
-      { type: 'prompt_inject', prompt, data: { prompt, field: 'prompt' } },
+      { type: 'prompt_inject', prompt, data: { prompt } },
       targets,
       'Inject',
     );
     logEvent('state', 'fleet', `Prompt injected: ${prompt.slice(0, 40)}`);
-  }, [sendViaAll, logEvent, getAllTargetEntityIds]);
+    pushBusEntry('fleet.prompt', prompt.slice(0, 50));
+  }, [sendViaAll, logEvent, getAllTargetEntityIds, pushBusEntry]);
 
-  // P6 flush — sends the prompt to TD's p6 field
+  // P6 flush — sends the prompt to TD's p6 field directly
   const p6Flush = useCallback((prompt: string) => {
     const targets = getAllTargetEntityIds();
+    // TD expects data.p6 = "the prompt text", NOT data.prompt with a field tag
     sendViaAll(
-      { type: 'p6_flush', prompt, data: { prompt, field: 'p6' } },
+      { type: 'p6_flush', prompt, data: { p6: prompt, prompt } },
       targets,
       'P6 Flush',
     );
-    logEvent('state', 'fleet', 'P6 flush → TD');
-  }, [sendViaAll, logEvent, getAllTargetEntityIds]);
+    logEvent('state', 'fleet', `P6 flush → ${prompt.slice(0, 40)}`);
+    pushBusEntry('fleet.p6', prompt.slice(0, 50));
+  }, [sendViaAll, logEvent, getAllTargetEntityIds, pushBusEntry]);
 
   // Send a state_update to the current target (single entity or global)
   const sendToTarget = useCallback((data: Record<string, unknown>) => {
@@ -1125,8 +1129,6 @@ export default function Home() {
               onP6Flush={p6Flush}
             />
 
-            <AudioAnalysis audioData={audioData} onSendAudio={sendToTarget} />
-
             <ScenePanel onActivateScene={handleActivateScene} />
 
             {/* Target selector for color/modulation sends */}
@@ -1153,6 +1155,8 @@ export default function Home() {
                 <span className="send-target-indicator">{sendTarget}</span>
               )}
             </div>
+
+            <AudioAnalysis audioData={audioData} onSendAudio={sendToTarget} />
 
             <ColorPalette onColorChange={handleColorChange} />
             <ModulationGrid onModulationChange={handleModulationChange} />
