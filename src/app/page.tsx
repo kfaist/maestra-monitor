@@ -1049,20 +1049,8 @@ export default function Home() {
       {/* DASHBOARD TAB */}
       <div className={`tab-content ${activeTab === 'dashboard' ? 'active' : ''}`}>
 
-        {/* ═══ TOP: Transcription + Prompt — center stage ═══ */}
-        <div className="command-bar">
-          <SignalPanel
-            injectActive={injectActive}
-            onInjectToggle={setInjectActive}
-            promptText={promptText}
-            onPromptChange={setPromptText}
-            onBroadcast={broadcastPrompt}
-            onP6Flush={p6Flush}
-          />
-        </div>
-
         <div className="fleet-layout">
-          {/* Left: Slot Grid + Palette + Modulation */}
+          {/* Left: Slot Grid + Signal Panel + Audio Analysis + Palette + Modulation */}
           <div className="fleet-panel">
             <SlotGrid
               slots={slots}
@@ -1071,6 +1059,15 @@ export default function Home() {
               onAddSlot={addSlot}
               onJoinNode={() => setJoinModalOpen(true)}
               onSlotSetupComplete={handleSlotSetupComplete}
+            />
+
+            <SignalPanel
+              injectActive={injectActive}
+              onInjectToggle={setInjectActive}
+              promptText={promptText}
+              onPromptChange={setPromptText}
+              onBroadcast={broadcastPrompt}
+              onP6Flush={p6Flush}
             />
 
             <AudioAnalysis audioData={audioData} onSendAudio={sendToTarget} />
