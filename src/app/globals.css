@@ -426,8 +426,18 @@ header {
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 
+/* COMMAND BAR — transcription + audio at top, full width, prominent */
+.command-bar {
+  display: flex; gap: 16px; padding: 14px 20px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  align-items: stretch;
+}
+.command-bar .signal-panel { flex: 1; min-width: 0; }
+.command-bar .signal-panel .signal-section { margin: 0; padding: 0; border: none; background: none; }
+.command-bar .audio-analysis { flex: 0 0 280px; margin: 0; }
+
 /* FLEET LAYOUT — wide slots, narrow detail sidebar */
-.fleet-layout { display: grid; grid-template-columns: 1fr 320px; min-height: calc(100vh - 150px); }
+.fleet-layout { display: grid; grid-template-columns: 1fr 320px; min-height: calc(100vh - 250px); }
 .fleet-panel { padding: 24px; overflow-y: auto; border-right: 1px solid var(--border); }
 
 /* PANEL HEADER */
