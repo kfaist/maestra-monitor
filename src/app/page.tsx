@@ -657,10 +657,16 @@ export default function Home() {
     remoteEntitiesRef.current.forEach(id => ids.add(id));
     // Add all dashboard-side connections
     connectionsRef.current.forEach(conn => ids.add(conn.entityId));
-    // Add entity_ids from active slots (covers cases where WS hasn't delivered any messages yet)
+    // Add entity_ids from ALL slots (active or selected — covers pre-connection and post-connection)
     slotsRef.current.forEach(s => {
-      if (s.active && s.entity_id) ids.add(s.entity_id);
+      if (s.entity_id) ids.add(s.entity_id);
     });
+    // Always include the selected slot's entity ID
+    const selSlot = slotsRef.current.find(s => s.id === selectedIdRef.current);
+    if (selSlot) {
+      const selEntityId = selSlot.entity_id || selSlot.id;
+      ids.add(selEntityId);
+    }
     return Array.from(ids);
   }, []);
 
@@ -703,14 +709,11 @@ export default function Home() {
       }).catch(() => {});
     });
 
-    // Also POST to the fleet-wide state endpoint (no specific entity)
-    fetch(`${API_BASE}/state`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...msg, ...(payload || {}), timestamp: ts }),
-    }).catch(() => {});
-
-    log(`[${label}] → ${targets.length} entities ${wsOpen ? '(WS+HTTP)' : '(HTTP only)'}`, wsOpen ? 'ok' : 'warn');
+    if (targets.length === 0 && !wsOpen) {
+      log(`[${label}] No targets and WS offline — message not delivered`, 'warn');
+    } else {
+      log(`[${label}] → ${targets.length} entities ${wsOpen ? '(WS+HTTP)' : '(HTTP only)'}`, wsOpen ? 'ok' : 'warn');
+    }
   }, [log]);
 
   // Broadcast prompt — sends via WS broadcast + targeted state_update + HTTP fallback
@@ -776,9 +779,9 @@ export default function Home() {
     if (!webcamSlotRef.current) webcamSlotRef.current = currentSelected;
     const slotId = webcamSlotRef.current;
 
-    // Only send frames to active/connected slots
+    // Find the slot — allow frames even if not yet "active" (user may start webcam before connecting)
     const slot = slotsRef.current.find(s => s.id === slotId);
-    if (!slot?.active) return;
+    if (!slot) return;
 
     const conn = connectionsRef.current.get(slotId);
     if (conn) conn.receiveStreamFrame();
@@ -814,9 +817,10 @@ export default function Home() {
 
   // Relay webcam frame data (base64 JPEG) via WS + HTTP to backend
   const handleWebcamFrameData = useCallback((base64: string) => {
-    const slotId = selectedIdRef.current || 'krista1';
+    const slotId = webcamSlotRef.current || selectedIdRef.current || 'krista1';
     const conn = connectionsRef.current.get(slotId);
-    const entityId = conn?.entityId || slotId;
+    const slot = slotsRef.current.find(s => s.id === slotId);
+    const entityId = conn?.entityId || slot?.entity_id || slotId;
     const ts = Date.now();
 
     // WS relay
@@ -860,6 +864,16 @@ export default function Home() {
       // Lock webcam to the currently selected slot
       webcamSlotRef.current = selectedIdRef.current || 'krista1';
       const target = webcamSlotRef.current;
+
+      // Auto-activate the target slot if it's inactive (so frames display in the card)
+      const slot = slotsRef.current.find(s => s.id === target);
+      if (slot && !slot.active) {
+        setSlots(prev => prev.map(s => {
+          if (s.id !== target) return s;
+          return { ...s, active: true, connection_status: 'connected', active_stream: 'webcam' };
+        }));
+      }
+
       log(`[Webcam] Started — streaming to ${target} (other slots still polling)`, 'ok');
       logEvent('stream', target, 'Webcam stream started');
     } else {
