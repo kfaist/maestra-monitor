@@ -994,13 +994,12 @@ export default function Home() {
     }
   }, [pushBusEntry]); // uses refs for everything else
 
-  // Relay webcam frame data (base64 JPEG) via WS + HTTP to backend
-  // Throttle HTTP relay for webcam — one POST at a time, skip if previous still in flight
+  // Relay webcam frame data (base64 JPEG) via WS + HTTP to Maestra backend
   const webcamHttpPostingRef = useRef(false);
   const webcamFirstRelayRef = useRef(false);
-
-  // Throttle webcam relay bus entries (~every 2s) — avoid flooding
   const webcamRelayBusRef = useRef(0);
+  const webcamHttpOkCountRef = useRef(0);
+  const webcamHttpErrCountRef = useRef(0);
 
   const handleWebcamFrameData = useCallback((base64: string) => {
     const slotId = webcamSlotRef.current || selectedIdRef.current || 'krista1';
@@ -1013,32 +1012,67 @@ export default function Home() {
     // Log first relay so we know the pipe is working
     if (!webcamFirstRelayRef.current) {
       webcamFirstRelayRef.current = true;
-      log(`[Webcam Relay] First frame → ${entityId} (${sizeKB}KB b64)`, 'ok');
+      log(`[Webcam → Maestra] First frame → ${entityId} (${sizeKB}KB b64)`, 'ok');
       pushBusEntry(`${entityId}.webcam`, 'stream_started');
     }
 
-    // WS relay — fast, every frame
+    // ── WS relay — send as binary JPEG (same format backend sends us) ──
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'stream_frame',
-        entity_id: entityId,
-        data: { frame: base64, format: 'jpeg', source: 'webcam' },
-        timestamp: ts,
-      }));
+      // Send raw binary JPEG over WS — backend expects this format
+      try {
+        const binary = atob(base64);
+        const wsBuf = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) wsBuf[i] = binary.charCodeAt(i);
+        wsRef.current.send(wsBuf);
+      } catch {
+        // Fallback: send as JSON stream_frame
+        wsRef.current.send(JSON.stringify({
+          type: 'stream_frame',
+          entity_id: entityId,
+          data: { frame: base64, format: 'jpeg', source: 'webcam' },
+          timestamp: ts,
+        }));
+      }
     }
 
-    // HTTP relay — POST raw JPEG to Maestra backend /video/frame/td
-    // This is the same endpoint TD polls for frames, so webcam merges into the SD pipeline
+    // ── HTTP relay — POST raw JPEG to Maestra backend /video/frame/td ──
+    // This is the endpoint TD polls, so webcam frames merge into the SD pipeline
     if (!webcamHttpPostingRef.current) {
       webcamHttpPostingRef.current = true;
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      fetch(`${API_BASE}/video/frame/td`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'image/jpeg' },
-        body: bytes.buffer,
-      }).catch(() => {}).finally(() => { webcamHttpPostingRef.current = false; });
+      try {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        // Use the Uint8Array directly as body (not .buffer which can be wrong size)
+        fetch(`${API_BASE}/video/frame/td`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'image/jpeg' },
+          body: bytes,
+        }).then(res => {
+          webcamHttpPostingRef.current = false;
+          if (res.ok) {
+            webcamHttpOkCountRef.current++;
+            // Log first successful POST
+            if (webcamHttpOkCountRef.current === 1) {
+              log(`[Webcam → Maestra] HTTP relay active — frames posting to /video/frame/td`, 'ok');
+            }
+          } else {
+            webcamHttpErrCountRef.current++;
+            if (webcamHttpErrCountRef.current <= 3) {
+              log(`[Webcam → Maestra] HTTP POST failed: ${res.status} ${res.statusText}`, 'error');
+            }
+          }
+        }).catch(err => {
+          webcamHttpPostingRef.current = false;
+          webcamHttpErrCountRef.current++;
+          if (webcamHttpErrCountRef.current <= 3) {
+            log(`[Webcam → Maestra] HTTP relay error: ${(err as Error).message}`, 'error');
+          }
+        });
+      } catch (err) {
+        webcamHttpPostingRef.current = false;
+        log(`[Webcam → Maestra] Encode error: ${(err as Error).message}`, 'error');
+      }
     }
 
     // Bump relay counter
@@ -1048,16 +1082,19 @@ export default function Home() {
       setFrameRelayCount(frameRelayCountRef.current);
     }
 
-    // Push relay stats to entity bus (throttled ~2s)
+    // Push relay stats to entity state + bus (throttled ~2s)
     if (ts - webcamRelayBusRef.current > 2000) {
       webcamRelayBusRef.current = ts;
-      pushBusEntry(`${entityId}.relay_frames`, String(frameRelayCountRef.current));
-      // Update entity state with relay info
+      const httpOk = webcamHttpOkCountRef.current;
+      const httpErr = webcamHttpErrCountRef.current;
+      pushBusEntry(`${entityId}.relay→maestra`, `${httpOk} ok / ${httpErr} err`);
       setEntityStates(prev => ({
         ...prev,
         [entityId]: {
           ...(prev[entityId] || {}),
           relay_frames: String(frameRelayCountRef.current),
+          relay_http_ok: String(httpOk),
+          relay_http_err: String(httpErr),
           frame_size: `${sizeKB}KB`,
         },
       }));
