@@ -423,7 +423,8 @@ export default function Home() {
             smooth = smooth != null ? smooth * 0.6 + raw * 0.4 : raw;
             fps = Math.round(smooth);
           }
-          return { ...s, frameUrl: url, fps, _frameTimes: times, _fpsSmooth: smooth };
+          // Auto-activate slot when frames arrive — makes the live node panel visible
+          return { ...s, frameUrl: url, fps, active: true, connection_status: 'connected', _frameTimes: times, _fpsSmooth: smooth };
         }));
       } catch (err) {
         frameErrorCountRef.current++;
