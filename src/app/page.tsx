@@ -16,10 +16,12 @@ import {
   ConnectionPanel,
   JoinModal,
   ScenePanel,
+  LightingPanel,
 } from '@/components';
 import { JoinMaestraResult } from '@/components/JoinModal';
 import { SceneDefinition } from '@/components/ScenePanel';
 import { EntityBusEntry } from '@/components/DetailPanel';
+import { DmxState, defaultDmxState, SCENE_CUE_MAP } from '@/components/LightingPanel';
 import { FleetSlot, LogEntry, EventEntry, AudioAnalysisData, SlotConnectionInfo, MaestraSlotStatus, defaultSlotStatus } from '@/types';
 import { createInitialSlots, SUGGESTIONS } from '@/mock';
 import { WSSimulator } from '@/mock/ws-simulator';
@@ -50,6 +52,21 @@ export default function Home() {
   const [connectionInfo, setConnectionInfo] = useState<SlotConnectionInfo | null>(null);
   const [joinModalOpen, setJoinModalOpen] = useState(false);
   const [entityBus, setEntityBus] = useState<EntityBusEntry[]>([]);
+
+  // Entity state — accumulated key/value state per entity for live debugging
+  const [entityStates, setEntityStates] = useState<Record<string, Record<string, string>>>({});
+  const entityStatesRef = useRef(entityStates);
+  entityStatesRef.current = entityStates;
+
+  // DMX Lighting state — reflects dmx-lighting entity
+  const [dmxState, setDmxState] = useState<DmxState>(defaultDmxState);
+  const [bassThreshold, setBassThreshold] = useState(0.75);
+  const [audioReactiveEnabled, setAudioReactiveEnabled] = useState(true);
+  const audioReactiveEnabledRef = useRef(true);
+  audioReactiveEnabledRef.current = audioReactiveEnabled;
+  const bassThresholdRef = useRef(0.75);
+  bassThresholdRef.current = bassThreshold;
+  const bassCooldownRef = useRef(0); // timestamp of last bass trigger
 
   // Lifted inject state
   const [injectActive, setInjectActive] = useState(false);
@@ -475,11 +492,31 @@ export default function Home() {
               }
             });
             log(`State update from ${msg.entity_id}: ${JSON.stringify(msg.data).slice(0, 60)}`, 'info');
-            // Push to entity bus
+            // Push to entity bus + accumulate entity state
             if (msg.data && typeof msg.data === 'object') {
+              const eid = msg.entity_id as string;
+              const updates: Record<string, string> = {};
               Object.entries(msg.data as Record<string, unknown>).forEach(([k, v]) => {
-                pushBusEntry(`${msg.entity_id}.${k}`, String(v));
+                pushBusEntry(`${eid}.${k}`, String(v));
+                updates[k] = String(v);
               });
+              setEntityStates(prev => ({
+                ...prev,
+                [eid]: { ...(prev[eid] || {}), ...updates },
+              }));
+            }
+            // ── Reflect dmx-lighting entity state updates into local DmxState ──
+            if (msg.entity_id === 'dmx-lighting' && msg.data) {
+              const d = msg.data as Record<string, unknown>;
+              setDmxState(prev => ({
+                ...prev,
+                ...(d.cue !== undefined ? { currentCue: String(d.cue) } : {}),
+                ...(d.sequence !== undefined ? { sequence: String(d.sequence) } : {}),
+                ...(d.step !== undefined ? { step: Number(d.step) } : {}),
+                ...(d.progress !== undefined ? { progress: Number(d.progress) } : {}),
+                ...(d.paused !== undefined ? { paused: Boolean(d.paused) } : {}),
+                lastTrigger: Date.now(),
+              }));
             }
             return;
           }
@@ -763,7 +800,17 @@ export default function Home() {
   // Color palette change — sends hue/saturation/value to TD via Maestra
   const handleColorChange = useCallback((color: { hue: number; saturation: number; value: number }) => {
     sendToTarget({ ...color, field: 'color' });
-  }, [sendToTarget]);
+    // Also publish to lighting_palette entity for DMX color mapping
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'state_update',
+        entity_id: 'lighting_palette',
+        data: { hue: color.hue, saturation: color.saturation, brightness: color.value },
+        timestamp: Date.now(),
+      }));
+    }
+    pushBusEntry('lighting_palette.hue', String(color.hue));
+  }, [sendToTarget, pushBusEntry]);
 
   // Modulation change — sends source/amount for a parameter to TD
   const handleModulationChange = useCallback((paramName: string, source: string, amount: number) => {
@@ -960,6 +1007,55 @@ export default function Home() {
   }, [log, logEvent, pushBusEntry]);
 
   // ═══ Scene activation — publish scene state to all listeners ═══
+  // ═══ DMX Lighting — patch dmx-lighting entity state ═══
+  const triggerDmxCue = useCallback((cueId: string) => {
+    const ts = Date.now();
+    const data = { cue: cueId };
+    // Patch dmx-lighting entity via WS
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'state_update', entity_id: 'dmx-lighting', data, timestamp: ts }));
+    }
+    // Update local DMX state for display
+    setDmxState(prev => ({
+      ...prev,
+      currentCue: cueId,
+      lastTrigger: ts,
+      history: [{ cue: cueId, time: ts }, ...prev.history].slice(0, 20),
+    }));
+    log(`[DMX] Cue triggered: ${cueId}`, 'ok');
+    logEvent('state', 'dmx-lighting', `Cue → ${cueId}`);
+    pushBusEntry('dmx-lighting.cue', cueId);
+  }, [log, logEvent, pushBusEntry]);
+
+  const handleDmxPauseExternal = useCallback(() => {
+    const ts = Date.now();
+    const newPaused = !dmxState.paused;
+    const data = { paused: newPaused };
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'state_update', entity_id: 'dmx-lighting', data, timestamp: ts }));
+    }
+    setDmxState(prev => ({ ...prev, paused: newPaused }));
+    log(`[DMX] ${newPaused ? 'Paused' : 'Resumed'} external playback`, 'info');
+    pushBusEntry('dmx-lighting.paused', String(newPaused));
+  }, [dmxState.paused, log, pushBusEntry]);
+
+  const handleDmxFadeOut = useCallback(() => {
+    const ts = Date.now();
+    const data = { cue: 'fade_out', fade: true };
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'state_update', entity_id: 'dmx-lighting', data, timestamp: ts }));
+    }
+    setDmxState(prev => ({
+      ...prev,
+      currentCue: 'fade_out',
+      lastTrigger: ts,
+      history: [{ cue: 'fade_out', time: ts }, ...prev.history].slice(0, 20),
+    }));
+    log('[DMX] Fade out triggered', 'info');
+    pushBusEntry('dmx-lighting.cue', 'fade_out');
+  }, [log, pushBusEntry]);
+
+  // ═══ Scene activation — publish scene state + trigger DMX cue set ═══
   const handleActivateScene = useCallback((scene: SceneDefinition) => {
     const payload = { type: 'state_update', entity_id: 'scene_controller', data: scene.state };
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -971,7 +1067,50 @@ export default function Home() {
     Object.entries(scene.state).forEach(([k, v]) => {
       pushBusEntry(`scene.${k}`, String(v));
     });
+    // Trigger DMX cue set for this scene
+    const cueSet = SCENE_CUE_MAP[scene.id];
+    if (cueSet && cueSet.length > 0) {
+      const ts = Date.now();
+      // Patch dmx-lighting with the scene's cue set
+      const dmxData = { cue: cueSet[0], sequence: `scene_${scene.id}`, cue_set: cueSet };
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'state_update', entity_id: 'dmx-lighting', data: dmxData, timestamp: ts }));
+      }
+      setDmxState(prev => ({
+        ...prev,
+        currentCue: cueSet[0],
+        sequence: `scene_${scene.id}`,
+        step: 0,
+        progress: 0,
+        lastTrigger: ts,
+        history: [{ cue: cueSet[0], time: ts }, ...prev.history].slice(0, 20),
+      }));
+      pushBusEntry('dmx-lighting.sequence', `scene_${scene.id}`);
+      pushBusEntry('dmx-lighting.cue', cueSet[0]);
+      log(`[DMX] Scene cue set: ${cueSet.join(', ')}`, 'ok');
+    }
   }, [log, logEvent, pushBusEntry]);
+
+  // ═══ Audio → DMX: bass spike threshold trigger ═══
+  const audioDataRef = useRef(audioData);
+  audioDataRef.current = audioData;
+
+  useEffect(() => {
+    // Poll audio data at 250ms for bass threshold check
+    const timer = setInterval(() => {
+      if (!audioReactiveEnabledRef.current) return;
+      const now = Date.now();
+      // Cooldown: don't re-trigger within 500ms
+      if (now - bassCooldownRef.current < 500) return;
+      const ad = audioDataRef.current;
+      const bassNorm = ad.bass / 100; // bass is 0-100, normalize to 0-1
+      if (bassNorm > bassThresholdRef.current) {
+        bassCooldownRef.current = now;
+        triggerDmxCue('bass_hit');
+      }
+    }, 250);
+    return () => clearInterval(timer);
+  }, [triggerDmxCue]);
 
   // Initialize
   useEffect(() => {
@@ -984,6 +1123,22 @@ export default function Home() {
         if (ad.bpm !== undefined) pushBusEntry('audio_reactive.bpm', String(ad.bpm));
         if (ad.bass !== undefined) pushBusEntry('audio_reactive.bass', String(((ad.bass as number) / 100).toFixed(2)));
         if (ad.rms !== undefined) pushBusEntry('audio_reactive.rms', String(ad.rms));
+        // Accumulate audio state for any audio_reactive entity
+        setEntityStates(prev => {
+          const audioState: Record<string, string> = {};
+          if (ad.bpm !== undefined) audioState['audio.bpm'] = String(Math.round(ad.bpm as number));
+          if (ad.bass !== undefined) audioState['audio.bass'] = ((ad.bass as number) / 100).toFixed(2);
+          if (ad.mid !== undefined) audioState['audio.mid'] = ((ad.mid as number) / 100).toFixed(2);
+          if (ad.rms !== undefined) audioState['audio.rms'] = String(ad.rms);
+          // Find all audio_reactive slots and merge state
+          const next = { ...prev };
+          slotsRef.current.forEach(s => {
+            if (s.signalType === 'audio_reactive' && s.entity_id) {
+              next[s.entity_id] = { ...(next[s.entity_id] || {}), ...audioState };
+            }
+          });
+          return next;
+        });
       }
       if (event.type === 'entity_connected') {
         // Route to the matching connection by entityId (not slotId)
@@ -1011,6 +1166,17 @@ export default function Home() {
           }
         });
         log(`State update from ${event.entity_id}: ${JSON.stringify(event.data).slice(0, 60)}`, 'info');
+        // Accumulate entity state from simulator
+        if (event.entity_id && event.data && typeof event.data === 'object') {
+          const updates: Record<string, string> = {};
+          Object.entries(event.data as Record<string, unknown>).forEach(([k, v]) => {
+            updates[k] = String(v);
+          });
+          setEntityStates(prev => ({
+            ...prev,
+            [event.entity_id!]: { ...(prev[event.entity_id!] || {}), ...updates },
+          }));
+        }
       }
     });
     simulatorRef.current.start();
@@ -1117,6 +1283,7 @@ export default function Home() {
               onSlotSetupComplete={handleSlotSetupComplete}
               onInjectSignal={handleInjectSignal}
               eventEntries={eventEntries}
+              entityStates={entityStates}
             />
 
             <ScenePanel
@@ -1155,6 +1322,17 @@ export default function Home() {
             </div>
 
             <AudioAnalysis audioData={audioData} onSendAudio={sendToTarget} />
+
+            <LightingPanel
+              dmxState={dmxState}
+              onTriggerCue={triggerDmxCue}
+              onPauseExternal={handleDmxPauseExternal}
+              onFadeOut={handleDmxFadeOut}
+              bassThreshold={bassThreshold}
+              onBassThresholdChange={setBassThreshold}
+              audioReactiveEnabled={audioReactiveEnabled}
+              onAudioReactiveToggle={setAudioReactiveEnabled}
+            />
 
             <ColorPalette onColorChange={handleColorChange} />
             <ModulationGrid onModulationChange={handleModulationChange} />

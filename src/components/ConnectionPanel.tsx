@@ -31,9 +31,9 @@ export default function ConnectionPanel({
   const handleCopy = useCallback(() => {
     if (!connectionInfo) return;
     const text = [
-      `Server URL: ${connectionInfo.serverUrl}`,
-      `Slot: ${connectionInfo.slotId}`,
-      `Entity ID: ${connectionInfo.entityId}`,
+      `Maestra Server: ${connectionInfo.serverUrl}`,
+      `Device: ${connectionInfo.slotId}`,
+      `Entity: ${connectionInfo.entityId}`,
       `Port: ${connectionInfo.port}`,
       `Stream Path: ${connectionInfo.streamPath}`,
     ].join('\n');
@@ -114,15 +114,15 @@ export default function ConnectionPanel({
       {/* Connection Info */}
       <div className="connection-info">
         <div className="connection-info-row">
-          <span className="connection-info-label">Server:</span>
+          <span className="connection-info-label">Maestra Server</span>
           <span className="connection-info-value" style={{ color: '#ccd' }}>{connectionInfo.serverUrl}</span>
         </div>
         <div className="connection-info-row">
-          <span className="connection-info-label">Slot:</span>
+          <span className="connection-info-label">Device</span>
           <span className="connection-info-value" style={{ color: '#ccd' }}>{connectionInfo.slotId}</span>
         </div>
         <div className="connection-info-row">
-          <span className="connection-info-label">Entity ID:</span>
+          <span className="connection-info-label">Entity</span>
           <span className="connection-info-value" style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5cc8ff' }}>
             {connectionInfo.entityId}
           </span>

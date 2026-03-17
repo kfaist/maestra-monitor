@@ -25,6 +25,9 @@ interface SourceState {
   fileName: string | null;
 }
 
+/** Per-entity state map: entity_id → { key: value } */
+export type EntityStateMap = Record<string, Record<string, string>>;
+
 interface SlotGridProps {
   slots: FleetSlot[];
   selectedId: string | null;
@@ -35,6 +38,8 @@ interface SlotGridProps {
   onInjectSignal?: (slotId: string, field: string, value: string) => void;
   onSourceUpdate?: (slotId: string, path: string, fileName: string | null) => void;
   eventEntries?: EventEntry[];
+  /** Live entity state for each entity */
+  entityStates?: EntityStateMap;
 }
 
 const ROLES: { value: NodeRole; label: string; icon: string; color: string }[] = [
@@ -80,7 +85,7 @@ function getListeningSignals(slot: FleetSlot): string[] {
   return ['prompt.keyword', 'lighting.scene'];
 }
 
-export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, onJoinNode, onSlotSetupComplete, onInjectSignal, onSourceUpdate, eventEntries = [] }: SlotGridProps) {
+export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, onJoinNode, onSlotSetupComplete, onInjectSignal, onSourceUpdate, eventEntries = [], entityStates = {} }: SlotGridProps) {
   const activeCount = slots.filter(s => s.active).length;
   const hasActiveNodes = activeCount > 0;
 
@@ -320,19 +325,19 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <div className={`live-node-badge ${statusCls}`}>LIVE</div>
                   </div>
 
-                  {/* ── Section 1: Node Status ── */}
+                  {/* ── Section 1: Device · Entity · Heartbeat · Stream ── */}
                   <div className="live-section">
-                    <div className="live-section-head">Node Status</div>
+                    <div className="live-section-head">Status</div>
                     <div className="live-kv-grid">
+                      <span className="live-kv-key">Device</span>
+                      <span className={`live-kv-val ${mStatus?.server === 'connected' ? 'val-ok' : 'val-warn'}`}>
+                        {mStatus?.server === 'connected' ? 'connected' : mStatus?.server || 'offline'}
+                      </span>
                       <span className="live-kv-key">Entity</span>
                       <span className="live-kv-val">{slot.entity_id || slot.id}</span>
-                      <span className="live-kv-key">Server</span>
-                      <span className={`live-kv-val ${mStatus?.server === 'connected' ? 'val-ok' : 'val-warn'}`}>
-                        {mStatus?.server || 'unknown'}
-                      </span>
                       <span className="live-kv-key">Heartbeat</span>
                       <span className={`live-kv-val ${mStatus?.heartbeat === 'live' ? 'val-ok' : mStatus?.heartbeat === 'stale' ? 'val-warn' : ''}`}>
-                        {heartbeatMs || 'waiting'}
+                        {heartbeatMs ? `${heartbeatMs} ago` : 'waiting'}
                       </span>
                       <span className="live-kv-key">Stream</span>
                       <span className={`live-kv-val ${mStatus?.stream === 'live' ? 'val-ok' : ''}`}>
@@ -346,7 +351,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <div className="live-section-head">Signals</div>
                     {publishing.length > 0 && (
                       <div className="live-signal-group">
-                        <span className="live-signal-dir">Publishing</span>
+                        <span className="live-signal-dir">Publishing State</span>
                         <div className="live-signal-list">
                           {publishing.map(s => <span key={s} className="live-signal-tag pub">{s}</span>)}
                         </div>
@@ -354,7 +359,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     )}
                     {listening.length > 0 && (
                       <div className="live-signal-group">
-                        <span className="live-signal-dir">Listening</span>
+                        <span className="live-signal-dir">Listening State</span>
                         <div className="live-signal-list">
                           {listening.map(s => <span key={s} className="live-signal-tag sub">{s}</span>)}
                         </div>
@@ -365,7 +370,33 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     )}
                   </div>
 
-                  {/* ── Section 3: Signal Injection ── */}
+                  {/* ── Section 3: Entity State ── */}
+                  {(() => {
+                    const eid = slot.entity_id || slot.id;
+                    const stateObj = entityStates[eid];
+                    const entries = stateObj ? Object.entries(stateObj) : [];
+                    return entries.length > 0 ? (
+                      <div className="live-section">
+                        <div className="live-section-head">State</div>
+                        <div className="live-state-table">
+                          {entries.slice(0, 8).map(([k, v]) => (
+                            <div key={k} className="live-state-row">
+                              <span className="live-state-key">{k}</span>
+                              <span className="live-state-val">{v}</span>
+                            </div>
+                          ))}
+                          {entries.length > 8 && (
+                            <div className="live-state-row">
+                              <span className="live-state-key live-state-more">+{entries.length - 8} more</span>
+                              <span className="live-state-val" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+
+                  {/* ── Section 4: Signal Injection ── */}
                   <div className="live-section">
                     <div className="live-section-head">Inject Signal</div>
                     <div className="live-inject-form">
