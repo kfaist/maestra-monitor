@@ -468,6 +468,37 @@ header {
 .slot:not(.active-slot):hover .slot-available-hover-btn { opacity: 1; transform: translateY(2px) scale(1); pointer-events: auto; }
 .slot-available-hover-icon { font-size: 14px; color: var(--accent); font-weight: 300; }
 
+/* Slot setup mode — cyan glow while in wizard */
+.slot.setup-mode { border-color: rgba(0,212,255,0.5); box-shadow: 0 0 16px rgba(0,212,255,0.15), 0 0 0 1px rgba(0,212,255,0.3); }
+.slot.setup-mode .slot-label { color: var(--accent); }
+
+/* Inline wizard inside slot video area */
+.slot-inline-wizard { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 10px 12px; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
+.slot-wizard-steps { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+.slot-wizard-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.15); transition: all 0.3s ease; }
+.slot-wizard-dot.active { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 8px rgba(0,212,255,0.5); }
+.slot-wizard-dot.done { background: #22c55e; border-color: #22c55e; }
+.slot-wizard-line { width: 14px; height: 1px; background: rgba(255,255,255,0.1); }
+.slot-wizard-content { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; animation: wizardFadeIn 0.2s ease; }
+@keyframes wizardFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.slot-wizard-title { font-family: var(--font-display); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.slot-wizard-btn { font-family: var(--font-display); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; padding: 6px 14px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: var(--text-dim); cursor: pointer; transition: all 0.15s ease; }
+.slot-wizard-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+.slot-wizard-btn-primary { background: rgba(0,212,255,0.2); border-color: rgba(0,212,255,0.5); color: #fff; display: flex; align-items: center; gap: 6px; }
+.slot-wizard-btn-primary:hover { background: rgba(0,212,255,0.35); box-shadow: 0 0 12px rgba(0,212,255,0.2); }
+.slot-wizard-btn-ghost { font-size: 8px; padding: 3px 8px; opacity: 0.4; border: none; background: none; }
+.slot-wizard-btn-ghost:hover { opacity: 0.8; }
+.slot-wizard-options { display: flex; gap: 5px; width: 100%; }
+.slot-wizard-options-grid { flex-wrap: wrap; justify-content: center; }
+.slot-wizard-option { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; padding: 5px 6px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); cursor: pointer; font-family: var(--font-display); font-size: 9px; font-weight: 600; color: var(--text-dim); letter-spacing: 0.03em; transition: all 0.15s ease; white-space: nowrap; justify-content: center; }
+.slot-wizard-option:hover { background: rgba(255,255,255,0.08); color: var(--text); border-color: rgba(255,255,255,0.15); }
+.slot-wizard-option:hover .slot-wizard-option-icon { color: var(--opt-color, var(--accent)); }
+.slot-wizard-option-icon { font-size: 11px; color: rgba(255,255,255,0.3); transition: color 0.15s ease; }
+.slot-wizard-option-sm { flex: 0 0 calc(33.33% - 4px); min-width: 0; padding: 4px 4px; font-size: 8px; }
+
+/* Setup tag in footer */
+.setup-tag { color: var(--accent) !important; background: rgba(0,212,255,0.08); border-color: rgba(0,212,255,0.2); font-size: 8px; letter-spacing: 0.04em; }
+
 /* Available tag in footer — show label normally, expand on hover */
 .available-label { display: inline; }
 .available-connect-btn { display: none; }

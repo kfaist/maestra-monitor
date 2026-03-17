@@ -1,7 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FleetSlot, slotStatusLabel, slotStatusClass, formatAge } from '@/types';
+
+type InlineStage = 'idle' | 'connect' | 'role' | 'signal';
+type NodeRole = 'receive' | 'send' | 'two_way';
+type SignalSource = 'touchdesigner' | 'json_stream' | 'osc' | 'audio_reactive' | 'text' | 'test_signal';
+
+interface SlotSetup {
+  stage: InlineStage;
+  role: NodeRole | null;
+  signal: SignalSource | null;
+}
 
 interface SlotGridProps {
   slots: FleetSlot[];
@@ -9,17 +19,115 @@ interface SlotGridProps {
   onSelectSlot: (id: string) => void;
   onAddSlot: () => void;
   onJoinNode: () => void;
+  onSlotSetupComplete?: (slotId: string, role: NodeRole, signal: SignalSource) => void;
 }
 
-export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, onJoinNode }: SlotGridProps) {
+const ROLES: { value: NodeRole; label: string; icon: string; color: string }[] = [
+  { value: 'send', label: 'Send', icon: '↑', color: '#22c55e' },
+  { value: 'receive', label: 'Receive', icon: '↓', color: '#5cc8ff' },
+  { value: 'two_way', label: 'Both', icon: '↕', color: '#fbbf24' },
+];
+
+const SIGNALS: { value: SignalSource; label: string; icon: string }[] = [
+  { value: 'touchdesigner', label: 'Visual', icon: '◆' },
+  { value: 'audio_reactive', label: 'Audio', icon: '♫' },
+  { value: 'json_stream', label: 'JSON', icon: '{}' },
+  { value: 'text', label: 'Text', icon: 'A' },
+  { value: 'osc', label: 'OSC', icon: '~' },
+  { value: 'test_signal', label: 'Test', icon: '▶' },
+];
+
+export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, onJoinNode, onSlotSetupComplete }: SlotGridProps) {
   const activeCount = slots.filter(s => s.active).length;
   const hasActiveNodes = activeCount > 0;
+
+  // Per-slot inline setup wizard state
+  const [setupState, setSetupState] = useState<Record<string, SlotSetup>>({});
 
   // Tick every 500ms for age display (slower = less jitter)
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(id);
+  }, []);
+
+  // When a slot becomes active, clear its setup state
+  useEffect(() => {
+    setSetupState(prev => {
+      const next = { ...prev };
+      let changed = false;
+      slots.forEach(s => {
+        if (s.active && next[s.id]) {
+          delete next[s.id];
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [slots]);
+
+  const handleSlotClick = useCallback((slot: FleetSlot) => {
+    if (slot.active) {
+      // Active slot — just select it
+      onSelectSlot(slot.id);
+      return;
+    }
+    // Inactive slot — check if already in setup mode
+    const current = setupState[slot.id];
+    if (current && current.stage !== 'idle') {
+      // Already in setup — just select it too
+      onSelectSlot(slot.id);
+      return;
+    }
+    // Start the inline wizard at 'connect' stage
+    onSelectSlot(slot.id);
+    setSetupState(prev => ({
+      ...prev,
+      [slot.id]: { stage: 'connect', role: null, signal: null },
+    }));
+  }, [setupState, onSelectSlot]);
+
+  const handleConnect = useCallback((slotId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Advance to role selection
+    setSetupState(prev => ({
+      ...prev,
+      [slotId]: { ...prev[slotId], stage: 'role' },
+    }));
+  }, []);
+
+  const handleRoleSelect = useCallback((slotId: string, role: NodeRole, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSetupState(prev => ({
+      ...prev,
+      [slotId]: { ...prev[slotId], role, stage: 'signal' },
+    }));
+  }, []);
+
+  const handleSignalSelect = useCallback((slotId: string, signal: SignalSource, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const setup = setupState[slotId];
+    if (!setup?.role) return;
+    // Complete! Call parent handler
+    setSetupState(prev => ({
+      ...prev,
+      [slotId]: { ...prev[slotId], signal, stage: 'idle' },
+    }));
+    onSlotSetupComplete?.(slotId, setup.role, signal);
+  }, [setupState, onSlotSetupComplete]);
+
+  const handleBack = useCallback((slotId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSetupState(prev => {
+      const current = prev[slotId];
+      if (!current) return prev;
+      if (current.stage === 'signal') return { ...prev, [slotId]: { ...current, stage: 'role', role: null } };
+      if (current.stage === 'role') return { ...prev, [slotId]: { ...current, stage: 'connect' } };
+      // 'connect' stage — cancel setup
+      const next = { ...prev };
+      delete next[slotId];
+      return next;
+    });
   }, []);
 
   return (
@@ -57,6 +165,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
             waitingStr = `${formatAge(Math.max(0, now - mStatus.registeredAt))} since registration`;
           }
 
+          const setup = setupState[slot.id];
+          const inSetup = setup && setup.stage !== 'idle';
+
           return (
             <div
               key={slot.id}
@@ -65,8 +176,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                 slot.active ? 'active-slot' : '',
                 slot.id === selectedId ? 'selected' : '',
                 slot.cloudNode ? 'cloud-node' : '',
+                inSetup ? 'setup-mode' : '',
               ].filter(Boolean).join(' ')}
-              onClick={() => onSelectSlot(slot.id)}
+              onClick={() => handleSlotClick(slot)}
             >
               <div className="slot-video-area">
                 {slot.active ? (
@@ -111,7 +223,90 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       ) : null}
                     </div>
                   )
+                ) : inSetup ? (
+                  /* ════ INLINE SETUP WIZARD ════ */
+                  <div className="slot-inline-wizard">
+                    {/* Step indicator */}
+                    <div className="slot-wizard-steps">
+                      <span className={`slot-wizard-dot ${setup.stage === 'connect' ? 'active' : 'done'}`} />
+                      <span className="slot-wizard-line" />
+                      <span className={`slot-wizard-dot ${setup.stage === 'role' ? 'active' : setup.stage === 'signal' ? 'done' : ''}`} />
+                      <span className="slot-wizard-line" />
+                      <span className={`slot-wizard-dot ${setup.stage === 'signal' ? 'active' : ''}`} />
+                    </div>
+
+                    {/* STAGE: Connect */}
+                    {setup.stage === 'connect' && (
+                      <div className="slot-wizard-content">
+                        <div className="slot-wizard-title">Connect a Node</div>
+                        <button
+                          className="slot-wizard-btn slot-wizard-btn-primary"
+                          onClick={(e) => handleConnect(slot.id, e)}
+                        >
+                          <span style={{ fontSize: 12 }}>⚡</span> Connect
+                        </button>
+                        <button
+                          className="slot-wizard-btn slot-wizard-btn-ghost"
+                          onClick={(e) => { e.stopPropagation(); handleBack(slot.id, e); }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+
+                    {/* STAGE: Role */}
+                    {setup.stage === 'role' && (
+                      <div className="slot-wizard-content">
+                        <div className="slot-wizard-title">Behavior</div>
+                        <div className="slot-wizard-options">
+                          {ROLES.map(r => (
+                            <button
+                              key={r.value}
+                              className="slot-wizard-option"
+                              style={{ '--opt-color': r.color } as React.CSSProperties}
+                              onClick={(e) => handleRoleSelect(slot.id, r.value, e)}
+                            >
+                              <span className="slot-wizard-option-icon">{r.icon}</span>
+                              <span>{r.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          className="slot-wizard-btn slot-wizard-btn-ghost"
+                          onClick={(e) => handleBack(slot.id, e)}
+                        >
+                          ← Back
+                        </button>
+                      </div>
+                    )}
+
+                    {/* STAGE: Signal */}
+                    {setup.stage === 'signal' && (
+                      <div className="slot-wizard-content">
+                        <div className="slot-wizard-title">Signal Type</div>
+                        <div className="slot-wizard-options slot-wizard-options-grid">
+                          {SIGNALS.map(s => (
+                            <button
+                              key={s.value}
+                              className="slot-wizard-option slot-wizard-option-sm"
+                              onClick={(e) => handleSignalSelect(slot.id, s.value, e)}
+                            >
+                              <span className="slot-wizard-option-icon">{s.icon}</span>
+                              <span>{s.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          className="slot-wizard-btn slot-wizard-btn-ghost"
+                          onClick={(e) => handleBack(slot.id, e)}
+                        >
+                          ← Back
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 ) : (
+                  /* ════ DEFAULT AVAILABLE STATE ════ */
                   <div className="slot-available-state">
                     <div className="slot-available-label">AVAILABLE</div>
                     {slot.suggestion && (
@@ -136,6 +331,10 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   {slot.active ? (
                     <span className={`slot-tag active-tag ${statusCls}`}>
                       {statusText}
+                    </span>
+                  ) : inSetup ? (
+                    <span className="slot-tag setup-tag">
+                      {setup.stage === 'connect' ? 'Setting up…' : setup.stage === 'role' ? 'Choose behavior' : 'Choose signal'}
                     </span>
                   ) : (
                     <span className="slot-tag available-tag">

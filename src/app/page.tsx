@@ -920,6 +920,18 @@ export default function Home() {
     log(`[${slotId}] Node role → ${role}`, 'info');
   }, [log]);
 
+  // Inline wizard complete — auto-connect + set role + signal on the slot
+  const handleSlotSetupComplete = useCallback((slotId: string, role: 'receive' | 'send' | 'two_way', signal: string) => {
+    // Set role + signal on the slot first
+    setSlots(prev => prev.map(s => {
+      if (s.id !== slotId) return s;
+      return { ...s, nodeRole: role, signalType: signal as FleetSlot['signalType'] };
+    }));
+    log(`[${slotId}] Setup complete: ${role} / ${signal}`, 'ok');
+    // Trigger connection
+    autoConnectSlot(slotId);
+  }, [log, autoConnectSlot]);
+
   // Initialize
   useEffect(() => {
     simulatorRef.current = new WSSimulator();
@@ -971,12 +983,25 @@ export default function Home() {
       selectSlot('krista1');
     }, 100);
 
+    // SD feed watchdog — keep krista1 alive 24/7. If it drops, reconnect after 10s.
+    const sdWatchdog = setInterval(() => {
+      const k1 = slotsRef.current.find(s => s.id === 'krista1');
+      if (!k1) return;
+      const conn = connectionsRef.current.get('krista1');
+      const isHealthy = k1.active && conn && k1.maestraStatus?.server === 'connected';
+      if (!isHealthy) {
+        console.log('[SD Watchdog] krista1 not healthy — reconnecting');
+        autoConnectSlot('krista1');
+      }
+    }, 10000);
+
     return () => {
       simulatorRef.current?.stop();
       if (wsRef.current) wsRef.current.close();
       if (wsReconnectTimerRef.current) clearTimeout(wsReconnectTimerRef.current);
       if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
       clearInterval(entityInterval);
+      clearInterval(sdWatchdog);
       connectionsRef.current.forEach(conn => conn.destroy());
       connectionsRef.current.clear();
     };
@@ -1027,6 +1052,7 @@ export default function Home() {
               onSelectSlot={selectSlot}
               onAddSlot={addSlot}
               onJoinNode={() => setJoinModalOpen(true)}
+              onSlotSetupComplete={handleSlotSetupComplete}
             />
 
             {/* Target selector for color/modulation sends */}
