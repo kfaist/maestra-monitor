@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FleetSlot, slotStatusLabel, slotStatusClass, formatAge } from '@/types';
 
-type InlineStage = 'idle' | 'connect' | 'role' | 'signal';
+type InlineStage = 'idle' | 'connect' | 'role' | 'signal' | 'reference';
 type NodeRole = 'receive' | 'send' | 'two_way';
 type SignalSource = 'touchdesigner' | 'json_stream' | 'osc' | 'audio_reactive' | 'text' | 'test_signal';
 
@@ -11,6 +11,8 @@ interface SlotSetup {
   stage: InlineStage;
   role: NodeRole | null;
   signal: SignalSource | null;
+  refPath: string;
+  refFile: string | null; // uploaded TOX filename
 }
 
 interface SlotGridProps {
@@ -83,7 +85,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     onSelectSlot(slot.id);
     setSetupState(prev => ({
       ...prev,
-      [slot.id]: { stage: 'connect', role: null, signal: null },
+      [slot.id]: { stage: 'connect', role: null, signal: null, refPath: 'project1/', refFile: null },
     }));
   }, [setupState, onSelectSlot]);
 
@@ -106,14 +108,36 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
 
   const handleSignalSelect = useCallback((slotId: string, signal: SignalSource, e: React.MouseEvent) => {
     e.stopPropagation();
-    const setup = setupState[slotId];
-    if (!setup?.role) return;
-    // Complete! Call parent handler
+    // Go to reference step instead of completing
     setSetupState(prev => ({
       ...prev,
-      [slotId]: { ...prev[slotId], signal, stage: 'idle' },
+      [slotId]: { ...prev[slotId], signal, stage: 'reference' },
     }));
-    onSlotSetupComplete?.(slotId, setup.role, signal);
+  }, []);
+
+  const handleRefPathChange = useCallback((slotId: string, path: string) => {
+    setSetupState(prev => ({
+      ...prev,
+      [slotId]: { ...prev[slotId], refPath: path },
+    }));
+  }, []);
+
+  const handleFileUpload = useCallback((slotId: string, file: File) => {
+    setSetupState(prev => ({
+      ...prev,
+      [slotId]: { ...prev[slotId], refFile: file.name },
+    }));
+  }, []);
+
+  const handleReferenceComplete = useCallback((slotId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const setup = setupState[slotId];
+    if (!setup?.role || !setup?.signal) return;
+    setSetupState(prev => ({
+      ...prev,
+      [slotId]: { ...prev[slotId], stage: 'idle' },
+    }));
+    onSlotSetupComplete?.(slotId, setup.role, setup.signal);
   }, [setupState, onSlotSetupComplete]);
 
   const handleBack = useCallback((slotId: string, e: React.MouseEvent) => {
@@ -121,6 +145,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     setSetupState(prev => {
       const current = prev[slotId];
       if (!current) return prev;
+      if (current.stage === 'reference') return { ...prev, [slotId]: { ...current, stage: 'signal', signal: null } };
       if (current.stage === 'signal') return { ...prev, [slotId]: { ...current, stage: 'role', role: null } };
       if (current.stage === 'role') return { ...prev, [slotId]: { ...current, stage: 'connect' } };
       // 'connect' stage — cancel setup
@@ -226,13 +251,15 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                 ) : inSetup ? (
                   /* ════ INLINE SETUP WIZARD ════ */
                   <div className="slot-inline-wizard">
-                    {/* Step indicator */}
+                    {/* Step indicator — 4 steps */}
                     <div className="slot-wizard-steps">
                       <span className={`slot-wizard-dot ${setup.stage === 'connect' ? 'active' : 'done'}`} />
                       <span className="slot-wizard-line" />
-                      <span className={`slot-wizard-dot ${setup.stage === 'role' ? 'active' : setup.stage === 'signal' ? 'done' : ''}`} />
+                      <span className={`slot-wizard-dot ${setup.stage === 'role' ? 'active' : (setup.stage === 'signal' || setup.stage === 'reference') ? 'done' : ''}`} />
                       <span className="slot-wizard-line" />
-                      <span className={`slot-wizard-dot ${setup.stage === 'signal' ? 'active' : ''}`} />
+                      <span className={`slot-wizard-dot ${setup.stage === 'signal' ? 'active' : setup.stage === 'reference' ? 'done' : ''}`} />
+                      <span className="slot-wizard-line" />
+                      <span className={`slot-wizard-dot ${setup.stage === 'reference' ? 'active' : ''}`} />
                     </div>
 
                     {/* STAGE: Connect */}
@@ -302,6 +329,67 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         >
                           ← Back
                         </button>
+                      </div>
+                    )}
+
+                    {/* STAGE: Reference — upload file or enter local path */}
+                    {setup.stage === 'reference' && (
+                      <div className="slot-wizard-content">
+                        <div className="slot-wizard-title">Source File</div>
+
+                        {/* Upload button */}
+                        <label
+                          className="slot-wizard-btn slot-wizard-btn-primary"
+                          style={{ cursor: 'pointer', textAlign: 'center', position: 'relative' }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span style={{ fontSize: 11 }}>↑</span>
+                          {setup.refFile ? setup.refFile : 'Upload File'}
+                          <input
+                            type="file"
+                            accept=".tox,.wav,.mp3,.mp4,.mov,.json,.txt,.py,.obj,.fbx,.glb,.gltf,.hdr,.exr,.png,.jpg,.jpeg,.gif,.svg"
+                            style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              if (f) handleFileUpload(slot.id, f);
+                            }}
+                          />
+                        </label>
+
+                        {/* Or: local path */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%', fontSize: 8, color: '#666' }}>
+                          <span style={{ flex: '0 0 auto' }}>or path:</span>
+                          <input
+                            type="text"
+                            value={setup.refPath}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => handleRefPathChange(slot.id, e.target.value)}
+                            placeholder="project1/myfile.tox"
+                            style={{
+                              flex: 1, padding: '2px 5px', fontSize: 9,
+                              fontFamily: "'JetBrains Mono', monospace",
+                              background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)',
+                              borderRadius: 2, color: '#a78bfa', outline: 'none', minWidth: 0,
+                            }}
+                          />
+                        </div>
+
+                        {/* Go / Skip */}
+                        <div style={{ display: 'flex', gap: 6, width: '100%' }}>
+                          <button
+                            className="slot-wizard-btn slot-wizard-btn-ghost"
+                            onClick={(e) => handleBack(slot.id, e)}
+                          >
+                            ← Back
+                          </button>
+                          <button
+                            className="slot-wizard-btn slot-wizard-btn-primary"
+                            style={{ flex: 1 }}
+                            onClick={(e) => handleReferenceComplete(slot.id, e)}
+                          >
+                            {setup.refFile ? 'Connect' : 'Skip'}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

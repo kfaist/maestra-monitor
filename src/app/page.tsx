@@ -1049,7 +1049,7 @@ export default function Home() {
       {/* DASHBOARD TAB */}
       <div className={`tab-content ${activeTab === 'dashboard' ? 'active' : ''}`}>
 
-        {/* ═══ TOP: Audio Analysis + Transcription + Prompt — center stage ═══ */}
+        {/* ═══ TOP: Transcription + Prompt — center stage ═══ */}
         <div className="command-bar">
           <SignalPanel
             injectActive={injectActive}
@@ -1059,7 +1059,6 @@ export default function Home() {
             onBroadcast={broadcastPrompt}
             onP6Flush={p6Flush}
           />
-          <AudioAnalysis audioData={audioData} onSendAudio={sendToTarget} />
         </div>
 
         <div className="fleet-layout">
@@ -1073,6 +1072,8 @@ export default function Home() {
               onJoinNode={() => setJoinModalOpen(true)}
               onSlotSetupComplete={handleSlotSetupComplete}
             />
+
+            <AudioAnalysis audioData={audioData} onSendAudio={sendToTarget} />
 
             {/* Target selector for color/modulation sends */}
             <div className="send-target-bar">
