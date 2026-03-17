@@ -822,6 +822,10 @@ export default function Home() {
   }, []); // no selectedId dep — uses ref
 
   // Relay webcam frame data (base64 JPEG) via WS + HTTP to backend
+  // Throttle HTTP relay for webcam — one POST at a time, skip if previous still in flight
+  const webcamHttpPostingRef = useRef(false);
+  const webcamFirstRelayRef = useRef(false);
+
   const handleWebcamFrameData = useCallback((base64: string) => {
     const slotId = webcamSlotRef.current || selectedIdRef.current || 'krista1';
     const conn = connectionsRef.current.get(slotId);
@@ -829,28 +833,38 @@ export default function Home() {
     const entityId = conn?.entityId || slot?.entity_id || slotId;
     const ts = Date.now();
 
-    // WS relay
+    // Log first relay so we know the pipe is working
+    if (!webcamFirstRelayRef.current) {
+      webcamFirstRelayRef.current = true;
+      console.log(`[Webcam Relay] First frame → entity ${entityId} (${base64.length} chars b64)`);
+    }
+
+    // WS relay — fast, every frame
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: 'stream_frame',
         entity_id: entityId,
-        data: { frame: base64, format: 'jpeg' },
+        data: { frame: base64, format: 'jpeg', source: 'webcam' },
         timestamp: ts,
       }));
     }
 
-    // HTTP relay — POST to entity state endpoint
-    fetch(`${API_BASE}/entities/${entityId}/state`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'stream_frame',
-        frame: base64,
-        format: 'jpeg',
-        source: 'webcam',
-        timestamp: ts,
-      }),
-    }).catch(() => {});
+    // HTTP relay — throttled, one POST at a time to avoid flooding
+    if (!webcamHttpPostingRef.current) {
+      webcamHttpPostingRef.current = true;
+      fetch(`${API_BASE}/entities/${entityId}/state`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'stream_frame',
+          entity_id: entityId,
+          frame: base64,
+          format: 'jpeg',
+          source: 'webcam',
+          timestamp: ts,
+        }),
+      }).catch(() => {}).finally(() => { webcamHttpPostingRef.current = false; });
+    }
 
     // Bump relay counter
     frameRelayCountRef.current++;

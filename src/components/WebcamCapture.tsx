@@ -38,7 +38,7 @@ export default function WebcamCapture({
   const [resolution, setResolution] = useState({ w: 0, h: 0 });
   const [fps, setFps] = useState(0);
   const [frameCount, setFrameCount] = useState(0);
-  const [relayEnabled, setRelayEnabled] = useState(false);
+  const [relayEnabled, setRelayEnabled] = useState(true); // WS+HTTP relay to Maestra backend — ON by default
   const [tdRelayActive, setTdRelayActive] = useState(true); // POST frames to /api/frame/browser for TD
   const [tdRelayStatus, setTdRelayStatus] = useState<'idle' | 'ok' | 'err'>('idle');
 
