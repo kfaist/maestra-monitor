@@ -20,6 +20,11 @@ interface InjectState {
   value: string;
 }
 
+interface SourceState {
+  path: string;
+  fileName: string | null;
+}
+
 interface SlotGridProps {
   slots: FleetSlot[];
   selectedId: string | null;
@@ -28,6 +33,7 @@ interface SlotGridProps {
   onJoinNode: () => void;
   onSlotSetupComplete?: (slotId: string, role: NodeRole, signal: SignalSource) => void;
   onInjectSignal?: (slotId: string, field: string, value: string) => void;
+  onSourceUpdate?: (slotId: string, path: string, fileName: string | null) => void;
   eventEntries?: EventEntry[];
 }
 
@@ -74,12 +80,13 @@ function getListeningSignals(slot: FleetSlot): string[] {
   return ['prompt.keyword', 'lighting.scene'];
 }
 
-export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, onJoinNode, onSlotSetupComplete, onInjectSignal, eventEntries = [] }: SlotGridProps) {
+export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, onJoinNode, onSlotSetupComplete, onInjectSignal, onSourceUpdate, eventEntries = [] }: SlotGridProps) {
   const activeCount = slots.filter(s => s.active).length;
   const hasActiveNodes = activeCount > 0;
 
   const [setupState, setSetupState] = useState<Record<string, SlotSetup>>({});
   const [injectState, setInjectState] = useState<Record<string, InjectState>>({});
+  const [sourceState, setSourceState] = useState<Record<string, SourceState>>({});
 
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -200,6 +207,17 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     setInjectState(prev => ({ ...prev, [slotId]: { ...prev[slotId], value: '' } }));
   }, [injectState, onInjectSignal]);
 
+  // ═══ Source/Reference handlers ═══
+  const handleSourcePathChange = useCallback((slotId: string, path: string) => {
+    setSourceState(prev => ({ ...prev, [slotId]: { ...prev[slotId] || { path: '', fileName: null }, path } }));
+    onSourceUpdate?.(slotId, path, sourceState[slotId]?.fileName || null);
+  }, [sourceState, onSourceUpdate]);
+
+  const handleSourceFileUpload = useCallback((slotId: string, file: File) => {
+    setSourceState(prev => ({ ...prev, [slotId]: { path: prev[slotId]?.path || '', fileName: file.name } }));
+    onSourceUpdate?.(slotId, sourceState[slotId]?.path || '', file.name);
+  }, [sourceState, onSourceUpdate]);
+
   return (
     <>
       <div className="panel-header">
@@ -249,6 +267,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
 
           // Inject state for this slot
           const inject = injectState[slot.id] || { field: 'audio.bpm', value: '' };
+          const source = sourceState[slot.id] || { path: 'project1/', fileName: null };
 
           // Publishing / listening signals
           const publishing = slot.active ? getPublishingSignals(slot) : [];
@@ -382,7 +401,40 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     </div>
                   </div>
 
-                  {/* ── Section 4: Recent Activity ── */}
+                  {/* ── Section 4: Source / Reference ── */}
+                  <div className="live-section">
+                    <div className="live-section-head">Source</div>
+                    <div className="live-source-form">
+                      {/* Upload */}
+                      <label className="live-source-upload" onClick={e => e.stopPropagation()}>
+                        <span className="live-source-upload-icon">↑</span>
+                        <span className="live-source-upload-text">{source.fileName || 'Upload .tox .toe .wav ...'}</span>
+                        <input
+                          type="file"
+                          accept=".tox,.toe,.wav,.mp3,.mp4,.mov,.json,.txt,.py,.obj,.fbx,.glb,.gltf,.hdr,.exr,.png,.jpg,.jpeg,.gif,.svg"
+                          style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
+                          onChange={e => {
+                            const f = e.target.files?.[0];
+                            if (f) handleSourceFileUpload(slot.id, f);
+                          }}
+                        />
+                      </label>
+                      {/* Local path */}
+                      <div className="live-inject-row">
+                        <span className="live-inject-label">path</span>
+                        <input
+                          className="live-inject-input"
+                          type="text"
+                          value={source.path}
+                          onClick={e => e.stopPropagation()}
+                          onChange={e => handleSourcePathChange(slot.id, e.target.value)}
+                          placeholder="project1/mynode.tox"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Section 5: Recent Activity ── */}
                   <div className="live-section">
                     <div className="live-section-head">Recent Activity</div>
                     <div className="live-activity-log">

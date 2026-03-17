@@ -7,7 +7,6 @@ import {
   Footer,
   SlotGrid,
   DetailPanel,
-  SignalPanel,
   AudioAnalysis,
   ColorPalette,
   ModulationGrid,
@@ -1120,7 +1119,8 @@ export default function Home() {
               eventEntries={eventEntries}
             />
 
-            <SignalPanel
+            <ScenePanel
+              onActivateScene={handleActivateScene}
               injectActive={injectActive}
               onInjectToggle={setInjectActive}
               promptText={promptText}
@@ -1128,8 +1128,6 @@ export default function Home() {
               onBroadcast={broadcastPrompt}
               onP6Flush={p6Flush}
             />
-
-            <ScenePanel onActivateScene={handleActivateScene} />
 
             {/* Target selector for color/modulation sends */}
             <div className="send-target-bar">
