@@ -822,6 +822,9 @@ export default function Home() {
   const webcamLastUpdateRef = useRef(0);
   const webcamLatestBlobRef = useRef<string | null>(null);
   const webcamSlotRef = useRef<string | null>(null); // tracks which slot "owns" the webcam
+  // Webcam entity-state throttle — push fps/resolution to entity state every ~1s
+  const webcamEntityStateRef = useRef(0);
+
   const handleWebcamFrame = useCallback((blobUrl: string, fps: number) => {
     const currentSelected = selectedIdRef.current || 'krista1';
     // Lock webcam to the first slot that started it — don't follow selection changes
@@ -841,7 +844,7 @@ export default function Home() {
     }
     webcamLatestBlobRef.current = blobUrl;
 
-    // Throttle React state updates to ~4fps (every 250ms) to prevent UI jitter
+    // Throttle React state updates to ~5fps (every 200ms) to prevent UI jitter
     const now = performance.now();
     if (now - webcamLastUpdateRef.current < 200) return;
     webcamLastUpdateRef.current = now;
@@ -862,12 +865,34 @@ export default function Home() {
       }
       return { ...s, frameUrl: blobUrl, fps: slotFps || fps, _frameTimes: times, _fpsSmooth: smooth };
     }));
-  }, []); // no selectedId dep — uses ref
+
+    // ── Push webcam stats into entity state every ~1s ──
+    const entityId = conn?.entityId || slot?.entity_id || slotId;
+    const nowMs = Date.now();
+    if (nowMs - webcamEntityStateRef.current > 1000) {
+      webcamEntityStateRef.current = nowMs;
+      const computedFps = fps || 0;
+      setEntityStates(prev => ({
+        ...prev,
+        [entityId]: {
+          ...(prev[entityId] || {}),
+          stream_source: 'webcam',
+          status: 'live',
+          fps: String(computedFps),
+          frames: String(frameRelayCountRef.current),
+        },
+      }));
+      pushBusEntry(`${entityId}.webcam_fps`, String(computedFps));
+    }
+  }, [pushBusEntry]); // uses refs for everything else
 
   // Relay webcam frame data (base64 JPEG) via WS + HTTP to backend
   // Throttle HTTP relay for webcam — one POST at a time, skip if previous still in flight
   const webcamHttpPostingRef = useRef(false);
   const webcamFirstRelayRef = useRef(false);
+
+  // Throttle webcam relay bus entries (~every 2s) — avoid flooding
+  const webcamRelayBusRef = useRef(0);
 
   const handleWebcamFrameData = useCallback((base64: string) => {
     const slotId = webcamSlotRef.current || selectedIdRef.current || 'krista1';
@@ -875,11 +900,13 @@ export default function Home() {
     const slot = slotsRef.current.find(s => s.id === slotId);
     const entityId = conn?.entityId || slot?.entity_id || slotId;
     const ts = Date.now();
+    const sizeKB = Math.round(base64.length / 1024);
 
     // Log first relay so we know the pipe is working
     if (!webcamFirstRelayRef.current) {
       webcamFirstRelayRef.current = true;
-      log(`[Webcam Relay] First frame → ${entityId} (${Math.round(base64.length / 1024)}KB b64)`, 'ok');
+      log(`[Webcam Relay] First frame → ${entityId} (${sizeKB}KB b64)`, 'ok');
+      pushBusEntry(`${entityId}.webcam`, 'stream_started');
     }
 
     // WS relay — fast, every frame
@@ -912,7 +939,22 @@ export default function Home() {
       frameRelayCountUpdateRef.current = ts;
       setFrameRelayCount(frameRelayCountRef.current);
     }
-  }, []); // no selectedId dep — uses ref
+
+    // Push relay stats to entity bus (throttled ~2s)
+    if (ts - webcamRelayBusRef.current > 2000) {
+      webcamRelayBusRef.current = ts;
+      pushBusEntry(`${entityId}.relay_frames`, String(frameRelayCountRef.current));
+      // Update entity state with relay info
+      setEntityStates(prev => ({
+        ...prev,
+        [entityId]: {
+          ...(prev[entityId] || {}),
+          relay_frames: String(frameRelayCountRef.current),
+          frame_size: `${sizeKB}KB`,
+        },
+      }));
+    }
+  }, [log, pushBusEntry]); // uses refs for everything else
 
   // When webcam activates — DON'T kill frame polling for other slots
   // fetchFrame already skips the webcam slot via webcamActiveRef check
@@ -934,15 +976,73 @@ export default function Home() {
         }));
       }
 
+      // ── Register webcam entity in the state system ──
+      const conn = connectionsRef.current.get(target);
+      const entityId = conn?.entityId || slot?.entity_id || target;
+      setEntityStates(prev => ({
+        ...prev,
+        [entityId]: {
+          ...(prev[entityId] || {}),
+          stream_source: 'webcam',
+          status: 'starting',
+          fps: '0',
+          frames: '0',
+          relay_frames: '0',
+        },
+      }));
+      pushBusEntry(`${entityId}.stream_source`, 'webcam');
+      pushBusEntry(`${entityId}.status`, 'starting');
+
+      // Publish webcam entity via WS so other nodes see it
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: 'state_update',
+          entity_id: entityId,
+          data: { stream_source: 'webcam', status: 'live', device: target },
+          timestamp: Date.now(),
+        }));
+      }
+
+      // Reset relay tracking for fresh session
+      webcamFirstRelayRef.current = false;
+      frameRelayCountRef.current = 0;
+      webcamEntityStateRef.current = 0;
+      webcamRelayBusRef.current = 0;
+
       log(`[Webcam] Started — streaming to ${target} (other slots still polling)`, 'ok');
       logEvent('stream', target, 'Webcam stream started');
     } else {
       const target = webcamSlotRef.current || 'krista1';
+      const slot = slotsRef.current.find(s => s.id === target);
+      const conn = connectionsRef.current.get(target);
+      const entityId = conn?.entityId || slot?.entity_id || target;
+
+      // ── Mark webcam stopped in entity state ──
+      setEntityStates(prev => ({
+        ...prev,
+        [entityId]: {
+          ...(prev[entityId] || {}),
+          status: 'stopped',
+          stream_source: 'webcam (off)',
+        },
+      }));
+      pushBusEntry(`${entityId}.webcam`, 'stream_stopped');
+
+      // Notify backend
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: 'state_update',
+          entity_id: entityId,
+          data: { stream_source: 'none', status: 'idle', device: target },
+          timestamp: Date.now(),
+        }));
+      }
+
       webcamSlotRef.current = null; // release lock
       log('[Webcam] Stopped', 'info');
       logEvent('stream', target, 'Webcam stream stopped');
     }
-  }, [log, logEvent]);
+  }, [log, logEvent, pushBusEntry]);
 
   // Cycle to cloud nodes
   const cycleStreamSource = useCallback(() => {
