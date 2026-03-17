@@ -1,11 +1,20 @@
 import { FleetSlot } from '@/types';
 import { SUGGESTIONS } from './suggestions';
 
+/** Descriptive sub-labels derived from suggestion context */
+const SLOT_DESCRIPTORS: { label: string; entityId: string; suggestion: typeof SUGGESTIONS[number] }[] = [
+  { label: 'Operator', entityId: 'visual_secondary', suggestion: SUGGESTIONS[0] },       // Second Screen / TD
+  { label: 'Scope', entityId: 'scope_render', suggestion: SUGGESTIONS[1] },               // Scope Node
+  { label: 'Audio Reactive', entityId: 'audio_reactive', suggestion: SUGGESTIONS[2] },    // Max/MSP
+  { label: 'Monitor', entityId: 'monitor_station', suggestion: SUGGESTIONS[3] },           // Browser
+  { label: 'Standby', entityId: 'standby_node', suggestion: SUGGESTIONS[4] },              // Warm standby
+];
+
 export function createInitialSlots(): FleetSlot[] {
   return [
     {
       id: 'krista1',
-      label: 'Krista1',
+      label: 'Visual Engine',
       entity_id: 'krista1_visual',
       endpoint: null,
       active: false,
@@ -20,10 +29,10 @@ export function createInitialSlots(): FleetSlot[] {
       _frameTimes: [],
       _fpsSmooth: null,
     },
-    ...Array.from({ length: 5 }, (_, i) => ({
+    ...SLOT_DESCRIPTORS.map((desc, i) => ({
       id: `slot${i + 2}`,
-      label: `Slot ${i + 2}`,
-      entity_id: null,
+      label: desc.label,
+      entity_id: null as string | null,
       endpoint: null,
       active: false,
       fps: null,
@@ -33,8 +42,8 @@ export function createInitialSlots(): FleetSlot[] {
       last_heartbeat: null,
       active_stream: null,
       state_summary: {},
-      suggestion: SUGGESTIONS[i % SUGGESTIONS.length],
-      _frameTimes: [],
+      suggestion: desc.suggestion,
+      _frameTimes: [] as number[],
       _fpsSmooth: null,
     })),
   ];

@@ -20,6 +20,7 @@ import {
 } from '@/components';
 import { JoinMaestraResult } from '@/components/JoinModal';
 import { SceneDefinition } from '@/components/ScenePanel';
+import { EntityBusEntry } from '@/components/DetailPanel';
 import { FleetSlot, LogEntry, EventEntry, AudioAnalysisData, SlotConnectionInfo, MaestraSlotStatus, defaultSlotStatus } from '@/types';
 import { createInitialSlots, SUGGESTIONS } from '@/mock';
 import { WSSimulator } from '@/mock/ws-simulator';
@@ -49,6 +50,7 @@ export default function Home() {
   });
   const [connectionInfo, setConnectionInfo] = useState<SlotConnectionInfo | null>(null);
   const [joinModalOpen, setJoinModalOpen] = useState(false);
+  const [entityBus, setEntityBus] = useState<EntityBusEntry[]>([]);
 
   // Lifted inject state
   const [injectActive, setInjectActive] = useState(false);
@@ -95,6 +97,16 @@ export default function Home() {
       const entry: EventEntry = { timestamp: formatTimestamp(), eventType, entityId, message };
       const next = [entry, ...prev];
       if (next.length > 20) next.length = 20;
+      return next;
+    });
+  }, []);
+
+  // Entity bus — live signal stream
+  const pushBusEntry = useCallback((key: string, value: string) => {
+    setEntityBus(prev => {
+      const entry: EntityBusEntry = { timestamp: formatTimestamp(), key, value };
+      const next = [entry, ...prev];
+      if (next.length > 30) next.length = 30;
       return next;
     });
   }, []);
@@ -464,6 +476,12 @@ export default function Home() {
               }
             });
             log(`State update from ${msg.entity_id}: ${JSON.stringify(msg.data).slice(0, 60)}`, 'info');
+            // Push to entity bus
+            if (msg.data && typeof msg.data === 'object') {
+              Object.entries(msg.data as Record<string, unknown>).forEach(([k, v]) => {
+                pushBusEntry(`${msg.entity_id}.${k}`, String(v));
+              });
+            }
             return;
           }
           // Route stream events
@@ -935,7 +953,8 @@ export default function Home() {
     }
     log(`[${slotId}] Injected ${field} = ${value}`, 'ok');
     logEvent('state', entityId, `${field} injected → ${value}`);
-  }, [log, logEvent]);
+    pushBusEntry(`${entityId}.${field}`, value);
+  }, [log, logEvent, pushBusEntry]);
 
   // ═══ Scene activation — publish scene state to all listeners ═══
   const handleActivateScene = useCallback((scene: SceneDefinition) => {
@@ -945,7 +964,11 @@ export default function Home() {
     }
     log(`Scene activated: ${scene.label}`, 'ok');
     logEvent('state', 'scene_controller', `Scene → ${scene.label}`);
-  }, [log, logEvent]);
+    // Push each scene state key to the entity bus
+    Object.entries(scene.state).forEach(([k, v]) => {
+      pushBusEntry(`scene.${k}`, String(v));
+    });
+  }, [log, logEvent, pushBusEntry]);
 
   // Initialize
   useEffect(() => {
@@ -953,6 +976,11 @@ export default function Home() {
     simulatorRef.current.subscribe((event) => {
       if (event.type === 'audio_analysis' && event.data) {
         setAudioData(event.data as unknown as AudioAnalysisData);
+        // Push a few key audio signals to entity bus (throttled — only bpm/bass/rms)
+        const ad = event.data as Record<string, unknown>;
+        if (ad.bpm !== undefined) pushBusEntry('audio_reactive.bpm', String(ad.bpm));
+        if (ad.bass !== undefined) pushBusEntry('audio_reactive.bass', String(((ad.bass as number) / 100).toFixed(2)));
+        if (ad.rms !== undefined) pushBusEntry('audio_reactive.rms', String(ad.rms));
       }
       if (event.type === 'entity_connected') {
         // Route to the matching connection by entityId (not slotId)
@@ -1152,6 +1180,7 @@ export default function Home() {
             remoteEntities={remoteEntityList}
             onSignalTypeChange={handleSignalTypeChange}
             onNodeRoleChange={handleNodeRoleChange}
+            entityBus={entityBus}
           />
         </div>
 

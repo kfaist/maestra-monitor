@@ -8,6 +8,12 @@ import TDConnectGuide from './TDConnectGuide';
 import WebcamCapture from './WebcamCapture';
 import WSLog from './WSLog';
 
+export interface EntityBusEntry {
+  timestamp: string;
+  key: string;
+  value: string;
+}
+
 interface DetailPanelProps {
   slot: FleetSlot | null;
   logEntries: LogEntry[];
@@ -29,6 +35,7 @@ interface DetailPanelProps {
   remoteEntities?: string[];
   onSignalTypeChange?: (source: string) => void;
   onNodeRoleChange?: (role: 'receive' | 'send' | 'two_way') => void;
+  entityBus?: EntityBusEntry[];
 }
 
 export default function DetailPanel({
@@ -52,6 +59,7 @@ export default function DetailPanel({
   remoteEntities,
   onSignalTypeChange,
   onNodeRoleChange,
+  entityBus = [],
 }: DetailPanelProps) {
   const hasRemoteFrame = slot?.active && slot.frameUrl && !webcamActive;
   const isSlotActive = slot?.active ?? false;
@@ -189,6 +197,24 @@ export default function DetailPanel({
           onRoleChange={onNodeRoleChange}
         />
       )}
+
+      {/* ═══ LIVE ENTITY BUS ═══ */}
+      <div className="entity-bus">
+        <div className="entity-bus-title">// Live Entity Bus</div>
+        <div className="entity-bus-inner">
+          {entityBus.length === 0 ? (
+            <div className="entity-bus-empty">Waiting for signals…</div>
+          ) : (
+            entityBus.map((entry, i) => (
+              <div key={i} className="entity-bus-row">
+                <span className="entity-bus-key">{entry.key}</span>
+                <span className="entity-bus-arrow">→</span>
+                <span className="entity-bus-val">{entry.value}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
 
       {/* Event Log */}
       <div className="event-log">

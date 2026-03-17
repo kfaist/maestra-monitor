@@ -20,6 +20,13 @@
   --active: #00ff88;
   --warn: #ff6b35;
   --slot-empty: #0a0f15;
+  /* Signal type colors — encode media type in hue */
+  --sig-visual: #d946ef;
+  --sig-audio: #f59e0b;
+  --sig-json: #38bdf8;
+  --sig-text: #22c55e;
+  --sig-osc: #14b8a6;
+  --sig-test: #6b7280;
   --font-mono: 'JetBrains Mono', monospace;
   --font-display: 'Space Mono', monospace;
   --font: var(--font-mono);
@@ -345,6 +352,21 @@ header {
 .td-role-desc { font-size: 10px; color: var(--text-dim); line-height: 1.5; flex: 1; }
 
 /* EVENT LOG */
+/* ═══ LIVE ENTITY BUS ═══ */
+.entity-bus { border-top: 1px solid var(--border); padding: 10px 16px; flex-shrink: 0; }
+.entity-bus-title { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+.entity-bus-inner { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.entity-bus-empty { font-size: 9px; color: var(--text-dim); opacity: 0.4; font-style: italic; }
+.entity-bus-row {
+  display: flex; align-items: center; gap: 5px; padding: 2px 0;
+  font-family: 'JetBrains Mono', monospace; font-size: 9px; line-height: 1.4;
+  animation: busFadeIn 0.3s ease;
+}
+@keyframes busFadeIn { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }
+.entity-bus-key { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.entity-bus-arrow { color: var(--text-dim); opacity: 0.4; flex-shrink: 0; }
+.entity-bus-val { color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 .event-log { border-top: 1px solid var(--border); padding: 10px 16px; flex-shrink: 0; }
 .event-log-title { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
 .event-log-inner { }
@@ -483,6 +505,7 @@ header {
 .slot-wizard-content { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; animation: wizardFadeIn 0.2s ease; }
 @keyframes wizardFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 .slot-wizard-title { font-family: var(--font-display); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.slot-wizard-hint { font-size: 8px; color: var(--text-dim); opacity: 0.7; text-align: center; line-height: 1.3; max-width: 90%; }
 .slot-wizard-btn { font-family: var(--font-display); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; padding: 6px 14px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: var(--text-dim); cursor: pointer; transition: all 0.15s ease; }
 .slot-wizard-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
 .slot-wizard-btn-primary { background: rgba(0,212,255,0.2); border-color: rgba(0,212,255,0.5); color: #fff; display: flex; align-items: center; gap: 6px; }
@@ -492,7 +515,7 @@ header {
 .slot-wizard-options { display: flex; gap: 5px; width: 100%; }
 .slot-wizard-options-grid { flex-wrap: wrap; justify-content: center; }
 .slot-wizard-option { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; padding: 5px 6px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); cursor: pointer; font-family: var(--font-display); font-size: 9px; font-weight: 600; color: var(--text-dim); letter-spacing: 0.03em; transition: all 0.15s ease; white-space: nowrap; justify-content: center; }
-.slot-wizard-option:hover { background: rgba(255,255,255,0.08); color: var(--text); border-color: rgba(255,255,255,0.15); }
+.slot-wizard-option:hover { background: rgba(255,255,255,0.08); color: var(--text); border-color: var(--opt-color, rgba(255,255,255,0.15)); }
 .slot-wizard-option:hover .slot-wizard-option-icon { color: var(--opt-color, var(--accent)); }
 .slot-wizard-option-icon { font-size: 11px; color: rgba(255,255,255,0.3); transition: color 0.15s ease; }
 .slot-wizard-option-sm { flex: 0 0 calc(33.33% - 4px); min-width: 0; padding: 4px 4px; font-size: 8px; }
@@ -511,9 +534,30 @@ header {
 .suggestion-tag.max { background: rgba(251,191,36,0.1); color: var(--amber); border: 1px solid rgba(251,191,36,0.15); }
 .suggestion-tag.browser { background: rgba(0,255,136,0.1); color: var(--active); border: 1px solid rgba(0,255,136,0.15); }
 
-.slot-footer { padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border); }
+.slot-footer { padding: 8px 10px; display: flex; align-items: flex-start; justify-content: space-between; border-top: 1px solid var(--border); gap: 6px; }
+.slot-footer-left { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
 .slot-label { font-family: var(--font-display); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--text); transition: color 0.2s; }
-.slot-meta { display: flex; align-items: center; gap: 6px; }
+.slot-label-id { color: var(--text-dim); font-weight: 600; }
+.slot-label-sep { color: var(--text-dim); opacity: 0.4; }
+.slot-label-name { color: var(--text); }
+.slot.active-slot .slot-label-name { color: var(--active); }
+
+/* Entity ID tag under slot label */
+.slot-entity-tag { display: flex; align-items: center; gap: 4px; }
+.slot-entity-label { font-family: var(--font-display); font-size: 7px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--text-dim); opacity: 0.5; }
+.slot-entity-id { font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--accent); opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* State badge for active slots */
+.slot-state-badge {
+  font-family: var(--font-display); font-size: 8px; font-weight: 800; letter-spacing: .12em;
+  text-transform: uppercase; padding: 2px 8px; border-radius: 2px; white-space: nowrap;
+}
+.slot-state-badge.badge-active { background: rgba(0,255,136,0.15); color: var(--active); border: 1px solid rgba(0,255,136,0.3); }
+.slot-state-badge.badge-streaming { background: rgba(0,120,255,0.15); color: #60a5fa; border: 1px solid rgba(0,120,255,0.3); }
+.slot-state-badge.badge-paused { background: rgba(251,191,36,0.12); color: var(--amber); border: 1px solid rgba(251,191,36,0.3); }
+.slot-state-badge.badge-monitor { background: rgba(0,212,255,0.1); color: var(--accent); border: 1px solid rgba(0,212,255,0.25); }
+
+.slot-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
 .slot-fps { font-size: 9px; color: var(--text-dim); letter-spacing: 0.05em; font-variant-numeric: tabular-nums; }
 .slot-tag { font-size: 9px; letter-spacing: 0.1em; padding: 2px 6px; border-radius: 2px; text-transform: uppercase; font-weight: 700; min-width: 70px; text-align: center; }
 .slot-tag.active-tag { background: rgba(0,255,136,0.12); color: var(--active); border: 1px solid rgba(0,255,136,0.3); }
@@ -523,6 +567,27 @@ header {
 .slot:not(.active-slot):hover { border-color: rgba(0,212,255,0.6); box-shadow: 0 0 24px rgba(0,212,255,0.2); }
 .slot:not(.active-slot):hover .slot-label { color: var(--accent); }
 .slot.selected .slot-label { color: var(--accent); }
+
+/* Signal-type colored borders — glow in the signal's color */
+.slot[data-signal="touchdesigner"] { border-color: rgba(217,70,239,0.5); box-shadow: 0 0 16px rgba(217,70,239,0.2), 0 0 0 1px rgba(217,70,239,0.3); }
+.slot[data-signal="touchdesigner"] .slot-label-name { color: var(--sig-visual); }
+.slot[data-signal="audio_reactive"] { border-color: rgba(245,158,11,0.5); box-shadow: 0 0 16px rgba(245,158,11,0.2), 0 0 0 1px rgba(245,158,11,0.3); }
+.slot[data-signal="audio_reactive"] .slot-label-name { color: var(--sig-audio); }
+.slot[data-signal="json_stream"] { border-color: rgba(56,189,248,0.5); box-shadow: 0 0 16px rgba(56,189,248,0.2), 0 0 0 1px rgba(56,189,248,0.3); }
+.slot[data-signal="json_stream"] .slot-label-name { color: var(--sig-json); }
+.slot[data-signal="text"] { border-color: rgba(34,197,94,0.5); box-shadow: 0 0 16px rgba(34,197,94,0.2), 0 0 0 1px rgba(34,197,94,0.3); }
+.slot[data-signal="text"] .slot-label-name { color: var(--sig-text); }
+.slot[data-signal="osc"] { border-color: rgba(20,184,166,0.5); box-shadow: 0 0 16px rgba(20,184,166,0.2), 0 0 0 1px rgba(20,184,166,0.3); }
+.slot[data-signal="osc"] .slot-label-name { color: var(--sig-osc); }
+.slot[data-signal="test_signal"] { border-color: rgba(107,114,128,0.4); box-shadow: 0 0 10px rgba(107,114,128,0.15); }
+.slot[data-signal="test_signal"] .slot-label-name { color: var(--sig-test); }
+/* Override entity ID color to match signal */
+.slot[data-signal="touchdesigner"] .slot-entity-id { color: var(--sig-visual); }
+.slot[data-signal="audio_reactive"] .slot-entity-id { color: var(--sig-audio); }
+.slot[data-signal="json_stream"] .slot-entity-id { color: var(--sig-json); }
+.slot[data-signal="text"] .slot-entity-id { color: var(--sig-text); }
+.slot[data-signal="osc"] .slot-entity-id { color: var(--sig-osc); }
+.slot[data-signal="test_signal"] .slot-entity-id { color: var(--sig-test); }
 
 .slot.cloud-node { border-color: rgba(0,212,255,0.45); box-shadow: inset 3px 0 0 var(--accent), 0 0 18px rgba(0,212,255,0.08); }
 .slot.cloud-node .slot-label { color: var(--accent); }

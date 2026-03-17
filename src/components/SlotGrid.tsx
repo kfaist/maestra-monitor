@@ -37,13 +37,13 @@ const ROLES: { value: NodeRole; label: string; icon: string; color: string }[] =
   { value: 'two_way', label: 'Both', icon: '↕', color: '#fbbf24' },
 ];
 
-const SIGNALS: { value: SignalSource; label: string; icon: string }[] = [
-  { value: 'touchdesigner', label: 'Visual', icon: '◆' },
-  { value: 'audio_reactive', label: 'Audio', icon: '♫' },
-  { value: 'json_stream', label: 'JSON', icon: '{}' },
-  { value: 'text', label: 'Text', icon: 'A' },
-  { value: 'osc', label: 'OSC', icon: '~' },
-  { value: 'test_signal', label: 'Test', icon: '▶' },
+const SIGNALS: { value: SignalSource; label: string; icon: string; color: string; refHint: string }[] = [
+  { value: 'touchdesigner', label: 'Visual', icon: '◆', color: '#d946ef', refHint: 'Select the TOP that will be streamed' },
+  { value: 'audio_reactive', label: 'Audio', icon: '♫', color: '#f59e0b', refHint: 'Select the CHOP that publishes analysis' },
+  { value: 'json_stream', label: 'JSON', icon: '{}', color: '#38bdf8', refHint: 'Point to the DAT or script that emits JSON' },
+  { value: 'text', label: 'Text', icon: 'A', color: '#22c55e', refHint: 'Enter the text source DAT path' },
+  { value: 'osc', label: 'OSC', icon: '~', color: '#14b8a6', refHint: 'Configure the OSC In CHOP path' },
+  { value: 'test_signal', label: 'Test', icon: '▶', color: '#6b7280', refHint: 'No operator needed — test pattern generated' },
 ];
 
 /** Derive publishing signals from signal type */
@@ -254,6 +254,16 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
           const publishing = slot.active ? getPublishingSignals(slot) : [];
           const listening = slot.active ? getListeningSignals(slot) : [];
 
+          // Derive state badge
+          const stateBadge = (() => {
+            if (!slot.active) return { text: '', cls: '' };
+            if (mStatus?.stream === 'live') return { text: 'STREAMING', cls: 'badge-streaming' };
+            if (mStatus?.heartbeat === 'live' || mStatus?.stateSync === 'active') return { text: 'ACTIVE', cls: 'badge-active' };
+            if (mStatus?.heartbeat === 'stale' || mStatus?.heartbeat === 'lost') return { text: 'PAUSED', cls: 'badge-paused' };
+            if (slot.nodeRole === 'receive') return { text: 'MONITOR', cls: 'badge-monitor' };
+            return { text: 'ACTIVE', cls: 'badge-active' };
+          })();
+
           return (
             <div
               key={slot.id}
@@ -265,6 +275,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                 inSetup ? 'setup-mode' : '',
                 slot.active ? 'live-mode' : '',
               ].filter(Boolean).join(' ')}
+              data-signal={slot.signalType || undefined}
               onClick={() => handleSlotClick(slot)}
             >
               {/* ═══════ ACTIVE SLOT: LIVE NODE PANEL ═══════ */}
@@ -451,15 +462,16 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       {/* STAGE: Signal */}
                       {setup.stage === 'signal' && (
                         <div className="slot-wizard-content">
-                          <div className="slot-wizard-title">Signal Type</div>
+                          <div className="slot-wizard-title">This Node Sends</div>
                           <div className="slot-wizard-options slot-wizard-options-grid">
                             {SIGNALS.map(s => (
                               <button
                                 key={s.value}
                                 className="slot-wizard-option slot-wizard-option-sm"
+                                style={{ '--opt-color': s.color } as React.CSSProperties}
                                 onClick={(e) => handleSignalSelect(slot.id, s.value, e)}
                               >
-                                <span className="slot-wizard-option-icon">{s.icon}</span>
+                                <span className="slot-wizard-option-icon" style={{ color: s.color }}>{s.icon}</span>
                                 <span>{s.label}</span>
                               </button>
                             ))}
@@ -476,7 +488,10 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       {/* STAGE: Reference */}
                       {setup.stage === 'reference' && (
                         <div className="slot-wizard-content">
-                          <div className="slot-wizard-title">Source File</div>
+                          <div className="slot-wizard-title">Connect Your Output</div>
+                          <div className="slot-wizard-hint">
+                            {SIGNALS.find(s => s.value === setup.signal)?.refHint || 'Select the operator or file'}
+                          </div>
                           <label
                             className="slot-wizard-btn slot-wizard-btn-primary"
                             style={{ cursor: 'pointer', textAlign: 'center', position: 'relative' }}
@@ -545,7 +560,20 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
               )}
 
               <div className="slot-footer">
-                <div className="slot-label">{slot.label}</div>
+                <div className="slot-footer-left">
+                  <div className="slot-label">
+                    <span className="slot-label-id">Slot {slots.indexOf(slot) + 1}</span>
+                    <span className="slot-label-sep"> — </span>
+                    <span className="slot-label-name">{slot.label}</span>
+                  </div>
+                  {/* Entity ID tag */}
+                  {(slot.entity_id || slot.active) && (
+                    <div className="slot-entity-tag">
+                      <span className="slot-entity-label">ENTITY</span>
+                      <span className="slot-entity-id">{slot.entity_id || slot.id}</span>
+                    </div>
+                  )}
+                </div>
                 <div className="slot-meta">
                   <span className="slot-fps">
                     {slot.fps != null ? `${slot.fps}fps` : ''}
@@ -553,10 +581,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     {lastEventStr}
                   </span>
                   {slot.cloudNode && <span className="cloud-badge">&#x2601; Cloud</span>}
+                  {/* State badge for active slots */}
                   {slot.active ? (
-                    <span className={`slot-tag active-tag ${statusCls}`}>
-                      {statusText}
-                    </span>
+                    <span className={`slot-state-badge ${stateBadge.cls}`}>{stateBadge.text}</span>
                   ) : inSetup ? (
                     <span className="slot-tag setup-tag">
                       {setup.stage === 'connect' ? 'Setting up…' : setup.stage === 'role' ? 'Choose behavior' : 'Choose signal'}
