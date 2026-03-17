@@ -133,12 +133,16 @@ export default function Home() {
       };
     });
 
-    // Update slot in grid
+    // Update slot in grid — preserve stream status if incoming status has default 'none'
+    // (autoConnectSlot sets stream: 'advertised' before MaestraConnection emits its first status)
     setSlots(prev => prev.map(s => {
       if (s.id !== slotId) return s;
+      const mergedStream = status.stream === 'none' && s.maestraStatus?.stream && s.maestraStatus.stream !== 'none'
+        ? s.maestraStatus.stream
+        : status.stream;
       return {
         ...s,
-        maestraStatus: status,
+        maestraStatus: { ...status, stream: mergedStream },
         connection_status: status.server === 'connected' ? 'connected'
           : status.server === 'error' ? 'error'
           : status.server === 'connecting' ? 'connecting'
@@ -306,10 +310,11 @@ export default function Home() {
 
   const fetchFrame = useCallback(async () => {
     const currentSlots = slotsRef.current;
-    // Only fetch for slots that have a stream advertised or live (not just "active")
-    const streamingSlots = currentSlots.filter(s =>
-      s.active && s.maestraStatus && (s.maestraStatus.stream === 'live' || s.maestraStatus.stream === 'advertised')
-    );
+    // Fetch for slots that are streaming, OR krista1 which always streams SD
+    const streamingSlots = currentSlots.filter(s => {
+      if (s.id === 'krista1') return true; // always-on SD feed
+      return s.active && s.maestraStatus && (s.maestraStatus.stream === 'live' || s.maestraStatus.stream === 'advertised');
+    });
     if (streamingSlots.length === 0) return;
 
     for (const slot of streamingSlots) {
