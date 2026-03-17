@@ -53,12 +53,55 @@ export default function DetailPanel({
   onSignalTypeChange,
   onNodeRoleChange,
 }: DetailPanelProps) {
-  // Only show remote frame if the slot genuinely has a stream with frames — not just "active"
   const hasRemoteFrame = slot?.active && slot.frameUrl && !webcamActive;
-  // True stream = maestraStatus says stream is live/advertised, or we have actual frames
-  const hasRealStream = slot?.maestraStatus?.stream === 'live' || slot?.maestraStatus?.stream === 'advertised';
   const isSlotActive = slot?.active ?? false;
 
+  // For inactive slots: show the connect guide immediately, skip other panels
+  if (slot && !isSlotActive) {
+    return (
+      <div className="detail-panel">
+        {/* Compact header for the slot */}
+        <div className="detail-inactive-header">
+          <div className="detail-inactive-title">{slot.label}</div>
+          <span className="detail-inactive-badge">Available</span>
+        </div>
+
+        {/* Connect guide — front and center */}
+        <TDConnectGuide
+          slot={slot}
+          onConnect={onAutoConnect}
+          onReconnect={onAutoConnect}
+          onDisconnect={onDisconnect}
+          onSignalSourceChange={onSignalTypeChange ? (src) => onSignalTypeChange(src) : undefined}
+          onRoleChange={onNodeRoleChange}
+        />
+
+        {/* Event Log — collapsed at bottom */}
+        <div className="event-log">
+          <div className="event-log-title">// Event Log</div>
+          <div className="event-log-inner">
+            {eventEntries.length === 0 ? (
+              <div style={{ fontSize: '9px', color: 'var(--text-dim)', opacity: 0.4 }}>No events yet</div>
+            ) : (
+              eventEntries.map((evt, i) => (
+                <div key={i} className="event-line">
+                  <span className="event-time">[{evt.timestamp}]</span>
+                  <span className={`event-type ${evt.eventType}`}>
+                    {evt.eventType === 'connect' ? 'JOIN' : evt.eventType === 'disconnect' ? 'LEFT' : evt.eventType === 'state' ? 'STATE' : 'STREAM'}
+                  </span>
+                  <span className="event-msg">{evt.message}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <WSLog entries={logEntries} />
+      </div>
+    );
+  }
+
+  // Active slot or no slot selected — full panel
   return (
     <div className="detail-panel">
       {/* Video Preview */}
@@ -135,7 +178,7 @@ export default function DetailPanel({
         onUpdateConfig={onUpdateConfig}
       />
 
-      {/* TD Connect Guide — shown for active/selected slots */}
+      {/* TD Connect Guide — for active slots (setup wizard / live panel) */}
       {slot && (
         <TDConnectGuide
           slot={slot}
