@@ -452,93 +452,200 @@ export default function Home() {
         log('WebSocket connected', 'ok');
       };
 
+      // ── Shared handler for parsed JSON messages ──
+      const handleJsonMsg = (msg: Record<string, unknown>) => {
+        if (msg.type === 'audio_analysis') {
+          const { bands, stems, bpm } = msg as Record<string, Record<string, number> | number | undefined>;
+          if (bands || stems || bpm) {
+            const b = bands as Record<string, number> | undefined;
+            const s = stems as Record<string, number> | undefined;
+            setAudioData(prev => ({
+              ...prev,
+              ...(b ? { sub: b.sub || 0, bass: b.bass || 0, mid: b.mid || 0, high: b.high || 0 } : {}),
+              ...(s ? { drums: s.drums || 0, stemBass: s.bass || 0, melody: s.melody || 0, vocals: s.vocals || 0 } : {}),
+              ...(bpm ? { bpm: bpm as number } : {}),
+            }));
+          }
+          return;
+        }
+
+        // ── init: bootstrap entity list from backend ──
+        if (msg.type === 'init' && Array.isArray(msg.entities)) {
+          const entities = msg.entities as Array<Record<string, unknown>>;
+          log(`[WS] init — ${entities.length} entities from Maestra`, 'ok');
+          // Populate remote entity list with live/known entities
+          const liveIds = entities
+            .filter(e => e.name && e.status !== 'deleted')
+            .map(e => String(e.name || e.slug || e.id))
+            .slice(0, 50); // cap to avoid flooding
+          liveIds.forEach(id => remoteEntitiesRef.current.add(id));
+          setRemoteEntityList(Array.from(remoteEntitiesRef.current));
+          // Bootstrap entity state from entities that have state
+          const stateUpdates: Record<string, Record<string, string>> = {};
+          entities.forEach(e => {
+            const eid = String(e.name || e.slug || e.id);
+            const state = e.state as Record<string, unknown> | undefined;
+            if (state && Object.keys(state).length > 0) {
+              const flat: Record<string, string> = {};
+              Object.entries(state).forEach(([k, v]) => { flat[k] = String(v); });
+              stateUpdates[eid] = flat;
+            }
+          });
+          if (Object.keys(stateUpdates).length > 0) {
+            setEntityStates(prev => {
+              const next = { ...prev };
+              Object.entries(stateUpdates).forEach(([eid, s]) => {
+                next[eid] = { ...(next[eid] || {}), ...s };
+              });
+              return next;
+            });
+          }
+          pushBusEntry('maestra.init', `${entities.length} entities`);
+          return;
+        }
+
+        // Track remote entity IDs (TD nodes, etc.) from any event
+        if (msg.entity_id) {
+          const eid = String(msg.entity_id);
+          if (!remoteEntitiesRef.current.has(eid)) {
+            remoteEntitiesRef.current.add(eid);
+            setRemoteEntityList(Array.from(remoteEntitiesRef.current));
+          }
+        }
+
+        // Route heartbeat events to the right MaestraConnection
+        if (msg.type === 'heartbeat' && msg.entity_id) {
+          connectionsRef.current.forEach((conn) => {
+            if (conn.entityId === msg.entity_id) {
+              conn.receiveHeartbeat();
+            }
+          });
+          return;
+        }
+
+        // ── stream_frame: display frames from WS ──
+        if (msg.type === 'stream_frame' && msg.entity_id && msg.data) {
+          const d = msg.data as Record<string, unknown>;
+          const frame = d.frame as string | undefined;
+          if (frame) {
+            const entityId = String(msg.entity_id);
+            // Find the slot that matches this entity
+            const slot = slotsRef.current.find(s =>
+              s.entity_id === entityId || s.id === entityId
+            );
+            if (slot) {
+              const conn = connectionsRef.current.get(slot.id);
+              if (conn) conn.receiveStreamFrame();
+              // Convert base64 to blob URL for display
+              try {
+                const binary = atob(frame);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                const blob = new Blob([bytes], { type: 'image/jpeg' });
+                const url = URL.createObjectURL(blob);
+                setSlots(prev => prev.map(s => {
+                  if (s.id !== slot.id) return s;
+                  if (s.frameUrl && s.frameUrl.startsWith('blob:')) URL.revokeObjectURL(s.frameUrl);
+                  return { ...s, frameUrl: url };
+                }));
+              } catch { /* bad frame data */ }
+            }
+          }
+          return;
+        }
+
+        // Route state_update events
+        if (msg.type === 'state_update' && msg.entity_id) {
+          connectionsRef.current.forEach((conn) => {
+            if (conn.entityId === msg.entity_id) {
+              conn.receiveStateUpdate();
+            }
+          });
+          log(`State update from ${msg.entity_id}: ${JSON.stringify(msg.data).slice(0, 60)}`, 'info');
+          // Push to entity bus + accumulate entity state
+          if (msg.data && typeof msg.data === 'object') {
+            const eid = msg.entity_id as string;
+            const updates: Record<string, string> = {};
+            Object.entries(msg.data as Record<string, unknown>).forEach(([k, v]) => {
+              pushBusEntry(`${eid}.${k}`, String(v));
+              updates[k] = String(v);
+            });
+            setEntityStates(prev => ({
+              ...prev,
+              [eid]: { ...(prev[eid] || {}), ...updates },
+            }));
+          }
+          // ── Reflect dmx-lighting entity state updates into local DmxState ──
+          if (msg.entity_id === 'dmx-lighting' && msg.data) {
+            const d = msg.data as Record<string, unknown>;
+            setDmxState(prev => ({
+              ...prev,
+              ...(d.cue !== undefined ? { currentCue: String(d.cue) } : {}),
+              ...(d.sequence !== undefined ? { sequence: String(d.sequence) } : {}),
+              ...(d.step !== undefined ? { step: Number(d.step) } : {}),
+              ...(d.progress !== undefined ? { progress: Number(d.progress) } : {}),
+              ...(d.paused !== undefined ? { paused: Boolean(d.paused) } : {}),
+              lastTrigger: Date.now(),
+            }));
+          }
+          return;
+        }
+
+        // Route stream events
+        if (msg.type === 'stream_advertised' && msg.entity_id) {
+          connectionsRef.current.forEach((conn) => {
+            if (conn.entityId === msg.entity_id) {
+              conn.receiveStreamAdvertised();
+            }
+          });
+          return;
+        }
+        if (msg.type === 'stream_removed' && msg.entity_id) {
+          connectionsRef.current.forEach((conn) => {
+            if (conn.entityId === msg.entity_id) {
+              conn.receiveStreamRemoved();
+            }
+          });
+          return;
+        }
+        if (msg.type === 'ping') return;
+        log(`WS: ${JSON.stringify(msg).slice(0, 80)}`, 'info');
+      };
+
       ws.onmessage = (e) => {
-        if (e.data instanceof Blob) return;
+        // ── Handle binary messages (Maestra sends all WS data as binary) ──
+        if (e.data instanceof Blob) {
+          e.data.arrayBuffer().then(buf => {
+            const bytes = new Uint8Array(buf);
+            // Check for JPEG magic bytes (0xFF 0xD8)
+            if (bytes.length > 2 && bytes[0] === 0xFF && bytes[1] === 0xD8) {
+              // Raw JPEG frame from backend — display in krista1 (primary SD stream)
+              const blob = new Blob([bytes], { type: 'image/jpeg' });
+              const url = URL.createObjectURL(blob);
+              const conn = connectionsRef.current.get('krista1');
+              if (conn) conn.receiveStreamFrame();
+              setSlots(prev => prev.map(s => {
+                if (s.id !== 'krista1') return s;
+                if (s.frameUrl && s.frameUrl.startsWith('blob:')) URL.revokeObjectURL(s.frameUrl);
+                return { ...s, frameUrl: url, active: true, connection_status: 'connected' };
+              }));
+              return;
+            }
+            // Try to parse as JSON
+            try {
+              const text = new TextDecoder().decode(bytes);
+              const msg = JSON.parse(text);
+              handleJsonMsg(msg);
+            } catch {
+              // Unknown binary data
+            }
+          }).catch(() => {});
+          return;
+        }
+        // ── Handle text messages ──
         try {
           const msg = JSON.parse(e.data);
-          if (msg.type === 'audio_analysis') {
-            const { bands, stems, bpm } = msg;
-            if (bands || stems || bpm) {
-              setAudioData(prev => ({
-                ...prev,
-                ...(bands ? { sub: bands.sub || 0, bass: bands.bass || 0, mid: bands.mid || 0, high: bands.high || 0 } : {}),
-                ...(stems ? { drums: stems.drums || 0, stemBass: stems.bass || 0, melody: stems.melody || 0, vocals: stems.vocals || 0 } : {}),
-                ...(bpm ? { bpm } : {}),
-              }));
-            }
-            return;
-          }
-          // Track remote entity IDs (TD nodes, etc.) from any event
-          if (msg.entity_id) {
-            if (!remoteEntitiesRef.current.has(msg.entity_id)) {
-              remoteEntitiesRef.current.add(msg.entity_id);
-              setRemoteEntityList(Array.from(remoteEntitiesRef.current));
-            }
-          }
-          // Route heartbeat events to the right MaestraConnection
-          if (msg.type === 'heartbeat' && msg.entity_id) {
-            connectionsRef.current.forEach((conn) => {
-              if (conn.entityId === msg.entity_id) {
-                conn.receiveHeartbeat();
-              }
-            });
-            return;
-          }
-          // Route state_update events
-          if (msg.type === 'state_update' && msg.entity_id) {
-            connectionsRef.current.forEach((conn) => {
-              if (conn.entityId === msg.entity_id) {
-                conn.receiveStateUpdate();
-              }
-            });
-            log(`State update from ${msg.entity_id}: ${JSON.stringify(msg.data).slice(0, 60)}`, 'info');
-            // Push to entity bus + accumulate entity state
-            if (msg.data && typeof msg.data === 'object') {
-              const eid = msg.entity_id as string;
-              const updates: Record<string, string> = {};
-              Object.entries(msg.data as Record<string, unknown>).forEach(([k, v]) => {
-                pushBusEntry(`${eid}.${k}`, String(v));
-                updates[k] = String(v);
-              });
-              setEntityStates(prev => ({
-                ...prev,
-                [eid]: { ...(prev[eid] || {}), ...updates },
-              }));
-            }
-            // ── Reflect dmx-lighting entity state updates into local DmxState ──
-            if (msg.entity_id === 'dmx-lighting' && msg.data) {
-              const d = msg.data as Record<string, unknown>;
-              setDmxState(prev => ({
-                ...prev,
-                ...(d.cue !== undefined ? { currentCue: String(d.cue) } : {}),
-                ...(d.sequence !== undefined ? { sequence: String(d.sequence) } : {}),
-                ...(d.step !== undefined ? { step: Number(d.step) } : {}),
-                ...(d.progress !== undefined ? { progress: Number(d.progress) } : {}),
-                ...(d.paused !== undefined ? { paused: Boolean(d.paused) } : {}),
-                lastTrigger: Date.now(),
-              }));
-            }
-            return;
-          }
-          // Route stream events
-          if (msg.type === 'stream_advertised' && msg.entity_id) {
-            connectionsRef.current.forEach((conn) => {
-              if (conn.entityId === msg.entity_id) {
-                conn.receiveStreamAdvertised();
-              }
-            });
-            return;
-          }
-          if (msg.type === 'stream_removed' && msg.entity_id) {
-            connectionsRef.current.forEach((conn) => {
-              if (conn.entityId === msg.entity_id) {
-                conn.receiveStreamRemoved();
-              }
-            });
-            return;
-          }
-          if (msg.type === 'ping') return;
-          log(`WS: ${JSON.stringify(msg).slice(0, 80)}`, 'info');
+          handleJsonMsg(msg);
         } catch {
           // skip non-JSON
         }
