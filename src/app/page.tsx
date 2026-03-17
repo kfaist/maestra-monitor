@@ -359,29 +359,9 @@ export default function Home() {
           }).catch(() => { frameRelayPostingRef.current = false; });
         }
 
-        // HTTP delivery — POST frame to Maestra entity state (persisted for TD to poll)
-        if (!httpRelayPostingRef.current) {
-          httpRelayPostingRef.current = true;
-          blob.arrayBuffer().then(buf => {
-            const bytes = new Uint8Array(buf);
-            let binary = '';
-            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-            const b64 = btoa(binary);
-            // POST to the entity's state — Maestra stores this, TD can poll it
-            fetch(`${API_BASE}/entities/${entityId}/state`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: 'stream_frame',
-                entity_id: entityId,
-                frame: b64,
-                format: 'jpeg',
-                source: slot.active_stream || 'unknown',
-                timestamp: Date.now(),
-              }),
-            }).catch(() => {}).finally(() => { httpRelayPostingRef.current = false; });
-          }).catch(() => { httpRelayPostingRef.current = false; });
-        }
+        // NOTE: No HTTP relay needed for SD frames — we're already pulling from the backend
+        // (/video/frame/td). TD polls that same endpoint directly. The fetch loop is
+        // display-only for the monitor UI.
 
         // Reset error counter on success
         if (frameErrorCountRef.current > 0) {
@@ -700,25 +680,12 @@ export default function Home() {
       });
     }
 
-    // ── HTTP delivery — POST to Maestra entity state (persisted, TD polls this) ──
-    // Send the full message (type, prompt, data) so the backend stores it all
-    targets.forEach(entityId => {
-      fetch(`${API_BASE}/entities/${entityId}/state`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...msg,
-          ...(payload || {}),
-          entity_id: entityId,
-          timestamp: ts,
-        }),
-      }).catch(() => {});
-    });
-
-    if (targets.length === 0 && !wsOpen) {
-      log(`[${label}] No targets and WS offline — message not delivered`, 'warn');
+    // NOTE: No HTTP entity state endpoint exists on Maestra backend.
+    // All prompt/state delivery is WS-only. If WS is down, messages are lost.
+    if (!wsOpen) {
+      log(`[${label}] WS offline — message not delivered (no HTTP fallback available)`, 'warn');
     } else {
-      log(`[${label}] → ${targets.length} entities ${wsOpen ? '(WS+HTTP)' : '(HTTP only)'}`, wsOpen ? 'ok' : 'warn');
+      log(`[${label}] → ${targets.length} entities via WS`, 'ok');
     }
   }, [log]);
 
@@ -836,7 +803,7 @@ export default function Home() {
     // Log first relay so we know the pipe is working
     if (!webcamFirstRelayRef.current) {
       webcamFirstRelayRef.current = true;
-      console.log(`[Webcam Relay] First frame → entity ${entityId} (${base64.length} chars b64)`);
+      log(`[Webcam Relay] First frame → ${entityId} (${Math.round(base64.length / 1024)}KB b64)`, 'ok');
     }
 
     // WS relay — fast, every frame
@@ -849,20 +816,17 @@ export default function Home() {
       }));
     }
 
-    // HTTP relay — throttled, one POST at a time to avoid flooding
+    // HTTP relay — POST raw JPEG to Maestra backend /video/frame/td
+    // This is the same endpoint TD polls for frames, so webcam merges into the SD pipeline
     if (!webcamHttpPostingRef.current) {
       webcamHttpPostingRef.current = true;
-      fetch(`${API_BASE}/entities/${entityId}/state`, {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      fetch(`${API_BASE}/video/frame/td`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'stream_frame',
-          entity_id: entityId,
-          frame: base64,
-          format: 'jpeg',
-          source: 'webcam',
-          timestamp: ts,
-        }),
+        headers: { 'Content-Type': 'image/jpeg' },
+        body: bytes.buffer,
       }).catch(() => {}).finally(() => { webcamHttpPostingRef.current = false; });
     }
 
