@@ -297,6 +297,7 @@ export default function Home() {
   // Frame fetching — only fetch for slots with an advertised/live stream
   // Streams are NOT attached on slot click — only via stream_advertised WS event
   const frameErrorCountRef = useRef(0);
+  const firstFrameSlotsRef = useRef(new Set<string>());
   const frameRelayPostingRef = useRef(false); // gate: one WS relay at a time
   const httpRelayPostingRef = useRef(false);  // gate: one HTTP relay at a time
   const frameRelayCountRef = useRef(0);       // total frames relayed
@@ -386,6 +387,11 @@ export default function Home() {
         if (frameErrorCountRef.current > 0) {
           frameErrorCountRef.current = 0;
           log('[Frames] Stream recovered', 'ok');
+        }
+        // Log first frame per slot so we know the pipe is working
+        if (!firstFrameSlotsRef.current.has(slot.id)) {
+          firstFrameSlotsRef.current.add(slot.id);
+          log(`[Frames] First frame for ${slot.id}: ${blob.size}B from ${endpoint}`, 'ok');
         }
 
         setSlots(prev => prev.map(s => {
@@ -975,6 +981,21 @@ export default function Home() {
 
     fetchFrame();
     frameIntervalRef.current = setInterval(fetchFrame, FRAME_FETCH_INTERVAL);
+
+    // SD frame endpoint health check — probe on load to confirm frames are flowing
+    (async () => {
+      try {
+        const probeUrl = `${API_BASE}/video/frame/td?t=${Date.now()}`;
+        const res = await fetch(probeUrl, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        log(`[SD Health] ✓ Frame endpoint live — ${blob.size} bytes (${res.headers.get('content-type')})`, 'ok');
+        logEvent('stream', 'krista1', `SD probe: ${blob.size}B frame OK`);
+      } catch (err) {
+        log(`[SD Health] ✗ Frame endpoint failed: ${(err as Error).message}`, 'error');
+        logEvent('stream', 'krista1', `SD probe FAILED: ${(err as Error).message}`);
+      }
+    })();
 
     // Auto-connect slot 1 on load — SD stream appears immediately, zero clicks needed.
     // Other slots stay available — users connect them explicitly via the setup wizard.
