@@ -54,6 +54,7 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
   const [waitingForNode, setWaitingForNode] = useState(false);
   const [nodeRole, setNodeRole] = useState<NodeRole | null>(null);
   const [signalSource, setSignalSource] = useState<SignalSource | null>(null);
+  const [tdProjectPath, setTdProjectPath] = useState('project1/');
 
   // Activity log (live mode)
   const activityRef = useRef<{ time: string; msg: string }[]>([]);
@@ -302,10 +303,20 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
                 <span>or</span>
               </div>
 
-              <div className="td-onboard-secondary-row">
-                <span style={{ fontSize: 10, color: '#888' }}>Need the connector?</span>
+              <div className="td-onboard-secondary-row" style={{ flexWrap: 'wrap', gap: 6 }}>
+                <span style={{ fontSize: 10, color: '#888', width: '100%' }}>Need the connector?</span>
+                <a
+                  href="https://github.com/kfaist/maestra-fleet-tox/raw/main/touchdesigner/maestra_fleet.tox"
+                  download
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="td-onboard-link-btn"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  ↓ Download TOX
+                </a>
                 <button className="td-onboard-link-btn" onClick={() => {
-                  // Copy setup info to clipboard as a quick action
                   const info = `Server: ${serverUrl}\nEntity ID: ${entityId}\nSlot: ${slot.label}`;
                   navigator.clipboard.writeText(info).then(() => {
                     setCopiedField('setup');
@@ -336,6 +347,47 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
               <div className="td-connect-row" style={{ marginTop: 4 }}>
                 <span className="td-connect-label">Slot</span>
                 <code className="td-connect-value">{slot.label}</code>
+              </div>
+            </div>
+
+            {/* TD Node Reference — project path + pre-filled operator paths */}
+            <div style={{ marginTop: 12, padding: '10px 12px', background: 'rgba(167,139,250,0.04)', border: '1px solid rgba(167,139,250,0.12)', borderRadius: 5 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#a78bfa' }}>TD Node Reference</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <span style={{ fontSize: 9, color: '#888', flexShrink: 0 }}>Project Path</span>
+                <input
+                  type="text"
+                  value={tdProjectPath}
+                  onChange={(e) => setTdProjectPath(e.target.value)}
+                  style={{
+                    flex: 1, padding: '3px 6px', fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+                    background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 3, color: '#a78bfa', outline: 'none',
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+              {[
+                { label: 'Maestra TOX', path: `${tdProjectPath}maestra_fleet`, desc: 'Main connector' },
+                { label: 'Script CHOP', path: `${tdProjectPath}maestra_fleet/script_cam`, desc: 'Webcam frames' },
+                { label: 'Web Client', path: `${tdProjectPath}maestra_fleet/web_cam_in`, desc: 'Browser feed' },
+                { label: 'State DAT', path: `${tdProjectPath}maestra_fleet/state_in`, desc: 'Prompt / P6 state' },
+                { label: 'Stream TOP', path: `${tdProjectPath}maestra_fleet/stream_out`, desc: 'Video output' },
+              ].map(node => (
+                <div key={node.label} className="td-connect-row" style={{ marginTop: 3 }}>
+                  <span className="td-connect-label" style={{ fontSize: 8 }}>{node.label}</span>
+                  <code className="td-connect-value" style={{ fontSize: 9, color: '#a78bfa' }}>
+                    op('{node.path}')
+                  </code>
+                  <button className="td-copy-btn" onClick={() => copyToClipboard(`op('${node.path}')`, node.label)}>
+                    {copiedField === node.label ? '✓' : 'Copy'}
+                  </button>
+                </div>
+              ))}
+              <div style={{ fontSize: 8, color: '#555', marginTop: 6, lineHeight: 1.5 }}>
+                Update the project path to match your TD file structure.
               </div>
             </div>
           </div>
