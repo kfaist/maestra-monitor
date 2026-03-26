@@ -709,6 +709,14 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               }}
                             />
                           </label>
+                          {/* Continue without file — for when TOX is already running */}
+                          <button
+                            className="slot-wizard-btn slot-wizard-btn-primary"
+                            style={{ width: '100%', marginTop: 4 }}
+                            onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'states' } })); }}
+                          >
+                            TOX already running in TD → Continue
+                          </button>
                         </div>
                       )}
 
