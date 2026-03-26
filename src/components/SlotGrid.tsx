@@ -645,7 +645,31 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       </div>
                     )}
                     {publishing.length === 0 && listening.length === 0 && (
-                      <span className="live-empty">No signals configured</span>
+                      <span className="live-empty" style={{ fontSize: 8 }}>No signals configured</span>
+                    )}
+                    {/* Add output / input buttons when unlocked */}
+                    {!isLocked(slot.id) && (
+                      <div style={{ display: 'flex', gap: 5, marginTop: 6, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                        <button
+                          onClick={e => { e.stopPropagation();
+                            setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'addState' } }));
+                          }}
+                          style={{ fontSize: 8, padding: '2px 8px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                            background: `${slotColor}12`, border: `1px solid ${slotColor}40`, color: slotColor,
+                            letterSpacing: '0.05em' }}>
+                          + output
+                        </button>
+                        <button
+                          onClick={e => { e.stopPropagation();
+                            const key = prompt('State key to listen to (e.g. prompt_text):');
+                            if (key?.trim()) onInjectSignal?.(slot.id, '__subscribe__', key.trim());
+                          }}
+                          style={{ fontSize: 8, padding: '2px 8px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)',
+                            color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em' }}>
+                          + input
+                        </button>
+                      </div>
                     )}
                   </div>
 
