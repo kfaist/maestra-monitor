@@ -896,70 +896,49 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                   </div>
                                 </div>
 
-                                {/* Node picker */}
-                                <div style={{ width: '100%' }}>
-                                  <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
-                                    Select Node {nodes.length > 0 && <span style={{ color: slotColor }}>· {nodes.length} found</span>}
-                                  </div>
-                                  {nodes.length > 0 ? (
-                                    <select value={selNode} onClick={e => e.stopPropagation()}
-                                      onChange={e => {
-                                        e.stopPropagation();
-                                        const n = e.target.value;
-                                        setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id],
-                                          selectedNode: n,
-                                          selectedTop: '',
-                                          stateKey: '',
-                                        }}));
-                                      }}
-                                      style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)',
-                                        background: 'rgba(0,0,0,0.6)', border: `1px solid ${slotColor}40`, color: slotColor, outline: 'none' }}>
-                                      <option value="">— select node —</option>
-                                      {nodes.map(n => <option key={n} value={n} style={{ background: '#0a0a14' }}>{n}</option>)}
-                                    </select>
-                                  ) : (
-                                    <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)', padding: '4px 0', lineHeight: 1.6 }}>
-                                      No nodes detected. Run exec(open(r&apos;add_maestra_startup.py&apos;).read()) in TD once.
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* TOP picker — within selected node */}
-                                {selNode && (
+                                {/* Operator picker — shows ops ONLY within setup.selectedNode */}
+                                {setup.selectedNode && (
                                   <div style={{ width: '100%' }}>
                                     <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
-                                      Operators in {selNode || '…'} {filteredTops.length > 0 && <span style={{ color: slotColor }}>· {filteredTops.length}</span>}{nodeTops.length > filteredTops.length && <span style={{ opacity: 0.35 }}> of {nodeTops.length}</span>}
+                                      Operators in {setup.selectedNode}
+                                      {' '}<span style={{ color: slotColor }}>· {(nodeMap[setup.selectedNode]||[]).length}</span>
                                     </div>
-                                    {filteredTops.length > 0 ? (
-                                      <select value={selTop} onClick={e => e.stopPropagation()}
+                                    {(nodeMap[setup.selectedNode]||[]).length > 0 ? (
+                                      <select value={setup.selectedTop || ''} onClick={e => e.stopPropagation()}
                                         onChange={e => {
                                           e.stopPropagation();
-                                          const full = e.target.value;
-                                          const key = full.split('/').pop() || '';
-                                          setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: full, stateKey: key } }));
+                                          const entry = e.target.value;
+                                          const pts = entry.split(':');
+                                          const key = pts.length >= 2 ? pts[1] : entry.split('/').pop() || '';
+                                          setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id],
+                                            selectedTop: entry, stateKey: key } }));
                                         }}
                                         style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)',
                                           background: 'rgba(0,0,0,0.6)', border: `1px solid ${slotColor}40`, color: slotColor, outline: 'none' }}>
-                                        <option value="">— select TOP —</option>
-                                        {filteredTops.map(t => {
-                                          // Entry format: "TYPE:name:path" or plain "/path"
-                                          let label = t, val = t;
-                                          if (t.includes(':') && t.split(':').length >= 3) {
-                                            const pts = t.split(':');
-                                            // Clean type: lfoCHOP → CHOP, compositeTOP → TOP, textDAT → DAT
-                                            const raw = pts[0];
-                                            const kind = raw.endsWith('CHOP') ? 'CHOP' : raw.endsWith('TOP') ? 'TOP' : raw.endsWith('DAT') ? 'DAT' : raw.endsWith('COMP') ? 'COMP' : raw.replace(/[a-z]/g,'').slice(0,4);
-                                            label = kind + ' · ' + pts[1];
-                                            val   = t; // keep full entry as value
-                                          } else {
-                                            label = t.split('/').pop() || t;
+                                        <option value="">— select operator —</option>
+                                        {(nodeMap[setup.selectedNode]||[]).map(entry => {
+                                          const pts = entry.split(':');
+                                          if (pts.length < 3) return null;
+                                          const raw  = pts[0];
+                                          const name = pts[1];
+                                          const kind = raw.endsWith('CHOP') ? 'CHOP' : raw.endsWith('TOP') ? 'TOP' : raw.endsWith('DAT') ? 'DAT' : raw.endsWith('COMP') ? 'COMP' : raw.endsWith('SOP') ? 'SOP' : raw.slice(0,5);
+                                          // Apply stream type filter if set
+                                          const sf = setup.streamType || '';
+                                          if (sf) {
+                                            const STREAM_TO_KIND: Record<string,string[]> = {
+                                              'video':['TOP'], 'texture':['TOP'], 'spout':['TOP'], 'ndi':['TOP'], 'syphon':['TOP'], 'srt':['TOP'],
+                                              'audio':['CHOP'], 'midi':['CHOP'], 'osc':['CHOP'], 'sensor':['CHOP'],
+                                              'data':['DAT','CHOP'],
+                                            };
+                                            const allowed = STREAM_TO_KIND[sf] || [];
+                                            if (allowed.length && !allowed.includes(kind)) return null;
                                           }
-                                          return <option key={t} value={t} style={{ background: '#0a0a14' }}>{label}</option>;
+                                          return <option key={entry} value={entry} style={{ background: '#0a0a14' }}>{kind} · {name}</option>;
                                         })}
                                       </select>
                                     ) : (
                                       <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)', padding: '4px 0' }}>
-                                        No TOPs match this stream type filter
+                                        No operators found in this node
                                       </div>
                                     )}
                                   </div>
