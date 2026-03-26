@@ -681,10 +681,10 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               border: `1px solid ${slotColor}40`, background: `${slotColor}08`,
                             }}
                           >
-                            <div style={{ fontSize: 16, fontWeight: 700, color: slotColor, marginBottom: 3, fontFamily: 'var(--font-display)', letterSpacing: '0.05em' }}>
+                            <div style={{ fontSize: 15.5, fontWeight: 700, color: slotColor, marginBottom: 3, fontFamily: 'var(--font-display)', letterSpacing: '0.05em' }}>
                               ↓ Download maestra.tox
                             </div>
-                            <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-mono)' }}>
+                            <div style={{ fontSize: 15.5, color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-mono)' }}>
                               Drag into your .toe → auto-registers when project opens
                             </div>
                           </a>
