@@ -569,6 +569,26 @@ export default function Home() {
             }
           });
           log(`State update from ${msg.entity_id}: ${JSON.stringify(msg.data).slice(0, 60)}`, 'info');
+
+          // Auto-claim: if entity pushed toe_name, claim first available slot
+          if (msg.data && typeof msg.data === 'object') {
+            const d = msg.data as Record<string, unknown>;
+            if (d.toe_name && msg.entity_id) {
+              const eid = msg.entity_id as string;
+              const toeName = String(d.toe_name);
+              setSlots(prev => {
+                // Already claimed?
+                if (prev.some(s => s.entity_id === eid)) return prev;
+                // Find first available slot
+                const idx = prev.findIndex(s => !s.active && !s.entity_id);
+                if (idx === -1) return prev;
+                const updated = [...prev];
+                updated[idx] = { ...updated[idx], label: toeName, entity_id: eid };
+                log(`Auto-claimed Slot ${idx + 1} for ${toeName} (${eid})`, 'ok');
+                return updated;
+              });
+            }
+          }
           // Push to entity bus + accumulate entity state
           if (msg.data && typeof msg.data === 'object') {
             const eid = msg.entity_id as string;
