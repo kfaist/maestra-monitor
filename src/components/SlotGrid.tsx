@@ -17,6 +17,7 @@ interface SlotSetup {
   stateType: string;
   stateDesc: string;
   outputSignals: Array<{ key: string; type: string; desc: string; top: string }>;
+  streamType: string;
 }
 
 interface InjectState {
@@ -195,7 +196,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
       return;
     }
     onSelectSlot(slot.id);
-    setSetupState(prev => ({ ...prev, [slot.id]: { stage: 'connect', slug: '', refFile: null, selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [] } }));
+    setSetupState(prev => ({ ...prev, [slot.id]: { stage: 'connect', slug: '', refFile: null, selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [], streamType: '' } }));
   }, [setupState, onSelectSlot]);
 
   const handleConnect = useCallback((slotId: string, e: React.MouseEvent) => {
@@ -850,11 +851,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                   </div>
                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                                     {STREAM_TYPES.map(({ key, label, desc }) => {
-                                      const active = (key === '' && !streamFilter) || key === streamFilter;
+                                      const active = key === streamFilter || (key === '' && !streamFilter);
                                       return (
                                         <button key={key}
                                           title={desc}
-                                          onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateType: key || 'string' } })); }}
+                                          onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], streamType: key } })); }}
                                           style={{ fontSize: 8, padding: '2px 7px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
                                             background: active ? `${slotColor}25` : 'rgba(255,255,255,0.03)',
                                             border: `1px solid ${active ? slotColor + '70' : 'rgba(255,255,255,0.08)'}`,
@@ -898,7 +899,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 {selNode && (
                                   <div style={{ width: '100%' }}>
                                     <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
-                                      TOP within {selNode} {filteredTops.length > 0 && <span style={{ color: slotColor }}>· {filteredTops.length}</span>}
+                                      Operators in {selNode} {filteredTops.length > 0 && <span style={{ color: slotColor }}>· {filteredTops.length}</span>}{nodeTops.length > filteredTops.length && <span style={{ opacity: 0.4 }}> (filtered from {nodeTops.length})</span>}
                                     </div>
                                     {filteredTops.length > 0 ? (
                                       <select value={selTop} onClick={e => e.stopPropagation()}
@@ -1008,7 +1009,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                     outputSignals: [
                                       ...(prev[slot.id].outputSignals || []),
                                       { key: setup.stateKey.trim(), type: setup.stateType,
-                                        desc: setup.stateDesc, top: setup.selectedTop }
+                                        desc: setup.stateDesc, top: setup.selectedTop, streamType: setup.streamType || '' }
                                     ],
                                     stateKey: '', stateDesc: '', selectedTop: '',
                                   }
