@@ -4,7 +4,7 @@ import { SLOT_COLORS } from './SignalPanel';
 import { useState, useEffect, useCallback } from 'react';
 import { FleetSlot, slotStatusLabel, slotStatusClass, formatAge, EventEntry } from '@/types';
 
-type InlineStage = 'idle' | 'connect' | 'role' | 'signal' | 'reference';
+type InlineStage = 'idle' | 'connect' | 'role' | 'path' | 'top' | 'states';
 type NodeRole = 'receive' | 'send' | 'two_way';
 type SignalSource = 'touchdesigner' | 'json_stream' | 'osc' | 'audio_reactive' | 'text' | 'test_signal';
 
@@ -153,7 +153,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     onSelectSlot(slot.id);
     setSetupState(prev => ({
       ...prev,
-      [slot.id]: { stage: 'connect', role: null, signal: null, refPath: 'project1/', refFile: null },
+      [slot.id]: { stage: 'connect', role: null, signal: null, refPath: 'project1/', refFile: null, selectedTop: null, stateKey: '', stateType: 'string' },
     }));
   }, [setupState, onSelectSlot]);
 
@@ -177,7 +177,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     e.stopPropagation();
     setSetupState(prev => ({
       ...prev,
-      [slotId]: { ...prev[slotId], signal, stage: 'reference' },
+      [slotId]: { ...prev[slotId], signal, stage: 'path' },
     }));
   }, []);
 
@@ -211,8 +211,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     setSetupState(prev => {
       const current = prev[slotId];
       if (!current) return prev;
-      if (current.stage === 'reference') return { ...prev, [slotId]: { ...current, stage: 'signal', signal: null } };
-      if (current.stage === 'signal') return { ...prev, [slotId]: { ...current, stage: 'role', role: null } };
+      if (current.stage === 'states') return { ...prev, [slotId]: { ...current, stage: 'top' } };
+      if (current.stage === 'top') return { ...prev, [slotId]: { ...current, stage: 'path' } };
+      if (current.stage === 'path') return { ...prev, [slotId]: { ...current, stage: 'role', role: null } };
       if (current.stage === 'role') return { ...prev, [slotId]: { ...current, stage: 'connect' } };
       const next = { ...prev };
       delete next[slotId];
@@ -531,13 +532,15 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <div className="slot-inline-wizard">
                       {/* Step indicator — 4 steps */}
                       <div className="slot-wizard-steps">
-                        <span className={`slot-wizard-dot ${setup.stage === 'connect' ? 'active' : 'done'}`} />
-                        <span className="slot-wizard-line" />
-                        <span className={`slot-wizard-dot ${setup.stage === 'role' ? 'active' : (setup.stage === 'signal' || setup.stage === 'reference') ? 'done' : ''}`} />
-                        <span className="slot-wizard-line" />
-                        <span className={`slot-wizard-dot ${setup.stage === 'signal' ? 'active' : setup.stage === 'reference' ? 'done' : ''}`} />
-                        <span className="slot-wizard-line" />
-                        <span className={`slot-wizard-dot ${setup.stage === 'reference' ? 'active' : ''}`} />
+                        {(['connect','role','path','top','states'] as const).map((s, i, arr) => (
+                          <span key={s} style={{ display: 'flex', alignItems: 'center' }}>
+                            <span className={`slot-wizard-dot ${
+                              setup.stage === s ? 'active' :
+                              arr.indexOf(setup.stage) > i ? 'done' : ''
+                            }`} />
+                            {i < arr.length - 1 && <span className="slot-wizard-line" />}
+                          </span>
+                        ))}
                       </div>
 
                       {/* STAGE: Connect */}
@@ -585,111 +588,140 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         </div>
                       )}
 
-                      {/* STAGE: Signal */}
-                      {setup.stage === 'signal' && (
+                      {/* STAGE: Path — node path or file upload */}
+                      {setup.stage === 'path' && (
                         <div className="slot-wizard-content">
-                          <div className="slot-wizard-title">This Node Sends</div>
-                          <div className="slot-wizard-options slot-wizard-options-grid">
-                            {SIGNALS.map(s => (
-                              <button
-                                key={s.value}
-                                className="slot-wizard-option slot-wizard-option-sm"
-                                style={{ '--opt-color': s.color } as React.CSSProperties}
-                                onClick={(e) => handleSignalSelect(slot.id, s.value, e)}
-                              >
-                                <span className="slot-wizard-option-icon" style={{ color: s.color }}>{s.icon}</span>
-                                <span>{s.label}</span>
-                              </button>
-                            ))}
-                          </div>
-                          <button
-                            className="slot-wizard-btn slot-wizard-btn-ghost"
-                            onClick={(e) => handleBack(slot.id, e)}
-                          >
-                            ← Back
-                          </button>
-                        </div>
-                      )}
-
-                      {/* STAGE: Reference */}
-                      {setup.stage === 'reference' && (
-                        <div className="slot-wizard-content">
-                          <div className="slot-wizard-title">Connect Your Output</div>
-                          <div className="slot-wizard-hint">
-                            {SIGNALS.find(s => s.value === setup.signal)?.refHint || 'Select the operator or file'}
-                          </div>
+                          <div className="slot-wizard-title">Node Path or File</div>
+                          <div className="slot-wizard-hint">Enter your TD project path or upload a .tox file</div>
                           <label
                             className="slot-wizard-btn slot-wizard-btn-primary"
                             style={{ cursor: 'pointer', textAlign: 'center', position: 'relative' }}
                             onClick={(e) => e.stopPropagation()}
                           >
                             <span style={{ fontSize: 11 }}>↑</span>
-                            {setup.refFile ? setup.refFile : 'Upload File'}
+                            {setup.refFile ? setup.refFile : 'Upload .tox File'}
                             <input
                               type="file"
-                              accept=".tox,.wav,.mp3,.mp4,.mov,.json,.txt,.py,.obj,.fbx,.glb,.gltf,.hdr,.exr,.png,.jpg,.jpeg,.gif,.svg"
+                              accept=".tox,.toe,.py"
                               style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (f) handleFileUpload(slot.id, f);
-                              }}
+                              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(slot.id, f); }}
                             />
                           </label>
-                          {/* TOP dropdown — populated when TOX pushes metadata.tops to entity state */}
-                          {(() => {
-                            const eid = slot.entity_id || slot.id;
-                            const tops = (entityStates[eid] as Record<string, unknown> | undefined)?.tops;
-                            const topList = Array.isArray(tops) ? tops as string[] : null;
-                            if (!topList || topList.length === 0) return null;
-                            return (
-                              <div style={{ width: '100%' }} onClick={e => e.stopPropagation()}>
-                                <div style={{ fontSize: 8, color: '#888', marginBottom: 3, letterSpacing: '0.1em' }}>TOPs available in this project:</div>
-                                <select
-                                  value={setup.refPath}
-                                  onChange={e => handleRefPathChange(slot.id, e.target.value)}
-                                  style={{
-                                    width: '100%', padding: '4px 6px', fontSize: 9,
-                                    fontFamily: "'JetBrains Mono', monospace",
-                                    background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(123,47,255,0.4)',
-                                    borderRadius: 2, color: '#a78bfa', outline: 'none', cursor: 'pointer',
-                                  }}
-                                >
-                                  <option value="">— select a TOP —</option>
-                                  {topList.map(t => <option key={t} value={t}>{t}</option>)}
-                                </select>
-                              </div>
-                            );
-                          })()}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%', fontSize: 8, color: '#666' }}>
-                            <span style={{ flex: '0 0 auto' }}>or path:</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%', fontSize: 8, color: '#888' }}>
+                            <span style={{ flexShrink: 0 }}>or path:</span>
                             <input
                               type="text"
                               value={setup.refPath}
                               onClick={(e) => e.stopPropagation()}
                               onChange={(e) => handleRefPathChange(slot.id, e.target.value)}
-                              placeholder="project1/myfile.tox"
-                              style={{
-                                flex: 1, padding: '2px 5px', fontSize: 9,
-                                fontFamily: "'JetBrains Mono', monospace",
-                                background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)',
-                                borderRadius: 2, color: '#a78bfa', outline: 'none', minWidth: 0,
-                              }}
+                              placeholder="project1/maestra"
+                              style={{ flex: 1, padding: '2px 5px', fontSize: 9, fontFamily: "var(--font-mono)", background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)', color: '#a78bfa', outline: 'none', minWidth: 0 }}
                             />
                           </div>
                           <div style={{ display: 'flex', gap: 6, width: '100%' }}>
+                            <button className="slot-wizard-btn slot-wizard-btn-ghost" onClick={(e) => handleBack(slot.id, e)}>← Back</button>
                             <button
-                              className="slot-wizard-btn slot-wizard-btn-ghost"
-                              onClick={(e) => handleBack(slot.id, e)}
-                            >
-                              ← Back
-                            </button>
+                              className="slot-wizard-btn slot-wizard-btn-primary"
+                              style={{ flex: 1 }}
+                              onClick={(e) => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'top' } })); }}
+                            >{setup.refFile || setup.refPath !== 'project1/' ? 'Next →' : 'Skip →'}</button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* STAGE: TOP — select output TOP from entity metadata */}
+                      {setup.stage === 'top' && (() => {
+                        const eid = slot.entity_id || slot.id;
+                        const tops = (entityStates[eid] as Record<string, unknown> | undefined)?.tops;
+                        const topList = Array.isArray(tops) ? tops as string[] : null;
+                        return (
+                          <div className="slot-wizard-content">
+                            <div className="slot-wizard-title">Select Output TOP</div>
+                            {topList && topList.length > 0 ? (
+                              <>
+                                <div className="slot-wizard-hint">TOPs found in your project — pick the one to stream</div>
+                                <select
+                                  value={setup.selectedTop || ''}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={(e) => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: e.target.value } })); }}
+                                  style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)', background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(123,47,255,0.5)', color: '#a78bfa', outline: 'none', cursor: 'pointer' }}
+                                >
+                                  <option value="">— select a TOP —</option>
+                                  {topList.map(t => <option key={t} value={t} style={{ background: '#0a0a14' }}>{t}</option>)}
+                                </select>
+                              </>
+                            ) : (
+                              <>
+                                <div className="slot-wizard-hint" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                                  No TOPs detected yet — run build_maestra_tox.py in TD to auto-populate, or enter path manually
+                                </div>
+                                <input
+                                  type="text"
+                                  value={setup.selectedTop || ''}
+                                  placeholder="/project1/out1"
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={(e) => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: e.target.value } })); }}
+                                  style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#a78bfa', outline: 'none' }}
+                                />
+                              </>
+                            )}
+                            <div style={{ display: 'flex', gap: 6, width: '100%' }}>
+                              <button className="slot-wizard-btn slot-wizard-btn-ghost" onClick={(e) => handleBack(slot.id, e)}>← Back</button>
+                              <button
+                                className="slot-wizard-btn slot-wizard-btn-primary"
+                                style={{ flex: 1 }}
+                                onClick={(e) => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'states' } })); }}
+                              >{setup.selectedTop ? 'Next →' : 'Skip →'}</button>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* STAGE: States — declare what this node publishes/listens to + type */}
+                      {setup.stage === 'states' && (
+                        <div className="slot-wizard-content">
+                          <div className="slot-wizard-title">Assign State</div>
+                          <div className="slot-wizard-hint">
+                            {setup.role === 'send' ? 'This node publishes:' : setup.role === 'receive' ? 'This node listens for:' : 'State key this node uses:'}
+                          </div>
+                          <input
+                            type="text"
+                            value={setup.stateKey}
+                            placeholder={setup.role === 'send' ? 'e.g. prompt_text' : 'e.g. lighting.scene'}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateKey: e.target.value } })); }}
+                            style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#e5f9ff', outline: 'none' }}
+                          />
+                          <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', alignSelf: 'flex-start' }}>
+                            {setup.role === 'send' ? 'This node publishes' : 'This node receives'} &nbsp;
+                            <span style={{ fontFamily: 'var(--font-mono)', color: setup.stateKey ? '#e5f9ff' : 'rgba(255,255,255,0.25)' }}>
+                              {setup.stateKey || 'key'}
+                            </span>
+                          </div>
+                          {/* Type picker */}
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, width: '100%' }}>
+                            {['string','number','boolean','color','vector2','vector3','range','enum','array','object'].map(t => (
+                              <button
+                                key={t}
+                                onClick={(e) => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateType: t } })); }}
+                                style={{
+                                  fontSize: 8, padding: '2px 6px', cursor: 'pointer', letterSpacing: '0.05em',
+                                  background: setup.stateType === t ? 'rgba(0,212,255,0.2)' : 'rgba(255,255,255,0.04)',
+                                  border: `1px solid ${setup.stateType === t ? 'rgba(0,212,255,0.6)' : 'rgba(255,255,255,0.08)'}`,
+                                  color: setup.stateType === t ? '#00d4ff' : 'rgba(255,255,255,0.35)',
+                                  fontFamily: 'var(--font-mono)',
+                                  transition: 'all 0.1s',
+                                }}
+                              >{t}</button>
+                            ))}
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, width: '100%' }}>
+                            <button className="slot-wizard-btn slot-wizard-btn-ghost" onClick={(e) => handleBack(slot.id, e)}>← Back</button>
                             <button
                               className="slot-wizard-btn slot-wizard-btn-primary"
                               style={{ flex: 1 }}
                               onClick={(e) => handleReferenceComplete(slot.id, e)}
-                            >
-                              {setup.refFile ? 'Connect' : 'Skip'}
-                            </button>
+                            >Connect</button>
                           </div>
                         </div>
                       )}
