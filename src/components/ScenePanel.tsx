@@ -74,7 +74,7 @@ interface ScenePanelProps {
 export default function ScenePanel({ onActivateScene }: ScenePanelProps) {
   const [activeScene, setActiveScene] = useState<string | null>(null);
   const [transEnabled, setTransEnabled] = useState(false);
-  const [injectActive, setInjectActive] = useState(false);
+  const [isInjecting, setInjectActive] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [nouns, setNouns] = useState<string[]>([]);
   const [isListening, setIsListening] = useState(false);
@@ -146,7 +146,7 @@ export default function ScenePanel({ onActivateScene }: ScenePanelProps) {
 
   // Auto-inject timer
   useEffect(() => {
-    if (injectActive) {
+    if (isInjecting) {
       setAutoInjectCountdown(5);
       countdownRef.current = setInterval(() => { setAutoInjectCountdown(prev => prev <= 1 ? 5 : prev - 1); }, 1000);
       autoInjectRef.current = setInterval(() => {
@@ -161,11 +161,11 @@ export default function ScenePanel({ onActivateScene }: ScenePanelProps) {
       if (countdownRef.current) clearInterval(countdownRef.current);
       setAutoInjectCountdown(5);
     }
-  }, [injectActive, getCombinedPrompt]);
+  }, [isInjecting, getCombinedPrompt]);
 
   // P6 flush timer
   useEffect(() => {
-    if (lastBroadcast && injectActive) {
+    if (lastBroadcast && isInjecting) {
       setP6Flushing(false);
       if (p6TimerRef.current) clearTimeout(p6TimerRef.current);
       p6TimerRef.current = setTimeout(() => {
@@ -176,7 +176,7 @@ export default function ScenePanel({ onActivateScene }: ScenePanelProps) {
       }, P6_FLUSH_DELAY);
       return () => { if (p6TimerRef.current) clearTimeout(p6TimerRef.current); };
     }
-  }, [lastBroadcast, injectActive, getCombinedPrompt]);
+  }, [lastBroadcast, isInjecting, getCombinedPrompt]);
 
   const combinedPreview = (() => {
     const base = promptTextRef.current.trim();
