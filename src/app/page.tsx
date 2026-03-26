@@ -13,6 +13,8 @@ import {
   JoinModal,
   LightingPanel,
   ScenePanel,
+  ColorPalette,
+  ModulationGrid,
 } from '@/components';
 import { JoinMaestraResult } from '@/components/JoinModal';
 import { SceneDefinition } from '@/components/ScenePanel';
