@@ -703,15 +703,31 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       {/* STAGE: Path — node path or file upload */}
                       {setup.stage === 'path' && (
                         <div className="slot-wizard-content">
-                          <div className="slot-wizard-title">Node Path or File</div>
-                          <div className="slot-wizard-hint">Enter your TD project path or upload a .tox file</div>
+                          <div className="slot-wizard-title">Node Path</div>
+                          <div className="slot-wizard-hint">Enter the path to your TD node in the project</div>
+                          {/* Primary: path input with browse affordance */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%' }}>
+                            <input
+                              type="text"
+                              value={setup.refPath}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => handleRefPathChange(slot.id, e.target.value)}
+                              placeholder="project1/maestra"
+                              style={{ flex: 1, padding: '5px 8px', fontSize: 10, fontFamily: "var(--font-mono)", background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', color: '#a78bfa', outline: 'none', minWidth: 0 }}
+                            />
+                            <button
+                              className="slot-wizard-btn slot-wizard-btn-primary"
+                              style={{ padding: '5px 10px', fontSize: 9, whiteSpace: 'nowrap', flexShrink: 0 }}
+                              onClick={(e) => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'top' } })); }}
+                            >Browse →</button>
+                          </div>
+                          {/* Secondary: upload .tox — less prominent */}
                           <label
-                            className="slot-wizard-btn slot-wizard-btn-primary"
-                            style={{ cursor: 'pointer', textAlign: 'center', position: 'relative' }}
+                            style={{ cursor: 'pointer', position: 'relative', display: 'flex', alignItems: 'center', gap: 4, opacity: 0.45, fontSize: 8, color: 'rgba(255,255,255,0.5)' }}
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <span style={{ fontSize: 11 }}>↑</span>
-                            {setup.refFile ? setup.refFile : 'Upload .tox File'}
+                            <span style={{ fontSize: 9 }}>↑</span>
+                            {setup.refFile ? setup.refFile : 'or upload .tox file'}
                             <input
                               type="file"
                               accept=".tox,.toe,.py"
@@ -719,17 +735,6 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(slot.id, f); }}
                             />
                           </label>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%', fontSize: 8, color: '#888' }}>
-                            <span style={{ flexShrink: 0 }}>or path:</span>
-                            <input
-                              type="text"
-                              value={setup.refPath}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={(e) => handleRefPathChange(slot.id, e.target.value)}
-                              placeholder="project1/maestra"
-                              style={{ flex: 1, padding: '2px 5px', fontSize: 9, fontFamily: "var(--font-mono)", background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)', color: '#a78bfa', outline: 'none', minWidth: 0 }}
-                            />
-                          </div>
                           <div style={{ display: 'flex', gap: 6, width: '100%' }}>
                             <button className="slot-wizard-btn slot-wizard-btn-ghost" onClick={(e) => handleBack(slot.id, e)}>← Back</button>
                             <button
