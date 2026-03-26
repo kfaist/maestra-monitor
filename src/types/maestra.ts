@@ -109,10 +109,26 @@ export interface MaestraEntity {
 export type SignalType = 'touchdesigner' | 'json_stream' | 'osc' | 'audio_reactive' | 'text' | 'test_signal' | 'video' | null;
 export type NodeRole = 'receive' | 'send' | 'two_way' | null;
 
+
+/** Entity variable — matches Jordan's schema */
+export interface StateVariable {
+  type: 'string' | 'number' | 'boolean' | 'float' | 'color' | 'vector2' | 'vector3' | 'range' | 'enum' | 'array' | 'object';
+  direction: 'input' | 'output';
+  default?: unknown;
+  description?: string;
+  value?: unknown;   // live value from /entities/{id}/state
+}
+
+/** Schema map: key -> variable definition */
+export type StateSchema = Record<string, StateVariable>;
+
 export interface FleetSlot {
-  id: string;
+  id: string;           // UI identity = slot index key
+  slug: string;         // human slug e.g. "mirrors-echo" (used for POST /entities)
+  entityId: string | null; // UUID returned by server (canonical API identity)
   label: string;
-  entity_id: string | null;
+  entity_id: string | null; // legacy compat = entityId
+  stateSchema: StateSchema;  // declared variables from wizard
   endpoint: string | null;
   active: boolean;
   fps: number | null;
