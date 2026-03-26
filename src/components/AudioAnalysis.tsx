@@ -214,8 +214,8 @@ export default function AudioAnalysis({ audioData, onSendAudio }: AudioAnalysisP
               const pct = Math.min(100, Math.max(0, (val / max) * 100));
               return (
                 <div className="aa-band" key={band.key}>
-                  <div className="aa-band-dot" style={{ color: `hsl(${band.hue},80%,65%)`, background: `hsl(${band.hue},80%,65%)` }} />
-                  <span className="aa-band-label">{band.label}</span>
+                  <div className="aa-band-dot" style={{ color: band.color || `hsl(${band.hue},80%,65%)`, background: band.color || `hsl(${band.hue},80%,65%)` }} />
+                  <span className="aa-band-label" style={{ color: band.color || `hsl(${band.hue},80%,65%)` }}>{band.label}</span>
                   <div className="aa-band-track">
                     <div
                       className="aa-band-fill"
