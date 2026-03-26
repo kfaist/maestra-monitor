@@ -486,9 +486,15 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                 <div className="live-node-panel">
                   {/* Thumbnail frame at top */}
                   <div className="live-node-thumb">
-                    {slot.frameUrl ? (
-                      <img src={slot.frameUrl} alt="stream" />
-                    ) : (
+                    {(() => {
+                      const eid = slot.entity_id || slot.id;
+                      const srv = 'https://maestra-backend-v2-production.up.railway.app';
+                      const url = slot.frameUrl || `${srv}/video/frame/${eid}`;
+                      return <img src={url} alt="stream"
+                        style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
+                        onError={e => { (e.target as HTMLImageElement).style.opacity='0'; }} />;
+                    })()}
+                    {!slot.frameUrl && (
                       <div className="live-node-thumb-placeholder">
                         <span className="live-node-thumb-icon">
                           {slot.signalType === 'audio_reactive' ? '♫'
