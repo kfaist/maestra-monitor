@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface SignalPanelProps {
   injectActive: boolean;
@@ -11,304 +11,241 @@ interface SignalPanelProps {
   onP6Flush: (prompt: string) => void;
 }
 
-const AUTO_INJECT_INTERVAL = 5000;
-const P6_FLUSH_DELAY = 5000;
+const EV_SERVER = 'https://maestra-backend-v2-production.up.railway.app';
 
-// Common stop words to filter out — keep meaningful content words
-const STOP_WORDS = new Set([
-  'i','me','my','we','you','he','she','it','they','this','that','a','an','the',
-  'is','was','are','were','be','been','have','has','had','do','did','will','would',
-  'could','should','may','might','can','to','of','in','on','at','by','for','with',
-  'about','as','into','from','and','or','but','if','so','then','when','where',
-  'what','which','who','how','not','no','very','just','also','up','out','get',
-  'got','go','went','come','came','see','say','said','know','think','make',
-  'take','use','find','give','tell','like','really','yeah','okay','right',
-  'well','thing','things','some','there','here','all','more','much','than',
-]);
-
-// Extract meaningful words from speech text (works with lowercase speech recognition output)
-function extractNouns(text: string): string[] {
-  const words = text.toLowerCase().split(/\s+/);
-  const extracted = new Set<string>();
-  for (const w of words) {
-    const clean = w.replace(/[^a-z]/g, '');
-    if (clean.length >= 3 && !STOP_WORDS.has(clean)) {
-      extracted.add(clean);
-    }
-  }
-  return Array.from(extracted).slice(0, 12);
+interface MirrorState {
+  prompt_text?: string;
+  p6?: string;
+  prompt?: string;
+  audio_amplitude?: number;
+  audio_level?: number;
+  visitor_present?: boolean;
 }
 
-export default function SignalPanel({
-  injectActive,
-  onInjectToggle,
-  promptText,
-  onPromptChange,
-  onBroadcast,
-  onP6Flush,
-}: SignalPanelProps) {
-  const [transEnabled, setTransEnabled] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const [nouns, setNouns] = useState<string[]>([]);
-  const [isListening, setIsListening] = useState(false);
-  const [autoInjectCountdown, setAutoInjectCountdown] = useState(5);
-  const [lastBroadcast, setLastBroadcast] = useState<number | null>(null);
-  const [p6Flushing, setP6Flushing] = useState(false);
+interface DmxState {
+  active_cue_id?: string | null;
+  active_sequence_id?: string | null;
+  cues?: Array<{ id: string; name?: string; fade_duration?: number }>;
+  sequences?: Array<{ id: string; name?: string; cue_count?: number }>;
+}
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recognitionRef = useRef<any>(null);
-  const autoInjectRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const p6TimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const promptTextRef = useRef(promptText);
-  promptTextRef.current = promptText;
-  const transcriptRef = useRef(transcript);
-  transcriptRef.current = transcript;
-  const onBroadcastRef = useRef(onBroadcast);
-  onBroadcastRef.current = onBroadcast;
-  const onP6FlushRef = useRef(onP6Flush);
-  onP6FlushRef.current = onP6Flush;
-  const onPromptChangeRef = useRef(onPromptChange);
-  onPromptChangeRef.current = onPromptChange;
+async function fetchEntityState(slug: string): Promise<Record<string, unknown> | null> {
+  try {
+    const r = await fetch(`${EV_SERVER}/entities?slug=${slug}`, {
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const entity = Array.isArray(d) ? d[0] : d;
+    return entity?.state ?? null;
+  } catch {
+    return null;
+  }
+}
 
-  // Build the combined prompt: base prompt + transcript
-  const getCombinedPrompt = useCallback(() => {
-    const base = promptTextRef.current.trim();
-    const trans = transcriptRef.current.trim();
-    if (base && trans) return `${base} | ${trans}`;
-    return trans || base;
+async function patchEntityState(slug: string, state: Record<string, unknown>) {
+  try {
+    await fetch(`${EV_SERVER}/entities/${slug}/state`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state }),
+    });
+  } catch { /* silent */ }
+}
+
+export default function SignalPanel({}: SignalPanelProps) {
+  const [mirrorState, setMirrorState] = useState<MirrorState>({});
+  const [dmxState, setDmxState] = useState<DmxState>({});
+  const [dmxOnline, setDmxOnline] = useState(false);
+  const [mirrorOnline, setMirrorOnline] = useState(false);
+  const promptFlashRef = useRef<HTMLDivElement>(null);
+  const prevPromptRef = useRef<string>('');
+
+  useEffect(() => {
+    async function poll() {
+      const [m, d] = await Promise.allSettled([
+        fetchEntityState('krista1_visual'),
+        fetchEntityState('dmx-lighting'),
+      ]);
+      if (m.status === 'fulfilled' && m.value) {
+        setMirrorOnline(true);
+        setMirrorState(m.value as MirrorState);
+        const newPrompt = String((m.value as MirrorState).prompt_text || (m.value as MirrorState).p6 || '');
+        if (newPrompt && newPrompt !== prevPromptRef.current) {
+          prevPromptRef.current = newPrompt;
+          if (promptFlashRef.current) {
+            promptFlashRef.current.style.borderColor = 'rgba(0,212,255,0.7)';
+            setTimeout(() => {
+              if (promptFlashRef.current) promptFlashRef.current.style.borderColor = '';
+            }, 500);
+          }
+        }
+      } else {
+        setMirrorOnline(false);
+      }
+      if (d.status === 'fulfilled' && d.value) {
+        setDmxOnline(true);
+        setDmxState(d.value as DmxState);
+      } else {
+        setDmxOnline(false);
+      }
+    }
+    poll();
+    const t = setInterval(poll, 2000);
+    return () => clearInterval(t);
   }, []);
 
-  // Speech Recognition
-  useEffect(() => {
-    if (!transEnabled) {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-        recognitionRef.current = null;
-      }
-      setIsListening(false);
-      return;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      setTranscript('Speech recognition not supported in this browser.');
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => {
-      setIsListening(false);
-      if (transEnabled) {
-        try { recognition.start(); } catch { /* already started */ }
-      }
-    };
-    recognition.onerror = () => {
-      setIsListening(false);
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    recognition.onresult = (event: any) => {
-      let finalText = '';
-      let interimText = '';
-      for (let i = 0; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          finalText += result[0].transcript + ' ';
-        } else {
-          interimText += result[0].transcript;
-        }
-      }
-      const fullText = (finalText + interimText).trim();
-      setTranscript(fullText);
-      setNouns(extractNouns(fullText));
-    };
-
-    try {
-      recognition.start();
-      recognitionRef.current = recognition;
-    } catch { /* */ }
-
-    return () => {
-      try { recognition.stop(); } catch { /* */ }
-      recognitionRef.current = null;
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transEnabled]);
-
-  // Auto-inject timer — broadcasts combined prompt (base + transcript)
-  useEffect(() => {
-    if (injectActive) {
-      setAutoInjectCountdown(5);
-
-      countdownRef.current = setInterval(() => {
-        setAutoInjectCountdown(prev => prev <= 1 ? 5 : prev - 1);
-      }, 1000);
-
-      autoInjectRef.current = setInterval(() => {
-        const combined = getCombinedPrompt();
-        if (combined) {
-          setLastBroadcast(Date.now());
-          onBroadcastRef.current(combined);
-        }
-      }, AUTO_INJECT_INTERVAL);
-
-      // Immediate first broadcast
-      const combined = getCombinedPrompt();
-      if (combined) {
-        onBroadcastRef.current(combined);
-        setLastBroadcast(Date.now());
-      }
-
-      return () => {
-        if (autoInjectRef.current) clearInterval(autoInjectRef.current);
-        if (countdownRef.current) clearInterval(countdownRef.current);
-      };
-    } else {
-      if (autoInjectRef.current) clearInterval(autoInjectRef.current);
-      if (countdownRef.current) clearInterval(countdownRef.current);
-      setAutoInjectCountdown(5);
-    }
-  }, [injectActive, getCombinedPrompt]);
-
-  // P6 flush — fires P6_FLUSH_DELAY ms after each broadcast
-  useEffect(() => {
-    if (lastBroadcast && injectActive) {
-      setP6Flushing(false);
-      if (p6TimerRef.current) clearTimeout(p6TimerRef.current);
-      p6TimerRef.current = setTimeout(() => {
-        const combined = getCombinedPrompt();
-        setP6Flushing(true);
-        onP6FlushRef.current(combined);
-        setTimeout(() => setP6Flushing(false), 1500);
-      }, P6_FLUSH_DELAY);
-      return () => { if (p6TimerRef.current) clearTimeout(p6TimerRef.current); };
-    }
-  }, [lastBroadcast, injectActive, getCombinedPrompt]);
-
-  // Show what will actually be sent
-  const combinedPreview = (() => {
-    const base = promptText.trim();
-    const trans = transcript.trim();
-    if (base && trans) return `${base} | ${trans}`;
-    return trans || base;
-  })();
+  const amp = parseFloat(String(mirrorState.audio_amplitude ?? mirrorState.audio_level ?? 0));
+  const visitorPresent = !!mirrorState.visitor_present;
+  const promptText = String(mirrorState.prompt_text || mirrorState.p6 || mirrorState.prompt || '--');
+  const cues = dmxState.cues || [];
+  const sequences = dmxState.sequences || [];
 
   return (
     <div className="signal-panel">
+
+      {/* mirrors-echo entity */}
       <div className="signal-section">
-        {/* Transcription header */}
-        <div className="sp-header">
-          <div className="sp-title-row">
-            <span className="sp-title">Transcription</span>
-            {isListening && (
-              <span className="sp-listening-badge">
-                <span className="sp-listening-dot" />
-                Listening
-              </span>
-            )}
+        <div className="sp-header" style={{ justifyContent: 'space-between', display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+          <span className="sp-title">// mirrors-echo</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%', display: 'inline-block',
+              background: mirrorOnline ? 'var(--active, #00ff88)' : 'var(--red, #f87171)',
+              boxShadow: mirrorOnline ? '0 0 6px var(--active, #00ff88)' : 'none',
+            }} />
+            <span style={{ fontSize: 9, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>krista1_visual</span>
           </div>
         </div>
 
-        {/* Transcript display with inline toggle */}
-        <div className="sp-transcript" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button
-            onClick={() => setTransEnabled(!transEnabled)}
-            className="maestra-action-btn"
-            style={{
-              padding: '6px 14px',
-              fontSize: 12,
-              fontFamily: "'JetBrains Mono', monospace",
-              fontWeight: 600,
-              letterSpacing: '0.05em',
-              border: `1px solid ${transEnabled ? '#22c55e' : '#333'}`,
-              borderRadius: 5,
-              background: transEnabled ? 'rgba(34,197,94,0.15)' : 'transparent',
-              color: transEnabled ? '#22c55e' : '#888',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              flexShrink: 0,
-            }}
-          >
-            {transEnabled ? '● ON' : '○ OFF'}
-          </button>
-          <div style={{ flex: 1 }}>
-            {transcript ? (
-              <span>{transcript}</span>
-            ) : (
-              <span style={{ color: '#e0e0e8' }}>
-                {transEnabled ? 'Speak into your microphone...' : <>Enable <span style={{ color: '#5cc8ff' }}>transcription</span> to capture speech</>}
-              </span>
-            )}
-            {transEnabled && <span className="cursor" />}
+        {/* prompt_text */}
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-dim)' }}>prompt_text</span>
+            <span style={{ fontSize: 8, color: 'var(--text-dim)', opacity: 0.5 }}>output · string</span>
+          </div>
+          <div ref={promptFlashRef} style={{
+            fontFamily: 'var(--font-mono)', fontSize: 11,
+            color: 'var(--accent, #00d4ff)',
+            background: 'var(--surface2)', border: '1px solid var(--border)',
+            padding: '7px 9px', minHeight: 32, lineHeight: 1.6,
+            wordBreak: 'break-all', transition: 'border-color 0.3s',
+          }}>
+            {promptText}
           </div>
         </div>
 
-        {/* Nouns */}
-        <div className="sp-section-label">
-          <span>Extracted Nouns</span>
-          <span className="sp-count">{nouns.length}</span>
-        </div>
-        <div className="noun-tags">
-          {nouns.length > 0 ? nouns.map((n, i) => (
-            <span key={i} className="noun-tag fresh">{n}</span>
-          )) : (
-            <span className="sp-empty">No nouns extracted yet</span>
-          )}
-        </div>
-
-        {/* Prompt input */}
-        <div className="sp-section-label" style={{ marginTop: '12px' }}>
-          <span>Base Prompt</span>
-          {injectActive && <span className="sp-live-indicator">LIVE</span>}
-        </div>
-        <div className="sp-prompt-row">
-          <textarea
-            className="sp-prompt-input"
-            placeholder="baroque cathedral, golden light, deep shadows..."
-            value={promptText}
-            onChange={(e) => onPromptChange(e.target.value)}
-          />
-          <button
-            className={`sp-inject-btn ${injectActive ? 'live' : ''}`}
-            onClick={() => onInjectToggle(!injectActive)}
-          >
-            {injectActive ? 'Stop' : 'Inject'}
-          </button>
-        </div>
-
-        {/* Combined prompt preview — shows what actually gets sent */}
-        {(injectActive || transcript) && combinedPreview && (
-          <div className="sp-combined-preview">
-            <span className="sp-combined-label">Sending to TD</span>
-            <span className="sp-combined-text">{combinedPreview}</span>
+        {/* audio_amplitude */}
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-dim)' }}>audio_amplitude</span>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 10, color: 'var(--active, #00ff88)' }}>{amp.toFixed(2)}</span>
           </div>
-        )}
-
-        {/* Auto-inject status bar */}
-        {injectActive && (
-          <div className="sp-auto-bar">
-            <span className="sp-auto-label">Auto-Inject</span>
-            <div className="sp-auto-progress">
-              <div
-                className="sp-auto-fill"
-                style={{ width: `${((5 - autoInjectCountdown) / 5) * 100}%` }}
-              />
-            </div>
-            <span className="sp-auto-countdown">{autoInjectCountdown}s</span>
-            {p6Flushing && (
-              <span className="sp-p6-badge">P6 FLUSH</span>
-            )}
+          <div style={{ height: 6, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', borderRadius: 2,
+              width: `${Math.min(100, amp * 100)}%`,
+              background: 'linear-gradient(90deg, var(--accent2, #7b2fff), var(--accent, #00d4ff))',
+              transition: 'width 0.15s linear',
+            }} />
           </div>
-        )}
+        </div>
+
+        {/* visitor_present */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-dim)' }}>visitor_present</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%', display: 'inline-block',
+              background: visitorPresent ? 'var(--active, #00ff88)' : 'var(--red, #f87171)',
+              boxShadow: visitorPresent ? '0 0 8px var(--active, #00ff88)' : 'none',
+            }} />
+            <span style={{
+              fontFamily: 'var(--font-display)', fontSize: 10,
+              color: visitorPresent ? 'var(--active, #00ff88)' : 'var(--text-dim)',
+            }}>{String(visitorPresent)}</span>
+            <span style={{ fontSize: 8, color: 'var(--text-dim)', opacity: 0.4 }}>output · boolean</span>
+          </div>
+        </div>
       </div>
+
+      {/* dmx-lighting entity */}
+      <div className="signal-section" style={{ borderTop: '1px solid var(--border)', paddingTop: 14, marginTop: 4 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <span className="sp-title">// dmx-lighting</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%', display: 'inline-block',
+              background: dmxOnline ? 'var(--active, #00ff88)' : 'var(--text-dim, #4a6580)',
+              boxShadow: dmxOnline ? '0 0 6px var(--active, #00ff88)' : 'none',
+            }} />
+            <span style={{ fontSize: 9, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Aaron</span>
+          </div>
+        </div>
+
+        {/* active cue / sequence */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+          <div>
+            <div style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: 4 }}>active_cue</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 10, color: 'var(--amber, #fbbf24)', background: 'var(--surface2)', border: '1px solid var(--border)', padding: '5px 8px' }}>
+              {dmxState.active_cue_id || 'idle'}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: 4 }}>active_seq</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 10, color: 'var(--pink, #f472b6)', background: 'var(--surface2)', border: '1px solid var(--border)', padding: '5px 8px' }}>
+              {dmxState.active_sequence_id || 'idle'}
+            </div>
+          </div>
+        </div>
+
+        {/* cue list */}
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: 5 }}>
+            cues <span style={{ opacity: 0.4, fontWeight: 400 }}>({cues.length})</span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, minHeight: 16 }}>
+            {cues.length > 0 ? cues.map((c) => (
+              <span
+                key={c.id}
+                onClick={() => patchEntityState('dmx-lighting', { active_cue_id: c.id })}
+                style={{
+                  fontSize: 8, padding: '2px 7px', cursor: 'pointer', letterSpacing: '0.08em',
+                  border: '1px solid rgba(251,191,36,0.3)', background: 'rgba(251,191,36,0.07)',
+                  color: 'var(--amber, #fbbf24)',
+                }}
+                title={`fade: ${c.fade_duration ?? 0}s`}
+              >{c.name || c.id}</span>
+            )) : (
+              <span style={{ fontSize: 9, color: 'var(--text-dim)', opacity: 0.35 }}>none yet</span>
+            )}
+          </div>
+        </div>
+
+        {/* sequence list */}
+        <div>
+          <div style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: 5 }}>
+            sequences <span style={{ opacity: 0.4, fontWeight: 400 }}>({sequences.length})</span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, minHeight: 16 }}>
+            {sequences.length > 0 ? sequences.map((s) => (
+              <span
+                key={s.id}
+                onClick={() => patchEntityState('dmx-lighting', { active_sequence_id: s.id })}
+                style={{
+                  fontSize: 8, padding: '2px 7px', cursor: 'pointer', letterSpacing: '0.08em',
+                  border: '1px solid rgba(244,114,182,0.3)', background: 'rgba(244,114,182,0.07)',
+                  color: 'var(--pink, #f472b6)',
+                }}
+                title={`${s.cue_count ?? '?'} cues`}
+              >{s.name || s.id}</span>
+            )) : (
+              <span style={{ fontSize: 9, color: 'var(--text-dim)', opacity: 0.35 }}>none yet</span>
+            )}
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }
