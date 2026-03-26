@@ -21,7 +21,7 @@ import { createInitialSlots, SUGGESTIONS } from '@/mock';
 import { WSSimulator } from '@/mock/ws-simulator';
 import { API_BASE } from '@/mock/gpu-nodes';
 import { GALLERY_URL, RAILWAY_URL } from '@/components/Header';
-import EntityPatchBay from '@/components/EntityPatchBay';
+import SlotEntityPanel from '@/components/SlotEntityPanel';
 import { formatTimestamp } from '@/lib/audio-utils';
 import { FRAME_FETCH_INTERVAL } from '@/lib/constants';
 import {
@@ -1517,14 +1517,11 @@ export default function Home() {
               entityStates={entityStates}
             />
 
-            {/* Entity Patch Bay — signal routing */}
-            <EntityPatchBay
+            {/* Slot Entity Panels — TD OUT signals, one colored card per slot */}
+            <SlotEntityPanel
               slots={slots}
               entityStates={entityStates}
               liveValues={{}}
-              onApplyGlobal={(sigId, val) => {
-                broadcastPrompt(String(val));
-              }}
             />
 
             <AudioAnalysis audioData={audioData} onSendAudio={sendToTarget} />
