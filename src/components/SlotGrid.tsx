@@ -108,11 +108,26 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   const [cachedTops, setCachedTops] = useState<string[]>([]);
   const [cachedTree, setCachedTree] = useState<Record<string, string[]>>({});
   useEffect(() => {
+    const LS_TOPS = 'maestra_cached_tops';
+    const LS_TREE = 'maestra_cached_tree';
+    // Restore from localStorage immediately (survives Railway restarts)
+    try {
+      const lt = localStorage.getItem(LS_TOPS);
+      const ltr = localStorage.getItem(LS_TREE);
+      if (lt) setCachedTops(JSON.parse(lt));
+      if (ltr) setCachedTree(JSON.parse(ltr));
+    } catch {}
     const load = () => fetch('/api/tops')
       .then(r => r.json())
       .then(d => {
-        if (d.tops?.length) setCachedTops(d.tops);
-        if (d.tree && Object.keys(d.tree).length) setCachedTree(d.tree);
+        if (d.tops?.length) {
+          setCachedTops(d.tops);
+          try { localStorage.setItem(LS_TOPS, JSON.stringify(d.tops)); } catch {}
+        }
+        if (d.tree && Object.keys(d.tree).length) {
+          setCachedTree(d.tree);
+          try { localStorage.setItem(LS_TREE, JSON.stringify(d.tree)); } catch {}
+        }
       })
       .catch(() => {});
     load();
