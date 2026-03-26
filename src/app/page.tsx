@@ -790,7 +790,7 @@ export default function Home() {
 
   // Broadcast prompt — sends via WS broadcast + targeted state_update
   const broadcastPrompt = useCallback((prompt: string) => {
-    const targets = getAllTargetEntityIds();
+    const targets = slotsRef.current.map(s => s.entity_id || s.id).filter(Boolean);
     // Send as prompt_inject (fleet-wide) AND as state_update with { prompt } key
     sendViaAll(
       { type: 'prompt_inject', prompt, data: { prompt } },
@@ -803,7 +803,7 @@ export default function Home() {
 
   // P6 flush — sends the prompt to TD's p6 field directly
   const p6Flush = useCallback((prompt: string) => {
-    const targets = getAllTargetEntityIds();
+    const targets = slotsRef.current.map(s => s.entity_id || s.id).filter(Boolean);
     // TD expects data.p6 = "the prompt text", NOT data.prompt with a field tag
     sendViaAll(
       { type: 'p6_flush', prompt, data: { p6: prompt, prompt } },
@@ -824,7 +824,7 @@ export default function Home() {
       // Fleet-wide broadcast (no entity_id)
       ws.send(JSON.stringify({ type: 'state_update', data, timestamp: ts }));
       // Also target every known entity individually
-      const targets = getAllTargetEntityIds();
+      const targets = slotsRef.current.map(s => s.entity_id || s.id).filter(Boolean);
       targets.forEach(entityId => {
         ws.send(JSON.stringify({ type: 'state_update', entity_id: entityId, data, timestamp: ts }));
       });
