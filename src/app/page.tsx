@@ -1532,36 +1532,6 @@ export default function Home() {
         onServerModeChange={handleServerModeChange}
       />
 
-
-            <ScenePanel
-              onActivateScene={handleActivateScene}
-              injectActive={injectActive}
-              onInjectToggle={setInjectActive}
-              promptText={promptText}
-              onPromptChange={setPromptText}
-              onBroadcast={broadcastPrompt}
-              onP6Flush={p6Flush}
-            />
-      <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
-
-      {/* DASHBOARD TAB */}
-      <div className={`tab-content ${activeTab === 'dashboard' ? 'active' : ''}`}>
-
-        <div className="fleet-layout">
-          {/* Left: Slot Grid + Signal Panel + Audio Analysis + Palette + Modulation */}
-          <div className="fleet-panel">
-            <SlotGrid
-              slots={slots}
-              selectedId={selectedId}
-              onSelectSlot={selectSlot}
-              onAddSlot={addSlot}
-              onJoinNode={() => setJoinModalOpen(true)}
-              onSlotSetupComplete={handleSlotSetupComplete}
-              onInjectSignal={handleInjectSignal}
-              eventEntries={eventEntries}
-              entityStates={entityStates}
-            />
-
                         {/* Entity Patch Bay — signal routing, drag OUT chips to slot IN zones */}
             <EntityPatchBay
               slots={slots}
@@ -1573,6 +1543,17 @@ export default function Home() {
             />
 
             <AudioAnalysis audioData={audioData} onSendAudio={sendToTarget} />
+
+
+            <ScenePanel
+              onActivateScene={handleActivateScene}
+              injectActive={injectActive}
+              onInjectToggle={setInjectActive}
+              promptText={promptText}
+              onPromptChange={setPromptText}
+              onBroadcast={broadcastPrompt}
+              onP6Flush={p6Flush}
+            />
 
             <LightingPanel
               dmxState={dmxState}
