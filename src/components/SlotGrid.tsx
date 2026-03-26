@@ -1,5 +1,6 @@
 'use client';
 
+import { SLOT_COLORS } from './SignalPanel';
 import { useState, useEffect, useCallback } from 'react';
 import { FleetSlot, slotStatusLabel, slotStatusClass, formatAge, EventEntry } from '@/types';
 
@@ -288,9 +289,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
             return { text: 'ACTIVE', cls: 'badge-active' };
           })();
 
+          const slotColor = SLOT_COLORS[slots.indexOf(slot) % SLOT_COLORS.length];
           return (
             <div
               key={slot.id}
+              style={{ '--slot-color': slotColor } as React.CSSProperties}
               className={[
                 'slot',
                 slot.active ? 'active-slot' : '',
@@ -629,7 +632,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   ) : (
                     /* ════ DEFAULT AVAILABLE STATE ════ */
                     <div className="slot-available-state">
-                      <div className="slot-available-label">AVAILABLE</div>
+                      <div className="slot-available-banner">
+                        <span className="slot-available-flicker">AVAILABLE</span>
+                      </div>
                       {slot.suggestion && (
                         <span className={`suggestion-tag ${slot.suggestion.tag}`}>{slot.suggestion.tagLabel}</span>
                       )}
@@ -680,9 +685,16 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                 </div>
               </div>
               <div className="selected-badge">
-                <svg viewBox="0 0 10 10" fill="none" stroke="#000" strokeWidth="2">
-                  <polyline points="1.5,5 4,7.5 8.5,2.5" />
-                </svg>
+                {slot.active ? (
+                  <svg viewBox="0 0 10 10" fill="none" stroke="#000" strokeWidth="1.5">
+                    <rect x="2.5" y="4.5" width="5" height="4" rx="0.5"/>
+                    <path d="M3.5 4.5V3a2 2 0 0 1 4 0v1.5"/>
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 10 10" fill="none" stroke="#000" strokeWidth="2">
+                    <polyline points="1.5,5 4,7.5 8.5,2.5" />
+                  </svg>
+                )}
               </div>
             </div>
           );
