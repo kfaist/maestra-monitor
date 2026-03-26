@@ -899,6 +899,31 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 </div>
 
                                 {/* Operator picker — shows ops ONLY within setup.selectedNode */}
+                                {/* Node select dropdown */}
+                                <div style={{ width: '100%' }}>
+                                  <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
+                                    Select Node {Object.keys(nodeMap).length > 0 && <span style={{ color: slotColor }}>· {Object.keys(nodeMap).length} found</span>}
+                                  </div>
+                                  {Object.keys(nodeMap).length > 0 ? (
+                                    <>
+                                    <input type="text" value={setup.nodeSearch||''} placeholder="search nodes…"
+                                      onClick={e=>e.stopPropagation()}
+                                      onChange={e=>{e.stopPropagation();setSetupState(prev=>({...prev,[slot.id]:{...prev[slot.id],nodeSearch:e.target.value}}));}}
+                                      style={{width:'100%',padding:'3px 7px',fontSize:9,fontFamily:'var(--font-mono)',background:'rgba(0,0,0,0.4)',border:'1px solid rgba(255,255,255,0.1)',color:'rgba(255,255,255,0.6)',outline:'none',boxSizing:'border-box',marginBottom:3}}/>
+                                    <select value={setup.selectedNode||''} onClick={e=>e.stopPropagation()}
+                                      onChange={e=>{e.stopPropagation();const n=e.target.value;setSetupState(prev=>({...prev,[slot.id]:{...prev[slot.id],selectedNode:n,selectedTop:'',stateKey:''}}));}}
+                                      style={{width:'100%',padding:'5px 8px',fontSize:10,fontFamily:'var(--font-mono)',background:'rgba(0,0,0,0.6)',border:`1px solid ${slotColor}40`,color:slotColor,outline:'none'}}>
+                                      <option value="">— select node —</option>
+                                      {Object.keys(nodeMap).sort().filter(n=>!(setup.nodeSearch||'')||n.toLowerCase().includes((setup.nodeSearch||'').toLowerCase())).map(n=><option key={n} value={n} style={{background:'#0a0a14'}}>{n}</option>)}
+                                    </select>
+                                    </>
+                                  ) : (
+                                    <div style={{fontSize:9,color:'rgba(255,255,255,0.2)',fontFamily:'var(--font-mono)',padding:'4px 0',lineHeight:1.6}}>
+                                      No nodes detected. Run exec(open(r&apos;build_maestra_tox.py&apos;).read()) in TD once.
+                                    </div>
+                                  )}
+                                </div>
+
                                 {setup.selectedNode && (
                                   <div style={{ width: '100%' }}>
                                     <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
