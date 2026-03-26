@@ -713,18 +713,34 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
               <div className="slot-footer">
                 <div className="slot-footer-left">
                   <div className="slot-label">
-                    {/* Primary: entity name — what TD reports */}
-                    <span className="slot-label-name" style={{ color: slotColor, fontWeight: 700 }}>
-                      {(() => {
-                        const eid = slot.entity_id || slot.id;
-                        const toeName = (entityStates[eid] as Record<string,unknown>|undefined)?.toe_name;
-                        return toeName ? String(toeName) : (slot.entity_id || slot.label);
-                      })()}
-                    </span>
-                    {/* Secondary: slot index, tiny */}
-                    <span style={{ fontSize: 8, letterSpacing: '0.1em', color: 'var(--text-dim)', opacity: 0.35, marginLeft: 4, textTransform: 'uppercase' }}>
-                      slot {slots.indexOf(slot) + 1}
-                    </span>
+                    {slot.active ? (
+                      /* Active: entity/toe name + slot index */
+                      <>
+                        <span className="slot-label-name" style={{ color: slotColor, fontWeight: 700 }}>
+                          {(() => {
+                            const eid = slot.entity_id || slot.id;
+                            const toeName = (entityStates[eid] as Record<string,unknown>|undefined)?.toe_name;
+                            return toeName ? String(toeName) : (slot.entity_id || slot.label);
+                          })()}
+                        </span>
+                        <span style={{ fontSize: 8, letterSpacing: '0.1em', color: 'var(--text-dim)', opacity: 0.3, marginLeft: 4, textTransform: 'uppercase' }}>
+                          slot {slots.indexOf(slot) + 1}
+                        </span>
+                      </>
+                    ) : (
+                      /* Inactive: TOOL ▾ dropdown chip in slot color — no hardcoded name */
+                      <span style={{
+                        fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase',
+                        color: slotColor, border: `1px solid ${slotColor}40`,
+                        background: `${slotColor}08`, padding: '2px 8px',
+                        display: 'inline-flex', alignItems: 'center', gap: 5, userSelect: 'none',
+                      }}>
+                        TOOL
+                        <svg width="7" height="5" viewBox="0 0 7 5" fill="none" style={{ flexShrink: 0 }}>
+                          <path d="M1 1L3.5 4L6 1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                        </svg>
+                      </span>
+                    )}
                   {/* Lock + controls — only on active slots */}
                   {slot.active && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
