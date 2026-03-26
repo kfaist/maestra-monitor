@@ -1561,6 +1561,9 @@ export default function Home() {
               audioReactiveEnabled={audioReactiveEnabled}
               onAudioReactiveToggle={setAudioReactiveEnabled}
             />
+
+            <ColorPalette onColorChange={handleColorChange} />
+            <ModulationGrid onModulationChange={handleModulationChange} />
           </div>
 
           {/* Right: Detail Panel */}
