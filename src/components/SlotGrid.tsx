@@ -344,11 +344,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
               {(() => {
                 const slotMode = slotServerModes[slot.id] || 'auto';
                 const slotServerStr = (entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.server as string | undefined;
-                const modes: { key: 'auto' | 'gallery' | 'railway' | 'custom'; label: string; color: string }[] = [
-                  { key: 'auto',    label: 'Auto',   color: '#fbbf24' },
-                  { key: 'gallery', label: '⚡ Local', color: '#00ff88' },
-                  { key: 'railway', label: '☁ Cloud', color: '#00d4ff' },
-                  { key: 'custom',  label: '…',       color: '#a78bfa' },
+                const modes: { key: 'auto' | 'gallery' | 'railway' | 'custom'; label: string; color: string; title?: string }[] = [
+                  { key: 'auto',    label: 'Auto',   color: '#fbbf24', title: 'Auto-detect: gallery first, then Railway' },
+                  { key: 'gallery', label: '⚡ Local', color: '#00ff88', title: '192.168.128.115 — on-site only' },
+                  { key: 'railway', label: '☁ Railway', color: '#00d4ff', title: 'Railway cloud — accessible anywhere' },
+                  { key: 'custom',  label: 'Custom',  color: '#a78bfa', title: 'Custom server URL' },
                 ];
                 const activeMode = modes.find(m => m.key === slotMode)!;
                 return (
@@ -415,95 +415,84 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <div className={`live-node-badge ${statusCls}`}>LIVE</div>
                   </div>
 
-                                    {/* ── Entity Identity + Live Status ── */}
+                                    {/* ── Entity Identity ── */}
                   <div className="live-section">
                     <div className="live-section-head">Entity</div>
                     <div className="live-kv-grid">
-                      {/* entity name / toe_name */}
                       <span className="live-kv-key">name</span>
                       <span className="live-kv-val" style={{ color: slotColor, fontWeight: 700 }}>
-                        {(entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.toe_name as string
-                          || slot.entity_id || slot.id}
+                        {(entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.toe_name as string || slot.entity_id || slot.id}
                       </span>
-                      {/* slug */}
                       <span className="live-kv-key">slug</span>
-                      <span className="live-kv-val" style={{ fontFamily: 'var(--font-mono)', fontSize: 9 }}>
+                      <span className="live-kv-val" style={{ fontFamily: 'var(--font-mono)', fontSize: 9, opacity: 0.6 }}>
                         {slot.entity_id || slot.id}
                       </span>
-                      {/* server */}
                       <span className="live-kv-key">server</span>
-                      <span className="live-kv-val" style={{ fontSize: 8, opacity: 0.55 }}>
-                        {(() => {
-                          const s = (entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.server as string | undefined;
-                          if (!s) return '—';
-                          return s.replace('https://','').replace('http://','').slice(0,28);
-                        })()}
+                      <span className="live-kv-val" style={{ fontSize: 8, opacity: 0.45 }}>
+                        {(() => { const s = (entityStates[slot.entity_id||slot.id] as Record<string,unknown>|undefined)?.server as string|undefined; return s ? s.replace('https://','').replace('http://','').slice(0,26) : '—'; })()}
                       </span>
-                      {/* connection status */}
                       <span className="live-kv-key">status</span>
-                      <span className={`live-kv-val ${mStatus?.server === 'connected' ? 'val-ok' : 'val-warn'}`}
-                        style={{ color: mStatus?.server === 'connected' ? slotColor : undefined }}>
+                      <span className="live-kv-val" style={{ color: mStatus?.server === 'connected' ? slotColor : '#ef4444' }}>
                         {mStatus?.server === 'connected' ? 'connected' : mStatus?.server || 'offline'}
                       </span>
-                      {/* last seen */}
                       <span className="live-kv-key">last seen</span>
-                      <span className={`live-kv-val ${mStatus?.heartbeat === 'live' ? 'val-ok' : mStatus?.heartbeat === 'stale' ? 'val-warn' : 'val-dim'}`}>
-                        {mStatus?.heartbeat === 'live' ? 'now'
-                          : mStatus?.lastHeartbeatAt ? `${formatAge(now - mStatus.lastHeartbeatAt)} ago`
-                          : 'waiting'}
+                      <span className={`live-kv-val ${mStatus?.heartbeat === 'live' ? 'val-ok' : 'val-dim'}`}>
+                        {mStatus?.heartbeat === 'live' ? 'now' : mStatus?.lastHeartbeatAt ? `${formatAge(now - mStatus.lastHeartbeatAt)} ago` : 'waiting'}
                       </span>
                     </div>
                   </div>
 
-                  {/* ── State Schema: ↑output + ↓input chips with live values ── */}
+                  {/* ── ↑ Output / ↓ Input state chips ── */}
                   {(() => {
                     const eid = slot.entity_id || slot.id;
-                    const eState = entityStates[eid] as Record<string,unknown> | undefined;
-                    const schema = eState?.stateSchema as Record<string, {type:string; direction:string}> | undefined;
-                    const entries = schema
+                    const eState = entityStates[eid] as Record<string,unknown>|undefined;
+                    const schema = eState?.stateSchema as Record<string,{type:string;direction:string}>|undefined;
+                    const entries: [string,{type:string;direction:string}][] = schema
                       ? Object.entries(schema)
-                      : Object.entries(eState || {})
-                          .filter(([k]) => !['toe_name','tops','server','active','metadata','stateSchema','publishing','listening'].includes(k))
-                          .map(([k]) => [k, { type: 'string', direction: 'output' }] as [string, {type:string;direction:string}]);
+                      : Object.entries(eState||{})
+                          .filter(([k])=>!['toe_name','tops','server','active','metadata','stateSchema'].includes(k))
+                          .map(([k])=>[k,{type:'string',direction:'output'}]);
                     if (!entries.length) return null;
-                    const outs = entries.filter(([,v]) => v.direction !== 'input');
-                    const ins  = entries.filter(([,v]) => v.direction === 'input');
+                    const outs = entries.filter(([,v])=>v.direction!=='input');
+                    const ins  = entries.filter(([,v])=>v.direction==='input');
                     return (
                       <div className="live-section">
-                        <div className="live-section-head">State</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                          {outs.map(([key, varDef]) => {
-                            const lv = eState?.[key] != null ? String(eState[key]).slice(0, 16) : null;
-                            return (
-                              <div key={key} style={{
-                                display: 'inline-flex', alignItems: 'center', gap: 3,
-                                background: `${slotColor}12`, border: `1px solid ${slotColor}40`,
-                                padding: '2px 5px', fontSize: 8,
-                              }}>
-                                <span style={{ color: slotColor, fontSize: 7 }}>↑</span>
-                                <span style={{ fontFamily: 'var(--font-mono)', color: slotColor }}>{key}</span>
-                                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 7 }}>{varDef.type}</span>
-                                {lv && <span style={{ color: 'var(--text-dim)', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: 3 }}>{lv}</span>}
-                              </div>
-                            );
-                          })}
-                          {ins.map(([key, varDef]) => (
-                            <div key={key} style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 3,
-                              background: 'rgba(255,255,255,0.03)', border: `1px solid ${slotColor}20`,
-                              padding: '2px 5px', fontSize: 8,
-                            }}>
-                              <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: 7 }}>↓</span>
-                              <span style={{ fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,0.4)' }}>{key}</span>
-                              <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: 7 }}>{varDef.type}</span>
+                        {outs.length > 0 && (
+                          <>
+                            <div className="live-section-head" style={{color:slotColor,letterSpacing:'0.12em'}}>↑ OUTPUT</div>
+                            <div style={{display:'flex',flexWrap:'wrap',gap:3,marginBottom:4}}>
+                              {outs.map(([key,v])=>{
+                                const lv = eState?.[key]!=null ? String(eState[key]).slice(0,14) : null;
+                                return (
+                                  <div key={key} style={{display:'inline-flex',alignItems:'center',gap:3,background:`${slotColor}12`,border:`1px solid ${slotColor}40`,padding:'2px 5px',fontSize:8}}>
+                                    <span style={{color:slotColor,fontSize:7}}>↑</span>
+                                    <span style={{fontFamily:'var(--font-mono)',color:slotColor}}>{key}</span>
+                                    <span style={{color:'rgba(255,255,255,0.2)',fontSize:7}}>{v.type}</span>
+                                    {lv&&<span style={{color:'var(--text-dim)',borderLeft:'1px solid rgba(255,255,255,0.1)',paddingLeft:3}}>{lv}</span>}
+                                  </div>
+                                );
+                              })}
                             </div>
-                          ))}
-                        </div>
+                          </>
+                        )}
+                        {ins.length > 0 && (
+                          <>
+                            <div className="live-section-head" style={{color:'rgba(255,255,255,0.3)',letterSpacing:'0.12em',marginTop:outs.length?6:0}}>↓ INPUT</div>
+                            <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
+                              {ins.map(([key,v])=>(
+                                <div key={key} style={{display:'inline-flex',alignItems:'center',gap:3,background:'rgba(255,255,255,0.03)',border:`1px solid ${slotColor}20`,padding:'2px 5px',fontSize:8}}>
+                                  <span style={{color:'rgba(255,255,255,0.3)',fontSize:7}}>↓</span>
+                                  <span style={{fontFamily:'var(--font-mono)',color:'rgba(255,255,255,0.45)'}}>{key}</span>
+                                  <span style={{color:'rgba(255,255,255,0.15)',fontSize:7}}>{v.type}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </div>
                     );
                   })()}
 
-{/* ── Section 2: Signals ── */}
                   <div className="live-section">
                     <div className="live-section-head">Signals</div>
                     {publishing.length > 0 && (
