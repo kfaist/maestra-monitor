@@ -325,13 +325,13 @@ export default function Home() {
   // Update connection config
   const handleServerModeChange = useCallback((mode: 'railway' | 'gallery') => {
     setServerMode(mode);
-    // Reconnect WS to new server
+    // Reconnect WS to new server — use ref to avoid forward declaration issue
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
-    setTimeout(connectWS, 300);
-  }, [connectWS]);
+    // wsReconnect will fire from the ws.onclose handler automatically
+  }, []);
 
   const updateConnectionConfig = useCallback((config: { serverUrl?: string; entityId?: string; port?: number; streamPath?: string }) => {
     if (!connectionInfo) return;
