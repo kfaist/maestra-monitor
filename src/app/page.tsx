@@ -21,7 +21,6 @@ import { createInitialSlots, SUGGESTIONS } from '@/mock';
 import { WSSimulator } from '@/mock/ws-simulator';
 import { API_BASE } from '@/mock/gpu-nodes';
 import { GALLERY_URL, RAILWAY_URL } from '@/components/Header';
-import GlobalOutBar from '@/components/GlobalOutBar';
 import EntityPatchBay from '@/components/EntityPatchBay';
 import { formatTimestamp } from '@/lib/audio-utils';
 import { FRAME_FETCH_INTERVAL } from '@/lib/constants';
