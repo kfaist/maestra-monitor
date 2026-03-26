@@ -670,7 +670,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             CONNECT YOUR NODE
                           </div>
 
-                          {/* TOP: Download link — big and prominent */}
+                          {/* PRIMARY: Download TOX */}
                           <a
                             href="/maestra.tox"
                             download="maestra.tox"
@@ -678,15 +678,14 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             style={{
                               width: '100%', boxSizing: 'border-box', display: 'block',
                               padding: '10px 12px', textDecoration: 'none', cursor: 'pointer',
-                              border: `1px solid ${slotColor}40`,
-                              background: `${slotColor}08`,
+                              border: `1px solid ${slotColor}40`, background: `${slotColor}08`,
                             }}
                           >
                             <div style={{ fontSize: 16, fontWeight: 700, color: slotColor, marginBottom: 3, fontFamily: 'var(--font-display)', letterSpacing: '0.05em' }}>
                               ↓ Download maestra.tox
                             </div>
                             <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-mono)' }}>
-                              Drag into your .toe file — auto-registers when your project opens
+                              Drag into your .toe → auto-registers when project opens
                             </div>
                           </a>
 
@@ -696,41 +695,69 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
                           </div>
 
-                          {/* BOTTOM: Already have it — browse to .toe */}
-                          <label
-                            style={{
-                              width: '100%', boxSizing: 'border-box', display: 'block',
-                              padding: '10px 12px', cursor: 'pointer', position: 'relative',
-                              border: '1px solid rgba(255,255,255,0.07)',
-                              background: 'rgba(255,255,255,0.02)',
-                            }}
-                            onClick={e => e.stopPropagation()}
-                          >
-                            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', marginBottom: 3, pointerEvents: 'none' }}>
-                              Already running in TD →
-                            </div>
-                            <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.25)', fontFamily: 'var(--font-mono)', pointerEvents: 'none' }}>
-                              {setup.refFile ? `📁 ${setup.refFile}` : 'Browse to your .toe file'}
-                            </div>
-                            <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.18)', marginTop: 4, fontFamily: 'var(--font-mono)', lineHeight: 1.6, pointerEvents: 'none' }}>
-                              The TOX auto-registers when your project opens.<br/>
-                              Once connected, this slot updates automatically.
-                            </div>
-                            <input
-                              type="file"
-                              accept=".toe,.tox"
-                              style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
-                              onChange={e => {
-                                const f = e.target.files?.[0];
-                                if (f) {
-                                  handleFileUpload(slot.id, f);
-                                  setTimeout(() => setSetupState(prev => ({
-                                    ...prev, [slot.id]: { ...prev[slot.id], stage: 'role' }
-                                  })), 300);
-                                }
+                          {/* SECONDARY: Browse to .toe with TOX already in it */}
+                          {!setup.refFile ? (
+                            <label
+                              style={{
+                                width: '100%', boxSizing: 'border-box', display: 'flex',
+                                alignItems: 'center', justifyContent: 'center',
+                                padding: '10px 12px', cursor: 'pointer', position: 'relative',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                background: 'rgba(255,255,255,0.03)',
+                                gap: 8,
                               }}
-                            />
-                          </label>
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, color: 'rgba(255,255,255,0.4)' }}>
+                                <path d="M1 8.5V10h1.5l4.4-4.4-1.5-1.5L1 8.5zM10.7 2.8a.4.4 0 0 0 0-.56L9.76 1.3a.4.4 0 0 0-.57 0l-.93.93 1.5 1.5.94-.94z" fill="currentColor"/>
+                              </svg>
+                              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', pointerEvents: 'none' }}>
+                                BROWSE to .toe file with TOX
+                              </span>
+                              <input
+                                type="file"
+                                accept=".toe,.tox"
+                                style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
+                                onChange={e => {
+                                  const f = e.target.files?.[0];
+                                  if (f) { handleFileUpload(slot.id, f); const derived = f.name.replace(/\.(toe|tox)$/i,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], refPath: derived } })); }
+                                }}
+                              />
+                            </label>
+                          ) : (
+                            /* File selected — show derived slug, let them edit */
+                            <div style={{ width: '100%', padding: '10px 12px', border: `1px solid ${slotColor}40`, background: `${slotColor}08` }}
+                              onClick={e => e.stopPropagation()}>
+                              <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', marginBottom: 6, fontFamily: 'var(--font-mono)' }}>
+                                📁 {setup.refFile}
+                              </div>
+                              <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>
+                                Slug from filename — edit if needed:
+                              </div>
+                              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                <input
+                                  type="text"
+                                  value={setup.refPath}
+                                  onChange={e => handleRefPathChange(slot.id, e.target.value)}
+                                  onClick={e => e.stopPropagation()}
+                                  style={{
+                                    flex: 1, padding: '4px 8px', fontSize: 11,
+                                    fontFamily: 'var(--font-mono)', color: slotColor,
+                                    background: 'rgba(0,0,0,0.4)',
+                                    border: `1px solid ${slotColor}50`, outline: 'none',
+                                    fontWeight: 700,
+                                  }}
+                                />
+                                <button
+                                  className="slot-wizard-btn slot-wizard-btn-primary"
+                                  style={{ padding: '4px 14px', fontSize: 10, flexShrink: 0 }}
+                                  onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'role' } })); }}
+                                >
+                                  Enter →
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
 
