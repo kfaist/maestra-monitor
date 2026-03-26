@@ -1307,7 +1307,8 @@ export default function Home() {
   }, [log, pushBusEntry]);
 
   // ═══ Scene activation — publish scene state + trigger DMX cue set ═══
-  const handleActivateScene = useCallback((scene: { label: string; state: Record<string, unknown> }) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleActivateScene = useCallback((scene: { id?: string; label: string; state: Record<string, unknown> }) => {
     const payload = { type: 'state_update', entity_id: 'scene_controller', data: scene.state };
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(payload));
@@ -1319,7 +1320,7 @@ export default function Home() {
       pushBusEntry(`scene.${k}`, String(v));
     });
     // Trigger DMX cue set for this scene
-    const cueSet = SCENE_CUE_MAP[scene.id];
+    const cueSet = SCENE_CUE_MAP[(scene as {id?:string}).id ?? scene.label.toLowerCase()];
     if (cueSet && cueSet.length > 0) {
       const ts = Date.now();
       // Patch dmx-lighting with the scene's cue set
