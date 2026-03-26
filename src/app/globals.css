@@ -469,8 +469,27 @@ header {
   border-radius: 4px;
   overflow: auto;
   cursor: pointer;
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+  transition: border-color 0.15s, box-shadow 0.1s, transform 0.15s;
   position: relative;
+  box-shadow: 0 0 0 0px transparent;
+}
+
+/* Audio amplitude glow — driven by --audio-amp (0.0–1.0) set inline from entityStates */
+@property --audio-amp {
+  syntax: '<number>';
+  initial-value: 0;
+  inherits: false;
+}
+
+.slot.active-slot {
+  box-shadow:
+    0 0 calc(var(--audio-amp, 0) * 32px) calc(var(--audio-amp, 0) * 4px)
+      color-mix(in srgb, var(--slot-color) calc(var(--audio-amp, 0) * 60%), transparent),
+    inset 0 0 calc(var(--audio-amp, 0) * 8px) 0px
+      color-mix(in srgb, var(--slot-color) calc(var(--audio-amp, 0) * 20%), transparent);
+  border-color: color-mix(in srgb, var(--slot-color)
+    calc(50% + var(--audio-amp, 0) * 50%), transparent);
+  transition: box-shadow 0.08s ease-out, border-color 0.08s ease-out;
 }
 .slot:hover { border-color: var(--slot-color, var(--accent)); box-shadow: 0 0 20px rgba(0,212,255,0.2), inset 0 0 30px rgba(0,212,255,0.03); transform: translateY(-2px); }
 .slot.selected { border-color: var(--accent); border-width: 2px; box-shadow: 0 0 0 1px var(--accent), 0 0 24px rgba(0,212,255,0.3), inset 0 0 40px rgba(0,212,255,0.04); }
