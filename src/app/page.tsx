@@ -8,12 +8,12 @@ import {
   SlotGrid,
   DetailPanel,
   AudioAnalysis,
-ToxReferenceTab,
+  ToxReferenceTab,
   ConnectionPanel,
   JoinModal,
-  LightingPanel} from '@/components';
+  LightingPanel,
+} from '@/components';
 import { JoinMaestraResult } from '@/components/JoinModal';
-import { } from '@/components/';
 import { EntityBusEntry } from '@/components/DetailPanel';
 import { DmxState, defaultDmxState, SCENE_CUE_MAP } from '@/components/LightingPanel';
 import { FleetSlot, LogEntry, EventEntry, AudioAnalysisData, SlotConnectionInfo, MaestraSlotStatus, defaultSlotStatus } from '@/types';
