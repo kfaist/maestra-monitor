@@ -338,6 +338,20 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       </span>
                       <span className="live-kv-key">Entity</span>
                       <span className="live-kv-val">{slot.entity_id || slot.id}</span>
+                      {/* Entity type from TOX metadata */}
+                      {(() => {
+                        const eid = slot.entity_id || slot.id;
+                        const meta = entityStates[eid] as Record<string,unknown>|undefined;
+                        const t = meta?.entity_type || meta?.type;
+                        const st = meta?.stream_type;
+                        if (!t && !st) return null;
+                        return (<>
+                          <span className="live-kv-key">Type</span>
+                          <span className="live-kv-val" style={{ color: 'var(--slot-color, #00d4ff)', fontSize: 9 }}>
+                            {t ? String(t) : ''}{st ? ` · ${String(st)}` : ''}
+                          </span>
+                        </>);
+                      })()}
                       <span className="live-kv-key">Heartbeat</span>
                       <span className={`live-kv-val ${mStatus?.heartbeat === 'live' ? 'val-ok' : mStatus?.heartbeat === 'stale' ? 'val-warn' : ''}`}>
                         {heartbeatMs ? `${heartbeatMs} ago` : 'waiting'}
@@ -595,6 +609,31 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               }}
                             />
                           </label>
+                          {/* TOP dropdown — populated when TOX pushes metadata.tops to entity state */}
+                          {(() => {
+                            const eid = slot.entity_id || slot.id;
+                            const tops = (entityStates[eid] as Record<string, unknown> | undefined)?.tops;
+                            const topList = Array.isArray(tops) ? tops as string[] : null;
+                            if (!topList || topList.length === 0) return null;
+                            return (
+                              <div style={{ width: '100%' }} onClick={e => e.stopPropagation()}>
+                                <div style={{ fontSize: 8, color: '#888', marginBottom: 3, letterSpacing: '0.1em' }}>TOPs available in this project:</div>
+                                <select
+                                  value={setup.refPath}
+                                  onChange={e => handleRefPathChange(slot.id, e.target.value)}
+                                  style={{
+                                    width: '100%', padding: '4px 6px', fontSize: 9,
+                                    fontFamily: "'JetBrains Mono', monospace",
+                                    background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(123,47,255,0.4)',
+                                    borderRadius: 2, color: '#a78bfa', outline: 'none', cursor: 'pointer',
+                                  }}
+                                >
+                                  <option value="">— select a TOP —</option>
+                                  {topList.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                              </div>
+                            );
+                          })()}
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%', fontSize: 8, color: '#666' }}>
                             <span style={{ flex: '0 0 auto' }}>or path:</span>
                             <input
@@ -652,7 +691,13 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   <div className="slot-label">
                     <span className="slot-label-id">Slot {slots.indexOf(slot) + 1}</span>
                     <span className="slot-label-sep"> — </span>
-                    <span className="slot-label-name">{slot.label}</span>
+                    <span className="slot-label-name">
+                      {(() => {
+                        const eid = slot.entity_id || slot.id;
+                        const toeName = (entityStates[eid] as Record<string,unknown>|undefined)?.toe_name;
+                        return toeName ? String(toeName) : slot.label;
+                      })()}
+                    </span>
                   </div>
                   {/* Entity ID tag */}
                   {(slot.entity_id || slot.active) && (
