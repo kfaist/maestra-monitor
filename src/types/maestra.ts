@@ -123,12 +123,12 @@ export interface StateVariable {
 export type StateSchema = Record<string, StateVariable>;
 
 export interface FleetSlot {
-  id: string;           // UI identity = slot index key
-  slug: string;         // human slug e.g. "mirrors-echo" (used for POST /entities)
-  entityId: string | null; // UUID returned by server (canonical API identity)
+  id: string;            // UI identity = slot index key
+  slug?: string;          // human slug e.g. 'mirrors-echo' (used for POST /entities)
+  entityId?: string | null; // UUID returned by server (canonical API identity)
   label: string;
-  entity_id: string | null; // legacy compat = entityId
-  stateSchema: StateSchema;  // declared variables from wizard
+  entity_id: string | null;  // legacy compat — same as entityId
+  stateSchema?: StateSchema; // declared variables from wizard
   endpoint: string | null;
   active: boolean;
   fps: number | null;
