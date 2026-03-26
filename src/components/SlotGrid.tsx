@@ -4,7 +4,7 @@ import { SLOT_COLORS } from './SignalPanel';
 import { useState, useEffect, useCallback } from 'react';
 import { FleetSlot, slotStatusLabel, slotStatusClass, formatAge, EventEntry } from '@/types';
 
-type InlineStage = 'idle' | 'connect' | 'slug' | 'top' | 'states';
+type InlineStage = 'idle' | 'connect' | 'role' | 'path' | 'top' | 'states';
 type NodeRole = 'receive' | 'send' | 'two_way';
 type SignalSource = 'touchdesigner' | 'json_stream' | 'osc' | 'audio_reactive' | 'text' | 'test_signal';
 
@@ -17,8 +17,6 @@ interface SlotSetup {
   selectedTop: string | null;
   stateKey: string;
   stateType: string;
-  slug?: string;
-  stateDesc?: string;
 }
 
 interface InjectState {
@@ -100,6 +98,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   const [sourceState, setSourceState] = useState<Record<string, SourceState>>({});
   // Lock state — active slots are auto-locked, can be manually unlocked
   const [lockedSlots, setLockedSlots] = useState<Set<string>>(new Set());
+  const [pinnedSlots, setPinnedSlots] = useState<Set<string>>(new Set());
+  const togglePin = (slotId: string) =>
+    setPinnedSlots(prev => { const n = new Set(prev); n.has(slotId) ? n.delete(slotId) : n.add(slotId); return n; });
   // Per-slot server mode: which Maestra server this slot is targeting
   const [slotServerModes, setSlotServerModes] = useState<Record<string, 'auto' | 'gallery' | 'railway' | 'custom'>>({});
   const setSlotServer = (slotId: string, mode: 'auto' | 'gallery' | 'railway' | 'custom') =>
@@ -162,7 +163,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     onSelectSlot(slot.id);
     setSetupState(prev => ({
       ...prev,
-      [slot.id]: { stage: 'connect', role: null, signal: null, refPath: 'project1/', refFile: null, selectedTop: null, stateKey: '', stateType: 'string', slug: '', stateDesc: '' },
+      [slot.id]: { stage: 'connect', role: null, signal: null, refPath: 'project1/', refFile: null, selectedTop: null, stateKey: '', stateType: 'string' },
     }));
   }, [setupState, onSelectSlot]);
 
@@ -170,7 +171,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     e.stopPropagation();
     setSetupState(prev => ({
       ...prev,
-      [slotId]: { ...prev[slotId], stage: 'slug' as InlineStage },
+      [slotId]: { ...prev[slotId], stage: 'role' },
     }));
   }, []);
 
@@ -178,7 +179,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     e.stopPropagation();
     setSetupState(prev => ({
       ...prev,
-      [slotId]: { ...prev[slotId], role: (prev[slotId]?.role ?? null), stage: 'slug' as const },
+      [slotId]: { ...prev[slotId], role, stage: 'path' },
     }));
   }, []);
 
@@ -186,7 +187,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     e.stopPropagation();
     setSetupState(prev => ({
       ...prev,
-      [slotId]: { ...prev[slotId], role: (prev[slotId]?.role ?? null), stage: 'slug' as const },
+      [slotId]: { ...prev[slotId], signal, stage: 'path' },
     }));
   }, []);
 
@@ -221,8 +222,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
       const current = prev[slotId];
       if (!current) return prev;
       if (current.stage === 'states') return { ...prev, [slotId]: { ...current, stage: 'top' } };
-      if (current.stage === 'top') return { ...prev, [slotId]: { ...current, stage: 'slug' } };
-      if (current.stage === 'slug') return { ...prev, [slotId]: { ...current, stage: 'connect' } };
+      if (current.stage === 'top') return { ...prev, [slotId]: { ...current, stage: 'path' } };
+      if (current.stage === 'path') return { ...prev, [slotId]: { ...current, stage: 'role', role: null } };
+      if (current.stage === 'role') return { ...prev, [slotId]: { ...current, stage: 'connect' } };
       const next = { ...prev };
       delete next[slotId];
       return next;
@@ -340,56 +342,52 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
               data-signal={slot.signalType || undefined}
               onClick={() => handleSlotClick(slot)}
             >
-                            {/* ── Per-slot server toggle — clearly labeled ── */}
+              {/* ── Per-slot server toggle ── */}
               {(() => {
                 const slotMode = slotServerModes[slot.id] || 'auto';
-                const serverStr = (entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.server as string | undefined;
-                const MODES = [
-                  { key: 'auto' as const,    label: 'Auto',     color: '#fbbf24' },
-                  { key: 'gallery' as const, label: '⚡ Local',  color: '#00ff88' },
-                  { key: 'railway' as const, label: '☁ Railway', color: '#00d4ff' },
-                  { key: 'custom' as const,  label: '…',         color: '#a78bfa' },
+                const slotServerStr = (entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.server as string | undefined;
+                const modes: { key: 'auto' | 'gallery' | 'railway' | 'custom'; label: string; color: string }[] = [
+                  { key: 'auto',    label: 'Auto',   color: '#fbbf24' },
+                  { key: 'gallery', label: '⚡ Local', color: '#00ff88' },
+                  { key: 'railway', label: '☁ Cloud', color: '#00d4ff' },
+                  { key: 'custom',  label: '…',       color: '#a78bfa' },
                 ];
-                const active = MODES.find(m => m.key === slotMode)!;
+                const activeMode = modes.find(m => m.key === slotMode)!;
                 return (
                   <div style={{
-                    display: 'flex', alignItems: 'center', gap: 0,
-                    borderBottom: `1px solid ${slotColor}15`,
-                    background: 'rgba(0,0,0,0.25)',
+                    display: 'flex', alignItems: 'center', gap: 3,
+                    padding: '4px 8px',
+                    background: 'rgba(0,0,0,0.3)',
+                    borderBottom: `1px solid ${slotColor}18`,
+                    flexWrap: 'wrap',
                   }}>
-                    {/* Label */}
-                    <span style={{
-                      fontSize: 7, letterSpacing: '0.1em', textTransform: 'uppercase',
-                      color: 'rgba(255,255,255,0.25)', padding: '4px 6px 4px 8px',
-                      flexShrink: 0, fontFamily: 'var(--font-display)',
-                    }}>Server</span>
-                    <span style={{ color: 'rgba(255,255,255,0.12)', fontSize: 8 }}>·</span>
-                    {/* Mode pills */}
-                    {MODES.map(({ key, label, color }) => {
-                      const isActive = slotMode === key;
+                    {modes.map(({ key, label, color }) => {
+                      const active = slotMode === key;
                       return (
                         <button key={key}
                           onClick={e => { e.stopPropagation(); setSlotServer(slot.id, key); }}
                           style={{
-                            fontSize: 7, fontFamily: 'var(--font-display)', fontWeight: isActive ? 700 : 400,
-                            letterSpacing: '0.08em', padding: '4px 7px',
-                            background: isActive ? `${color}18` : 'none',
-                            border: 'none',
-                            borderBottom: isActive ? `2px solid ${color}` : '2px solid transparent',
-                            color: isActive ? color : 'rgba(255,255,255,0.2)',
-                            cursor: 'pointer', transition: 'all 0.12s',
+                            fontSize: 7, fontFamily: 'var(--font-display)', fontWeight: 700,
+                            letterSpacing: '0.08em', textTransform: 'uppercase',
+                            padding: '1px 5px', cursor: 'pointer',
+                            background: active ? `${color}20` : 'none',
+                            border: `1px solid ${active ? color + '60' : 'rgba(255,255,255,0.06)'}`,
+                            color: active ? color : 'rgba(255,255,255,0.2)',
+                            transition: 'all 0.12s',
                           }}
                         >{label}</button>
                       );
                     })}
-                    {/* Active URL */}
-                    {serverStr && (
+                    {/* Active server URL — shows what TD actually reported */}
+                    {slotServerStr && (
                       <span style={{
-                        fontSize: 7, fontFamily: 'var(--font-mono)', marginLeft: 'auto',
-                        paddingRight: 8, color: `${active.color}70`,
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 110,
+                        fontSize: 7, fontFamily: 'var(--font-mono)',
+                        color: `${activeMode.color}80`,
+                        marginLeft: 'auto',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        maxWidth: 120,
                       }}>
-                        {serverStr.replace('https://','').replace('http://','').split('/')[0]}
+                        {slotServerStr.replace('https://','').replace('http://','').slice(0, 22)}
                       </span>
                     )}
                   </div>
@@ -419,113 +417,125 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <div className={`live-node-badge ${statusCls}`}>LIVE</div>
                   </div>
 
-                                    {/* ── Entity Identity ── */}
+                                    {/* ── Entity Identity + Live Status ── */}
                   <div className="live-section">
+                    <div className="live-section-head">Entity</div>
                     <div className="live-kv-grid">
+                      {/* entity name / toe_name */}
                       <span className="live-kv-key">name</span>
                       <span className="live-kv-val" style={{ color: slotColor, fontWeight: 700 }}>
-                        {(entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.toe_name as string || slot.entity_id || slot.id}
+                        {(entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.toe_name as string
+                          || slot.entity_id || slot.id}
                       </span>
+                      {/* slug */}
                       <span className="live-kv-key">slug</span>
-                      <span className="live-kv-val" style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>
+                      <span className="live-kv-val" style={{ fontFamily: 'var(--font-mono)', fontSize: 9 }}>
                         {slot.entity_id || slot.id}
                       </span>
+                      {/* server */}
                       <span className="live-kv-key">server</span>
-                      <span className="live-kv-val" style={{ fontSize: 8, opacity: 0.5 }}>
+                      <span className="live-kv-val" style={{ fontSize: 8, opacity: 0.55 }}>
                         {(() => {
                           const s = (entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.server as string | undefined;
-                          return s ? s.replace('https://','').replace('http://','').slice(0,26) : '—';
+                          if (!s) return '—';
+                          return s.replace('https://','').replace('http://','').slice(0,28);
                         })()}
                       </span>
+                      {/* connection status */}
                       <span className="live-kv-key">status</span>
-                      <span className="live-kv-val" style={{ color: mStatus?.server === 'connected' ? slotColor : '#ef4444' }}>
+                      <span className={`live-kv-val ${mStatus?.server === 'connected' ? 'val-ok' : 'val-warn'}`}
+                        style={{ color: mStatus?.server === 'connected' ? slotColor : undefined }}>
                         {mStatus?.server === 'connected' ? 'connected' : mStatus?.server || 'offline'}
                       </span>
+                      {/* last seen */}
                       <span className="live-kv-key">last seen</span>
-                      <span className={`live-kv-val ${mStatus?.heartbeat === 'live' ? 'val-ok' : 'val-dim'}`}>
-                        {mStatus?.heartbeat === 'live' ? 'now' : mStatus?.lastHeartbeatAt ? `${formatAge(now - mStatus.lastHeartbeatAt)} ago` : 'waiting'}
+                      <span className={`live-kv-val ${mStatus?.heartbeat === 'live' ? 'val-ok' : mStatus?.heartbeat === 'stale' ? 'val-warn' : 'val-dim'}`}>
+                        {mStatus?.heartbeat === 'live' ? 'now'
+                          : mStatus?.lastHeartbeatAt ? `${formatAge(now - mStatus.lastHeartbeatAt)} ago`
+                          : 'waiting'}
                       </span>
                     </div>
                   </div>
 
-                  <div className="live-section">
-                        {outs.length > 0 && (
-                          <>
-                            <div className="live-section-head" style={{color:slotColor,letterSpacing:'0.12em'}}>{'↑ OUTPUT'}</div>
-                            <div style={{display:'flex',flexWrap:'wrap',gap:3,marginBottom:4}}>
-                              {outs.map(([key,v])=>{
-                                const lv = eState?.[key]!=null ? String(eState[key]).slice(0,14) : null;
-                                return (
-                                  <div key={key} style={{display:'inline-flex',alignItems:'center',gap:3,background:`${slotColor}12`,border:`1px solid ${slotColor}40`,padding:'2px 5px',fontSize:8}}>
-                                    <span style={{color:slotColor,fontSize:7}}>{'↑'}</span>
-                                    <span style={{fontFamily:'var(--font-mono)',color:slotColor}}>{key}</span>
-                                    <span style={{color:'rgba(255,255,255,0.2)',fontSize:7}}>{v.type}</span>
-                                    {lv&&<span style={{color:'var(--text-dim)',borderLeft:'1px solid rgba(255,255,255,0.1)',paddingLeft:3}}>{lv}</span>}
-                                  </div>
-                                );
-                              })}
+                  {/* ── State Schema: ↑output + ↓input chips with live values ── */}
+                  {(() => {
+                    const eid = slot.entity_id || slot.id;
+                    const eState = entityStates[eid] as Record<string,unknown> | undefined;
+                    const schema = eState?.stateSchema as Record<string, {type:string; direction:string}> | undefined;
+                    const entries = schema
+                      ? Object.entries(schema)
+                      : Object.entries(eState || {})
+                          .filter(([k]) => !['toe_name','tops','server','active','metadata','stateSchema','publishing','listening'].includes(k))
+                          .map(([k]) => [k, { type: 'string', direction: 'output' }] as [string, {type:string;direction:string}]);
+                    if (!entries.length) return null;
+                    const outs = entries.filter(([,v]) => v.direction !== 'input');
+                    const ins  = entries.filter(([,v]) => v.direction === 'input');
+                    return (
+                      <div className="live-section">
+                        <div className="live-section-head">State</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                          {outs.map(([key, varDef]) => {
+                            const lv = eState?.[key] != null ? String(eState[key]).slice(0, 16) : null;
+                            return (
+                              <div key={key} style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 3,
+                                background: `${slotColor}12`, border: `1px solid ${slotColor}40`,
+                                padding: '2px 5px', fontSize: 8,
+                              }}>
+                                <span style={{ color: slotColor, fontSize: 7 }}>↑</span>
+                                <span style={{ fontFamily: 'var(--font-mono)', color: slotColor }}>{key}</span>
+                                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 7 }}>{varDef.type}</span>
+                                {lv && <span style={{ color: 'var(--text-dim)', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: 3 }}>{lv}</span>}
+                              </div>
+                            );
+                          })}
+                          {ins.map(([key, varDef]) => (
+                            <div key={key} style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 3,
+                              background: 'rgba(255,255,255,0.03)', border: `1px solid ${slotColor}20`,
+                              padding: '2px 5px', fontSize: 8,
+                            }}>
+                              <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: 7 }}>↓</span>
+                              <span style={{ fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,0.4)' }}>{key}</span>
+                              <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: 7 }}>{varDef.type}</span>
                             </div>
-                          </>
-                        )}
-                        {ins.length > 0 && (
-                          <>
-                            <div className="live-section-head" style={{color:'rgba(255,255,255,0.3)',letterSpacing:'0.12em',marginTop:outs.length?6:0}}>{'↓ INPUT'}</div>
-                            <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
-                              {ins.map(([key,v])=>(
-                                <div key={key} style={{display:'inline-flex',alignItems:'center',gap:3,background:'rgba(255,255,255,0.03)',border:`1px solid ${slotColor}20`,padding:'2px 5px',fontSize:8}}>
-                                  <span style={{color:'rgba(255,255,255,0.3)',fontSize:7}}>{'↓'}</span>
-                                  <span style={{fontFamily:'var(--font-mono)',color:'rgba(255,255,255,0.45)'}}>{key}</span>
-                                  <span style={{color:'rgba(255,255,255,0.15)',fontSize:7}}>{v.type}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </>
-                        )}
+                          ))}
+                        </div>
                       </div>
                     );
                   })()}
 
+{/* ── Section 2: Signals ── */}
                   <div className="live-section">
-                    {/* Output signals - slot color */}
+                    <div className="live-section-head">Signals</div>
                     {publishing.length > 0 && (
-                      <div style={{ marginBottom: 5 }}>
-                        <div style={{ fontSize: 7, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
-                          {'↑ output'}
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                          {publishing.map(s => (
-                            <span key={s} style={{
-                              fontFamily: 'var(--font-mono)', fontSize: 8,
-                              background: `${slotColor}15`, border: `1px solid ${slotColor}50`,
-                              color: slotColor, padding: '1px 6px',
-                            }}>{s}</span>
-                          ))}
+                      <div className="live-signal-group">
+                        <span className="live-signal-dir">Publishing State</span>
+                        <div className="live-signal-list">
+                          {publishing.map(s => <span key={s} className="live-signal-tag pub">{s}</span>)}
                         </div>
                       </div>
                     )}
-                    {/* Input signals - dimmer */}
                     {listening.length > 0 && (
-                      <div>
-                        <div style={{ fontSize: 7, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
-                          {'↓ input'}
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                          {listening.map(s => (
-                            <span key={s} style={{
-                              fontFamily: 'var(--font-mono)', fontSize: 8,
-                              background: `${slotColor}06`, border: `1px solid ${slotColor}25`,
-                              color: `${slotColor}80`, padding: '1px 6px',
-                            }}>{s}</span>
-                          ))}
+                      <div className="live-signal-group">
+                        <span className="live-signal-dir">Listening State</span>
+                        <div className="live-signal-list">
+                          {listening.map(s => <span key={s} className="live-signal-tag sub">{s}</span>)}
                         </div>
                       </div>
                     )}
                     {publishing.length === 0 && listening.length === 0 && (
-                      <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.18)', fontStyle: 'italic' }}>no signals declared</span>
+                      <span className="live-empty">No signals configured</span>
                     )}
                   </div>
 
-                  <div className="live-section">
+                  {/* ── Section 3: Entity State ── */}
+                  {(() => {
+                    const eid = slot.entity_id || slot.id;
+                    const stateObj = entityStates[eid];
+                    const entries = stateObj ? Object.entries(stateObj) : [];
+                    return entries.length > 0 ? (
+                      <div className="live-section">
                         <div className="live-section-head">State</div>
                         <div className="live-state-table">
                           {entries.slice(0, 8).map(([k, v]) => (
@@ -587,7 +597,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <div className="live-source-form">
                       {/* Upload */}
                       <label className="live-source-upload" onClick={e => e.stopPropagation()}>
-                        <span className="live-source-upload-icon">{'↑'}</span>
+                        <span className="live-source-upload-icon">↑</span>
                         <span className="live-source-upload-text">{source.fileName || 'Upload .tox .toe .wav ...'}</span>
                         <input
                           type="file"
@@ -648,108 +658,108 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         ))}
                       </div>
 
-                      {/* ══ STAGE: Connect — TOX onboarding ══ */}
+                      {/* STAGE: Connect */}
                       {setup.stage === 'connect' && (
                         <div className="slot-wizard-content">
-                          <div className="slot-wizard-title">Connect Your Node</div>
-                          {/* Drag-and-drop zone */}
-                          <div
-                            style={{
-                              border: `2px dashed ${slotColor}50`,
-                              background: `${slotColor}06`,
-                              padding: '14px 10px',
-                              textAlign: 'center',
-                              cursor: 'default',
-                              width: '100%',
-                            }}
-                            onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
-                          >
-                            <div style={{ fontSize: 11, color: slotColor, marginBottom: 4 }}>
-                              Run <strong>build_maestra_tox.py</strong> in TD Textport
-                            </div>
-                            <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', lineHeight: 1.5 }}>
-                              The TOX auto-registers when your project opens.<br/>
-                              Once connected, this slot updates automatically.
-                            </div>
-                          </div>
-                          {/* Download TOX link */}
-                          <a
-                            href='https://raw.githubusercontent.com/kfaist/maestra-monitor/main/public/build_maestra_tox.py'
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={e => e.stopPropagation()}
-                            style={{
-                              fontSize: 8, color: slotColor, opacity: 0.6,
-                              textDecoration: 'underline', alignSelf: 'flex-start',
-                            }}
-                          >↓ Download build_maestra_tox.py</a>
-                          <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.25)', width: '100%' }}>
-                            or if already running in TD →
-                          </div>
+                          <div className="slot-wizard-title">Connect a Node</div>
                           <button
                             className="slot-wizard-btn slot-wizard-btn-primary"
-                            style={{ width: '100%' }}
-                            onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'slug' } })); }}
-                          >Already connected — configure →</button>
+                            onClick={(e) => handleConnect(slot.id, e)}
+                          >
+                            <span style={{ fontSize: 12 }}>⚡</span> Connect
+                          </button>
+                          <button
+                            className="slot-wizard-btn slot-wizard-btn-ghost"
+                            onClick={(e) => { e.stopPropagation(); handleBack(slot.id, e); }}
+                          >
+                            Cancel
+                          </button>
                         </div>
                       )}
 
-                      {/* ══ STAGE: Slug — confirm entity name from toe filename ══ */}
-                      {setup.stage === 'slug' && (() => {
-                        const eid = slot.entity_id || slot.id;
-                        const toeName = (entityStates[eid] as Record<string,unknown>|undefined)?.toe_name as string | undefined;
-                        const defaultSlug = toeName || eid;
-                        return (
-                          <div className="slot-wizard-content">
-                            <div className="slot-wizard-title">Name Your Node</div>
-                            <div className="slot-wizard-hint">
-                              Slug from your .toe filename — edit if needed
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%' }}>
-                              <input
-                                type="text"
-                                value={setup.slug ?? defaultSlug}
-                                onClick={e => e.stopPropagation()}
-                                onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], slug: e.target.value } })); }}
-                                style={{
-                                  flex: 1, padding: '5px 8px', fontSize: 10,
-                                  fontFamily: 'var(--font-mono)',
-                                  background: 'rgba(0,0,0,0.4)',
-                                  border: `1px solid ${slotColor}40`,
-                                  color: slotColor, outline: 'none',
-                                }}
-                                onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'top' } })); }}}
-                              />
+                      {/* STAGE: Role */}
+                      {setup.stage === 'role' && (
+                        <div className="slot-wizard-content">
+                          <div className="slot-wizard-title">Behavior</div>
+                          <div className="slot-wizard-options">
+                            {ROLES.map(r => (
                               <button
-                                className="slot-wizard-btn slot-wizard-btn-primary"
-                                style={{ padding: '5px 10px', flexShrink: 0 }}
-                                onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'top' } })); }}
-                              >↵</button>
-                            </div>
-                            <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)' }}>
-                              entity slug · used for API identity
-                            </div>
-                            <button className="slot-wizard-btn slot-wizard-btn-ghost" style={{ alignSelf: 'flex-start' }} onClick={e => handleBack(slot.id, e)}>← Back</button>
+                                key={r.value}
+                                className="slot-wizard-option"
+                                style={{ '--opt-color': r.color } as React.CSSProperties}
+                                onClick={(e) => handleRoleSelect(slot.id, r.value, e)}
+                              >
+                                <span className="slot-wizard-option-icon">{r.icon}</span>
+                                <span>{r.label}</span>
+                              </button>
+                            ))}
                           </div>
-                        );
-                      })()}
+                          <button
+                            className="slot-wizard-btn slot-wizard-btn-ghost"
+                            onClick={(e) => handleBack(slot.id, e)}
+                          >
+                            ← Back
+                          </button>
+                        </div>
+                      )}
 
-                      {/* ══ STAGE: TOP — select output TOP from entity metadata ══ */}
+                      {/* STAGE: Path — node path or file upload */}
+                      {setup.stage === 'path' && (
+                        <div className="slot-wizard-content">
+                          <div className="slot-wizard-title">Node Path or File</div>
+                          <div className="slot-wizard-hint">Enter your TD project path or upload a .tox file</div>
+                          <label
+                            className="slot-wizard-btn slot-wizard-btn-primary"
+                            style={{ cursor: 'pointer', textAlign: 'center', position: 'relative' }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span style={{ fontSize: 11 }}>↑</span>
+                            {setup.refFile ? setup.refFile : 'Upload .tox File'}
+                            <input
+                              type="file"
+                              accept=".tox,.toe,.py"
+                              style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
+                              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(slot.id, f); }}
+                            />
+                          </label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%', fontSize: 8, color: '#888' }}>
+                            <span style={{ flexShrink: 0 }}>or path:</span>
+                            <input
+                              type="text"
+                              value={setup.refPath}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => handleRefPathChange(slot.id, e.target.value)}
+                              placeholder="project1/maestra"
+                              style={{ flex: 1, padding: '2px 5px', fontSize: 9, fontFamily: "var(--font-mono)", background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)', color: '#a78bfa', outline: 'none', minWidth: 0 }}
+                            />
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, width: '100%' }}>
+                            <button className="slot-wizard-btn slot-wizard-btn-ghost" onClick={(e) => handleBack(slot.id, e)}>← Back</button>
+                            <button
+                              className="slot-wizard-btn slot-wizard-btn-primary"
+                              style={{ flex: 1 }}
+                              onClick={(e) => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'top' } })); }}
+                            >{setup.refFile || setup.refPath !== 'project1/' ? 'Next →' : 'Skip →'}</button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* STAGE: TOP — select output TOP from entity metadata */}
                       {setup.stage === 'top' && (() => {
                         const eid = slot.entity_id || slot.id;
-                        const tops = (entityStates[eid] as Record<string,unknown>|undefined)?.tops;
+                        const tops = (entityStates[eid] as Record<string, unknown> | undefined)?.tops;
                         const topList = Array.isArray(tops) ? tops as string[] : null;
                         return (
                           <div className="slot-wizard-content">
                             <div className="slot-wizard-title">Select Output TOP</div>
                             {topList && topList.length > 0 ? (
                               <>
-                                <div className="slot-wizard-hint">TOPs found in your project</div>
+                                <div className="slot-wizard-hint">TOPs found in your project — pick the one to stream</div>
                                 <select
                                   value={setup.selectedTop || ''}
-                                  onClick={e => e.stopPropagation()}
-                                  onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: e.target.value } })); }}
-                                  style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)', background: 'rgba(0,0,0,0.6)', border: `1px solid ${slotColor}50`, color: slotColor, outline: 'none', cursor: 'pointer' }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={(e) => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: e.target.value } })); }}
+                                  style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)', background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(123,47,255,0.5)', color: '#a78bfa', outline: 'none', cursor: 'pointer' }}
                                 >
                                   <option value="">— select a TOP —</option>
                                   {topList.map(t => <option key={t} value={t} style={{ background: '#0a0a14' }}>{t}</option>)}
@@ -757,132 +767,137 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               </>
                             ) : (
                               <>
-                                <div className="slot-wizard-hint" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                                  Waiting for TOX — run maestra.tox in TD to auto-populate
+                                <div className="slot-wizard-hint" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                                  No TOPs detected yet — run build_maestra_tox.py in TD to auto-populate, or enter path manually
                                 </div>
                                 <input
                                   type="text"
                                   value={setup.selectedTop || ''}
                                   placeholder="/project1/out1"
-                                  onClick={e => e.stopPropagation()}
-                                  onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: e.target.value } })); }}
-                                  style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: slotColor, outline: 'none' }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={(e) => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: e.target.value } })); }}
+                                  style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#a78bfa', outline: 'none' }}
                                 />
                               </>
                             )}
                             <div style={{ display: 'flex', gap: 6, width: '100%' }}>
-                              <button className="slot-wizard-btn slot-wizard-btn-ghost" onClick={e => handleBack(slot.id, e)}>← Back</button>
+                              <button className="slot-wizard-btn slot-wizard-btn-ghost" onClick={(e) => handleBack(slot.id, e)}>← Back</button>
                               <button
                                 className="slot-wizard-btn slot-wizard-btn-primary"
                                 style={{ flex: 1 }}
-                                onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'states' } })); }}
-                              >{setup.selectedTop ? 'Add State →' : 'Skip →'}</button>
+                                onClick={(e) => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'states' } })); }}
+                              >{setup.selectedTop ? 'Next →' : 'Skip →'}</button>
                             </div>
                           </div>
                         );
                       })()}
 
-                      {/* ══ STAGE: States — declare signal + type + description → chip ══ */}
+                      {/* STAGE: States — declare what this node publishes/listens to + type */}
                       {setup.stage === 'states' && (
                         <div className="slot-wizard-content">
-                          <div className="slot-wizard-title">Add State</div>
-                          {/* Direction: ↑ Output / ↓ Input */}
-                          <div style={{ display: 'flex', gap: 4, width: '100%' }}>
-                            {([['send','↑ Output','publish to network'],['receive','↓ Input','listen from network']] as const).map(([r,label,hint]) => (
-                              <button key={r}
-                                onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], role: r as 'send'|'receive' } })); }}
-                                style={{
-                                  flex: 1, padding: '5px 0', fontSize: 9, cursor: 'pointer',
-                                  background: setup.role === r ? `${r === 'send' ? slotColor : 'rgba(52,211,153,1)'}20` : 'rgba(0,0,0,0.3)',
-                                  border: `1px solid ${setup.role === r ? (r === 'send' ? slotColor : '#34d399') + '80' : 'rgba(255,255,255,0.1)'}`,
-                                  color: setup.role === r ? (r === 'send' ? slotColor : '#34d399') : 'rgba(255,255,255,0.3)',
-                                }}
-                              >{label}</button>
-                            ))}
+                          <div className="slot-wizard-title">Assign State</div>
+                          <div className="slot-wizard-hint">
+                            {setup.role === 'send'
+                              ? <>↑ <strong>output</strong> — this node writes this key to the network</>
+                              : setup.role === 'receive'
+                              ? <>↓ <strong>input</strong> — this node reads this key when another entity writes it</>
+                              : <>↕ <strong>bidirectional</strong> — reads and writes this key</>
+                            }
                           </div>
-                          {/* State key input */}
                           <input
                             type="text"
                             value={setup.stateKey}
-                            placeholder={setup.role === 'receive' ? 'e.g. active_cue_id' : 'e.g. prompt_text'}
-                            onClick={e => e.stopPropagation()}
-                            onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateKey: e.target.value } })); }}
-                            style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', color: '#e5f9ff', outline: 'none' }}
+                            placeholder={setup.role === 'send' ? 'e.g. prompt_text, audio_amplitude' : setup.role === 'receive' ? 'e.g. active_cue_id, lighting.scene' : 'e.g. audio.rms'}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateKey: e.target.value } })); }}
+                            style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#e5f9ff', outline: 'none' }}
                           />
-                          {/* Quick-fill for receives */}
-                          {setup.role === 'receive' && (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, width: '100%' }}>
-                              {[
-                                { key: 'active_cue_id', type: 'string', color: '#f59e0b' },
-                                { key: 'active_sequence_id', type: 'string', color: '#f472b6' },
-                                { key: 'prompt_text', type: 'string', color: '#00d4ff' },
-                                { key: 'audio_amplitude', type: 'float', color: '#a78bfa' },
-                                { key: 'audio.rms', type: 'float', color: '#59FFD8' },
-                                { key: 'audio.bpm', type: 'float', color: '#FFD84D' },
-                              ].map(item => (
-                                <button key={item.key}
-                                  onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateKey: item.key, stateType: item.type } })); }}
-                                  style={{ fontSize: 7, padding: '2px 5px', cursor: 'pointer', background: `${item.color}10`, border: `1px solid ${item.color}40`, color: item.color, fontFamily: 'var(--font-mono)' }}
-                                >{item.key}</button>
-                              ))}
+                          <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)', alignSelf: 'flex-start', lineHeight: 1.6 }}>
+                            {setup.role === 'send' ? (
+                              <>↑ <span style={{ color: 'rgba(255,255,255,0.25)' }}>this node</span> <strong style={{ color: '#00d4ff' }}>publishes</strong> <span style={{ fontFamily: 'var(--font-mono)', color: '#e5f9ff' }}>{setup.stateKey || 'key'}</span> <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span> <span style={{ fontFamily: 'var(--font-mono)', color: '#a78bfa' }}>{setup.stateType}</span></>
+                            ) : setup.role === 'receive' ? (
+                              <>↓ <span style={{ color: 'rgba(255,255,255,0.25)' }}>this node</span> <strong style={{ color: '#34d399' }}>receives</strong> <span style={{ fontFamily: 'var(--font-mono)', color: '#e5f9ff' }}>{setup.stateKey || 'key'}</span> <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span> <span style={{ fontFamily: 'var(--font-mono)', color: '#a78bfa' }}>{setup.stateType}</span></>
+                            ) : (
+                              <>↕ <strong style={{ color: '#f59e0b' }}>reads & writes</strong> <span style={{ fontFamily: 'var(--font-mono)', color: '#e5f9ff' }}>{setup.stateKey || 'key'}</span> <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span> <span style={{ fontFamily: 'var(--font-mono)', color: '#a78bfa' }}>{setup.stateType}</span></>
+                            )}
+                          </div>
+                          {/* Quick-fill from known entities */}
+                          {(setup.role === 'receive' || setup.role === 'two_way') && (
+                            <div style={{ width: '100%' }}>
+                              <div style={{ fontSize: 7, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 4 }}>Quick-fill from known entities</div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                                {[
+                                  { slug: 'krista1_visual', key: 'prompt_text', type: 'string', color: '#00d4ff' },
+                                  { slug: 'krista1_visual', key: 'audio_amplitude', type: 'float', color: '#a78bfa' },
+                                  { slug: 'krista1_visual', key: 'visitor_present', type: 'boolean', color: '#34d399' },
+                                  { slug: 'dmx-lighting', key: 'active_cue_id', type: 'string', color: '#f59e0b' },
+                                  { slug: 'dmx-lighting', key: 'active_sequence_id', type: 'string', color: '#f472b6' },
+                                  { slug: 'audio', key: 'audio.rms', type: 'float', color: '#059669' },
+                                  { slug: 'audio', key: 'audio.bass', type: 'float', color: '#db2777' },
+                                  { slug: 'audio', key: 'audio.bpm', type: 'float', color: '#f59e0b' },
+                                ].map(item => (
+                                  <button
+                                    key={item.key}
+                                    onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateKey: item.key, stateType: item.type } })); }}
+                                    style={{
+                                      fontSize: 8, padding: '2px 6px', cursor: 'pointer',
+                                      background: `${item.color}12`, border: `1px solid ${item.color}40`,
+                                      color: item.color, fontFamily: 'var(--font-mono)',
+                                    }}
+                                  >{item.key}</button>
+                                ))}
+                              </div>
                             </div>
                           )}
-                          {/* Type chips */}
+
+                          {/* Type picker */}
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, width: '100%' }}>
                             {['string','number','boolean','color','vector2','vector3','range','enum','array','object'].map(t => (
-                              <button key={t}
-                                onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateType: t } })); }}
+                              <button
+                                key={t}
+                                onClick={(e) => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateType: t } })); }}
                                 style={{
-                                  fontSize: 8, padding: '2px 6px', cursor: 'pointer',
-                                  background: setup.stateType === t ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.04)',
-                                  border: `1px solid ${setup.stateType === t ? 'rgba(0,212,255,0.5)' : 'rgba(255,255,255,0.08)'}`,
-                                  color: setup.stateType === t ? '#00d4ff' : 'rgba(255,255,255,0.3)',
-                                  fontFamily: 'var(--font-mono)', transition: 'all 0.1s',
+                                  fontSize: 8, padding: '2px 6px', cursor: 'pointer', letterSpacing: '0.05em',
+                                  background: setup.stateType === t ? 'rgba(0,212,255,0.2)' : 'rgba(255,255,255,0.04)',
+                                  border: `1px solid ${setup.stateType === t ? 'rgba(0,212,255,0.6)' : 'rgba(255,255,255,0.08)'}`,
+                                  color: setup.stateType === t ? '#00d4ff' : 'rgba(255,255,255,0.35)',
+                                  fontFamily: 'var(--font-mono)',
+                                  transition: 'all 0.1s',
                                 }}
                               >{t}</button>
                             ))}
                           </div>
-                          {/* Description */}
-                          <input
-                            type="text"
-                            value={setup.stateDesc || ''}
-                            placeholder="Add a description (optional)"
-                            onClick={e => e.stopPropagation()}
-                            onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateDesc: e.target.value } })); }}
-                            style={{ width: '100%', padding: '4px 8px', fontSize: 9, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.4)', outline: 'none', fontStyle: 'italic' }}
-                          />
-                          {/* Live preview */}
-                          {setup.stateKey && (
-                            <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', width: '100%', lineHeight: 1.6 }}>
-                              {setup.role === 'send'
-                                ? <><span style={{ color: slotColor }}>{'↑'}</span> <strong style={{ color: '#00d4ff' }}>publishes</strong> <span style={{ fontFamily: 'var(--font-mono)', color: '#e5f9ff' }}>{setup.stateKey}</span> · <span style={{ fontFamily: 'var(--font-mono)', color: '#a78bfa' }}>{setup.stateType}</span></>
-                                : <><span style={{ color: '#34d399' }}>{'↓'}</span> <strong style={{ color: '#34d399' }}>receives</strong> <span style={{ fontFamily: 'var(--font-mono)', color: '#e5f9ff' }}>{setup.stateKey}</span> · <span style={{ fontFamily: 'var(--font-mono)', color: '#a78bfa' }}>{setup.stateType}</span></>
-                              }
-                            </div>
-                          )}
                           <div style={{ display: 'flex', gap: 6, width: '100%' }}>
-                            <button className="slot-wizard-btn slot-wizard-btn-ghost" onClick={e => handleBack(slot.id, e)}>← Back</button>
+                            <button className="slot-wizard-btn slot-wizard-btn-ghost" onClick={(e) => handleBack(slot.id, e)}>← Back</button>
                             <button
                               className="slot-wizard-btn slot-wizard-btn-primary"
                               style={{ flex: 1 }}
-                              disabled={!setup.stateKey}
-                              onClick={e => handleReferenceComplete(slot.id, e)}
-                            >+ Add State</button>
+                              onClick={(e) => handleReferenceComplete(slot.id, e)}
+                            >Connect</button>
                           </div>
                         </div>
                       )}
                     </div>
                   ) : (
-                    /* ════ DEFAULT AVAILABLE STATE ════ */
-                    <div className="slot-available-state">
-                      <div className="slot-available-banner">
-                        <span className="slot-available-flicker" style={{ color: slotColor, opacity: 0.7, fontSize: 11, letterSpacing: '0.2em', fontWeight: 700 }}>AVAILABLE</span>
+                    /* ════ CONNECT YOUR NODE ════ */
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: '28px 20px', minHeight: 180 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: '0.14em', color: slotColor, textTransform: 'uppercase', opacity: 0.85 }}>
+                        Connect Your Node
                       </div>
-
-                      <div className="slot-available-hover-btn" style={{ borderColor: slotColor, color: slotColor }}>
-                        <span className="slot-available-hover-icon">+</span>
-                        Click to Connect
+                      <div
+                        onClick={(e) => { e.stopPropagation(); handleSlotClick(slot); }}
+                        style={{ width: '100%', border: `1.5px dashed ${slotColor}45`, background: `${slotColor}06`, borderRadius: 4, padding: '16px 14px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                      >
+                        <div style={{ fontSize: 16, marginBottom: 6, opacity: 0.35, fontFamily: 'var(--font-display)' }}>v</div>
+                        <div style={{ fontSize: 10, color: slotColor, fontWeight: 600, letterSpacing: '0.07em', marginBottom: 4 }}>Drop .tox here or click to begin</div>
+                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.22)', letterSpacing: '0.05em' }}>Run build_maestra_tox.py in TD Textport first</div>
                       </div>
+                      <a
+                        href='/build_maestra_tox.py'
+                        download='build_maestra_tox.py'
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ fontSize: 9, color: `${slotColor}70`, letterSpacing: '0.07em', textDecoration: 'none', borderBottom: `1px solid ${slotColor}25`, paddingBottom: 1, fontFamily: 'var(--font-display)' }}
+                      >download build_maestra_tox.py</a>
                     </div>
                   )}
                 </div>
@@ -993,7 +1008,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <span className={`slot-state-badge ${stateBadge.cls}`}>{stateBadge.text}</span>
                   ) : inSetup ? (
                     <span className="slot-tag setup-tag">
-                      {setup.stage === 'connect' ? 'Setting up…' : false /* role stage removed */ ? 'Choose behavior' : 'Choose signal'}
+                      {setup.stage === 'connect' ? 'Setting up…' : setup.stage === 'role' ? 'Choose behavior' : 'Choose signal'}
                     </span>
                   ) : (
                     <span className="slot-tag available-tag">
@@ -1003,43 +1018,53 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   )}
                 </div>
               </div>
-              {/* Top-right: lock + behavior — visible on hover, always on active */}
+              {/* Top-right: + / - behavior indicator, lock/unlock, pin */}
               <div className="slot-top-controls" style={{
-                position: 'absolute', top: 6, right: 6,
-                display: 'flex', alignItems: 'center', gap: 3,
+                position: 'absolute', top: 5, right: 5,
+                display: 'flex', alignItems: 'center', gap: 2,
                 opacity: slot.active ? 1 : 0,
                 transition: 'opacity 0.15s',
                 zIndex: 10,
               }}>
-                {/* Behavior indicator: ↑ send / ↓ receive / ↕ both */}
+                {/* + OUT / - IN behavior badge */}
                 {slot.active && slot.nodeRole && (
                   <span style={{
-                    fontSize: 9, color: slotColor,
-                    border: `1px solid ${slotColor}50`,
-                    background: `${slotColor}15`,
+                    fontSize: 9, fontWeight: 700,
+                    color: slot.nodeRole === 'receive' ? '#34d399' : slotColor,
+                    border: `1px solid ${slot.nodeRole === 'receive' ? '#34d39940' : slotColor + '40'}`,
+                    background: slot.nodeRole === 'receive' ? '#34d39910' : `${slotColor}10`,
                     borderRadius: 2, padding: '1px 5px',
-                    fontFamily: 'var(--font-display)',
-                    letterSpacing: '0.06em',
+                    fontFamily: 'var(--font-display)', letterSpacing: '0.04em',
                   }}>
-                    {slot.nodeRole === 'send' ? '↑ OUT' : slot.nodeRole === 'receive' ? '↓ IN' : '↕ BOTH'}
+                    {slot.nodeRole === 'send' ? '+' : slot.nodeRole === 'receive' ? '-' : '+/-'}
                   </span>
                 )}
-                {/* Lock/unlock */}
-                {slot.active && (
-                  <button
-                    onClick={e => { e.stopPropagation(); toggleLock(slot.id, slot, entityStates[slot.entity_id || slot.id] as Record<string, unknown> || {}); }}
-                    title={lockedSlots.has(slot.id) ? '🔒 Locked — click to unlock and modify' : '🔓 Click to lock and protect this slot'}
-                    style={{
-                      width: 22, height: 22, borderRadius: '50%',
-                      background: lockedSlots.has(slot.id) ? slotColor : 'rgba(0,0,0,0.5)',
-                      border: `1px solid ${lockedSlots.has(slot.id) ? slotColor : 'rgba(255,255,255,0.15)'}`,
-                      color: lockedSlots.has(slot.id) ? '#000' : 'rgba(255,255,255,0.4)',
-                      cursor: 'pointer', fontSize: 9, display: 'flex',
-                      alignItems: 'center', justifyContent: 'center',
-                      transition: 'all 0.15s', flexShrink: 0,
-                    }}
-                  >{lockedSlots.has(slot.id) ? '🔒' : '🔓'}</button>
-                )}
+                {/* Lock / Unlock — locked = view only */}
+                <button
+                  onClick={e => { e.stopPropagation(); toggleLock(slot.id, slot, entityStates[slot.entity_id || slot.id] as Record<string, unknown> || {}); }}
+                  title={lockedSlots.has(slot.id) ? 'Locked (view only) — click to unlock' : 'Unlocked — click to lock'}
+                  style={{
+                    width: 20, height: 20, borderRadius: '50%', cursor: 'pointer', fontSize: 8,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: lockedSlots.has(slot.id) ? slotColor : 'rgba(0,0,0,0.45)',
+                    border: `1px solid ${lockedSlots.has(slot.id) ? slotColor : 'rgba(255,255,255,0.12)'}`,
+                    color: lockedSlots.has(slot.id) ? '#000' : 'rgba(255,255,255,0.35)',
+                    transition: 'all 0.15s', flexShrink: 0, fontWeight: 700,
+                  }}
+                >{lockedSlots.has(slot.id) ? 'LK' : 'UN'}</button>
+                {/* Pin — sets slot to view-only default */}
+                <button
+                  onClick={e => { e.stopPropagation(); togglePin(slot.id); }}
+                  title={pinnedSlots.has(slot.id) ? 'Pinned as default view — click to unpin' : 'Click to pin this slot (view-only default)'}
+                  style={{
+                    width: 20, height: 20, borderRadius: '50%', cursor: 'pointer', fontSize: 8,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: pinnedSlots.has(slot.id) ? `${slotColor}25` : 'rgba(0,0,0,0.45)',
+                    border: `1px solid ${pinnedSlots.has(slot.id) ? slotColor + '55' : 'rgba(255,255,255,0.08)'}`,
+                    color: pinnedSlots.has(slot.id) ? slotColor : 'rgba(255,255,255,0.2)',
+                    transition: 'all 0.15s', flexShrink: 0, fontWeight: 700,
+                  }}
+                >PIN</button>
               </div>
               <style>{'.slot:hover .slot-top-controls { opacity: 1 !important; }'}</style>
             </div>
