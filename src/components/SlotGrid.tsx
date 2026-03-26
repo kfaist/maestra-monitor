@@ -784,7 +784,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 </div>
                                 {_tops.length > 0 && (
                                   <select value={setup.selectedTop} onClick={e => e.stopPropagation()}
-                                    onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: e.target.value } })); }}
+                                    onChange={e => { e.stopPropagation(); const _t = e.target.value; const _k = _t.split('/').pop() || ''; setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: _t, stateKey: _k } })); }}
                                     style={{ width: '100%', padding: '4px 8px', fontSize: 10, marginBottom: 4,
                                       fontFamily: 'var(--font-mono)', background: 'rgba(0,0,0,0.6)',
                                       border: `1px solid ${slotColor}40`, color: slotColor, outline: 'none' }}>
@@ -793,9 +793,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                   </select>
                                 )}
                                 <input type="text" value={setup.selectedTop}
-                                  placeholder="/project1/out1"
+                                  placeholder="e.g. /project1/StreamDiffusionTD/out1"
                                   onClick={e => e.stopPropagation()}
-                                  onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: e.target.value } })); }}
+                                  onChange={e => { e.stopPropagation(); const _t = e.target.value; const _k = _t.split('/').pop() || ''; setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: _t, stateKey: _k } })); }}
                                   style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)',
                                     color: 'rgba(255,255,255,0.7)', background: 'rgba(0,0,0,0.4)',
                                     border: '1px solid rgba(255,255,255,0.1)', outline: 'none', boxSizing: 'border-box' }} />
@@ -808,7 +808,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)',
                               textTransform: 'uppercase', marginBottom: 3 }}>State Key Name</div>
                             <input type="text" value={setup.stateKey}
-                              placeholder="e.g. prompt_text"
+                              placeholder="e.g. promptdict5concept"
                               onClick={e => e.stopPropagation()}
                               onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev,
                                 [slot.id]: { ...prev[slot.id], stateKey: e.target.value } })); }}
