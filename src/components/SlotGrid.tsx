@@ -700,25 +700,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       <div className="slot-available-banner">
                         <span className="slot-available-flicker">AVAILABLE</span>
                       </div>
-                      {slot.suggestion && (
-                        <div style={{ position: 'relative', display: 'inline-block' }}>
-                          <span
-                            style={{
-                              fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase',
-                              color: slotColor, border: `1px solid ${slotColor}40`,
-                              background: `${slotColor}0a`,
-                              padding: '2px 7px 2px 8px',
-                              display: 'flex', alignItems: 'center', gap: 5, cursor: 'default',
-                              userSelect: 'none',
-                            }}
-                          >
-                            TOOL
-                            <svg width="7" height="5" viewBox="0 0 7 5" fill="none" style={{ flexShrink: 0 }}>
-                              <path d="M1 1L3.5 4L6 1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                            </svg>
-                          </span>
-                        </div>
-                      )}
+
                       <div className="slot-available-hover-btn">
                         <span className="slot-available-hover-icon">+</span>
                         Click to Connect
