@@ -70,15 +70,7 @@ interface ScenePanelProps {
   onActivateScene: (scene: SceneDefinition) => void;
 }
 
-export default function ScenePanel({
-  onActivateScene,
-  injectActive,
-  onInjectToggle,
-  promptText,
-  onPromptChange,
-  onBroadcast,
-  onP6Flush,
-}: ScenePanelProps) {
+export default function ScenePanel({ onActivateScene }: ScenePanelProps) {
   const [activeScene, setActiveScene] = useState<string | null>(null);
   const [transEnabled, setTransEnabled] = useState(false);
   const [transcript, setTranscript] = useState('');
