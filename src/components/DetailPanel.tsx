@@ -25,6 +25,7 @@ interface DetailPanelProps {
   onBroadcast: (prompt: string) => void;
   onP6Flush: (prompt: string) => void;
   slots?: import('@/types').FleetSlot[];
+  entityStates?: Record<string, Record<string, unknown>>;
   webcamActive: boolean;
   onWebcamToggle: (active: boolean) => void;
   onWebcamFrame: (blobUrl: string, fps: number) => void;
@@ -50,6 +51,7 @@ export default function DetailPanel({
   onBroadcast,
   onP6Flush,
   slots = [],
+  entityStates = {},
   webcamActive,
   onWebcamToggle,
   onWebcamFrame,
@@ -205,6 +207,7 @@ export default function DetailPanel({
         onBroadcast={onBroadcast}
         onP6Flush={onP6Flush}
         slots={slots}
+        entityStates={entityStates as Record<string, Record<string, unknown>>}
       />
 
       {/* Maestra Status + Connection */}
