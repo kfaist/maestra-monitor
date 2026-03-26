@@ -742,12 +742,12 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           <div className="slot-wizard-title" style={{ color: slotColor }}>Add State</div>
 
                           {/* Accumulated output chips */}
-                          {setup.outputSignals.length > 0 && (
+                          {(setup.outputSignals || []).length > 0 && (
                             <div style={{ width: '100%', marginBottom: 6 }}>
                               <div style={{ fontSize: 7, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.25)',
                                 textTransform: 'uppercase', marginBottom: 4 }}>↑ Outputs</div>
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                                {setup.outputSignals.map((sig, i) => (
+                                {(setup.outputSignals || []).map((sig, i) => (
                                   <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4,
                                     padding: '2px 7px', fontSize: 9, fontFamily: 'var(--font-mono)',
                                     background: `${slotColor}18`, border: `1px solid ${slotColor}50`, color: slotColor }}>
@@ -872,7 +872,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                   [slot.id]: {
                                     ...prev[slot.id],
                                     outputSignals: [
-                                      ...prev[slot.id].outputSignals,
+                                      ...(prev[slot.id].outputSignals || []),
                                       { key: setup.stateKey.trim(), type: setup.stateType,
                                         desc: setup.stateDesc, top: setup.selectedTop }
                                     ],
@@ -882,7 +882,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               }}>
                               + Add State
                             </button>
-                            {setup.outputSignals.length > 0 && (
+                            {(setup.outputSignals || []).length > 0 && (
                               <button
                                 className="slot-wizard-btn slot-wizard-btn-primary"
                                 style={{ background: `${slotColor}25`, borderColor: slotColor, color: slotColor }}
