@@ -17,7 +17,6 @@ import {
   ModulationGrid,
 } from '@/components';
 import { JoinMaestraResult } from '@/components/JoinModal';
-import { SceneDefinition } from '@/components/ScenePanel';
 import { EntityBusEntry } from '@/components/DetailPanel';
 import { DmxState, defaultDmxState, SCENE_CUE_MAP } from '@/components/LightingPanel';
 import { FleetSlot, LogEntry, EventEntry, AudioAnalysisData, SlotConnectionInfo, MaestraSlotStatus, defaultSlotStatus } from '@/types';
@@ -1542,16 +1541,6 @@ export default function Home() {
             />
 
             <AudioAnalysis audioData={audioData} onSendAudio={sendToTarget} />
-
-            <ScenePanel
-              onActivateScene={handleActivateScene}
-              injectActive={injectActive}
-              onInjectToggle={setInjectActive}
-              promptText={promptText}
-              onPromptChange={setPromptText}
-              onBroadcast={broadcastPrompt}
-              onP6Flush={p6Flush}
-            />
 
             <LightingPanel
               dmxState={dmxState}
