@@ -1262,11 +1262,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   title="Set PIN to identify this slot"
                   onClick={e => {
                     e.stopPropagation();
-                    const pin = prompt('Set a PIN for this slot (short label, e.g. "CAM1"):');
-                    if (pin) {
-                      const label = pin.slice(0,6).toUpperCase();
-                      setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateKey: label } }));
-                    }
+                    // PIN = shows slot number as identifier — no prompt needed
+                    const idx = slots.indexOf(slot) + 1;
+                    alert('Slot ' + idx + ' · ' + (slot.entity_id || slot.id));
                   }}
                   style={{
                     background: 'none', border: 'none', padding: '1px 2px',
