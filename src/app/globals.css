@@ -2768,3 +2768,69 @@ footer a:hover { text-decoration: underline; }
 
 /* Slot footer select */
 .slot-footer select { font-size: 10px !important; }
+
+
+/* ═══════════════════════════════════════════════════════════
+   PROPORTION FIX — palette buttons & slot grid layout
+═══════════════════════════════════════════════════════════ */
+
+/* Palette: fixed small size, not aspect-ratio driven */
+.palette {
+  grid-template-columns: repeat(8, 52px) !important;
+  gap: 6px !important;
+}
+.palette-btn {
+  width: 52px !important;
+  height: 52px !important;
+  min-height: 0 !important;
+  aspect-ratio: unset !important;
+}
+
+/* Slot grid: wrap into rows, max 3 columns, sensible card height */
+.slot-grid {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
+  max-height: none !important;
+  overflow-y: visible !important;
+}
+
+/* Slot: reasonable max-height so it doesn't balloon */
+.slot {
+  max-height: 300px !important;
+  overflow-y: auto !important;
+  overflow: auto !important;
+}
+
+/* Live node thumb: shorter */
+.live-node-thumb {
+  aspect-ratio: 16 / 5 !important;
+}
+.live-node-panel {
+  max-height: 280px !important;
+}
+
+/* Fleet panel padding */
+.fleet-panel {
+  padding: 16px !important;
+}
+
+/* Modulation grid: 2 col keeps it compact */
+.modulation-grid {
+  grid-template-columns: repeat(2, 1fr) !important;
+}
+
+/* Audio analysis canvas: shorter */
+#aaCanvas {
+  height: 56px !important;
+}
+
+/* Palette section */
+.palette-section {
+  padding: 0.75rem 1rem !important;
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.75rem !important;
+}
+
+/* HSV sliders row tighter */
+.hsv-sliders {
+  margin-top: 0.4rem !important;
+}
