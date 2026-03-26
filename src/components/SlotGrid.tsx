@@ -884,53 +884,39 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       )}
                     </div>
                   ) : (
-                    /* ════ CONNECT YOUR NODE ════ */
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '32px 24px', minHeight: 320 }}>
-                      {/* Title */}
-                      <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: '0.14em', color: slotColor, textTransform: 'uppercase' }}>
-                        Connect Your Node
-                      </div>
-                      {/* Drop zone — primary CTA */}
-                      <div
+                    /* ════ AVAILABLE — click to connect ════ */
+                    <div
+                      style={{
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center',
+                        height: '100%', minHeight: 260, gap: 14,
+                        cursor: 'pointer', padding: '24px 20px',
+                      }}
+                      onClick={(e) => { e.stopPropagation(); handleSlotClick(slot); }}
+                    >
+                      <div style={{
+                        fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-display)',
+                        letterSpacing: '0.18em', textTransform: 'uppercase',
+                        color: slotColor, opacity: 0.65,
+                      }}>AVAILABLE</div>
+                      <button
                         onClick={(e) => { e.stopPropagation(); handleSlotClick(slot); }}
-                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                        onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const f = e.dataTransfer.files[0]; if (f) handleFileUpload(slot.id, f); }}
                         style={{
-                          width: '100%', flex: 1,
-                          border: `1.5px dashed ${slotColor}50`,
-                          background: `${slotColor}07`,
-                          borderRadius: 4, padding: '32px 20px',
-                          textAlign: 'center', cursor: 'pointer',
-                          transition: 'all 0.2s',
-                          display: 'flex', flexDirection: 'column',
-                          alignItems: 'center', justifyContent: 'center', gap: 10,
-                          minHeight: 160,
+                          fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 700,
+                          letterSpacing: '0.1em', padding: '8px 22px', cursor: 'pointer',
+                          background: `${slotColor}15`,
+                          border: `1px solid ${slotColor}60`,
+                          color: slotColor, transition: 'all 0.15s',
                         }}
-                      >
-                        <div style={{ fontSize: 28, opacity: 0.25, lineHeight: 1 }}>↓</div>
-                        <div style={{ fontSize: 11, color: slotColor, fontWeight: 700, letterSpacing: '0.08em' }}>
-                          <a
-                            href='https://github.com/jordansnyder/maestra-core/releases/latest'
-                            target='_blank'
-                            rel='noopener noreferrer'
-                            onClick={e => e.stopPropagation()}
-                            style={{ color: slotColor, textDecoration: 'underline', cursor: 'pointer' }}
-                          >↓ Download maestra.tox</a>
-                        </div>
-                        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', lineHeight: 1.8, maxWidth: 200, textAlign: 'center' }}>
-                          2. Drag into your .toe file<br/>
-                          <span style={{ opacity: 0.55 }}>3. Appears as a slot automatically</span>
-                        </div>
-                      </div>
-                      {/* Download link — secondary, dim */}
+                      >+ Connect Your Node</button>
                       <a
                         href='https://github.com/jordansnyder/maestra-core/releases/latest'
                         target='_blank' rel='noreferrer'
                         onClick={(e) => e.stopPropagation()}
                         style={{
-                          fontSize: 9, color: `${slotColor}70`,
+                          fontSize: 8, color: `${slotColor}50`,
                           textDecoration: 'none',
-                          borderBottom: `1px solid ${slotColor}30`,
+                          borderBottom: `1px solid ${slotColor}25`,
                           paddingBottom: 1,
                           fontFamily: 'var(--font-display)',
                           letterSpacing: '0.06em',
