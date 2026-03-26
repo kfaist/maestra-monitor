@@ -776,117 +776,146 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             </div>
                           )}
 
-                                                                              {/* Node → Parameter grouped dropdowns, fed from /api/tops + entityStates */}
+                                                                              {/* Step 1: Stream Type filter */}
                           {(() => {
-                            // All tops: cachedTops (from /api/tops) + WS entityStates
+                            // All tops from /api/tops cache + WS entityStates
                             const _all: string[] = [...cachedTops];
                             Object.values(entityStates).forEach((es: unknown) => {
                               const _t = (es as Record<string,unknown>)?.tops;
                               if (Array.isArray(_t)) (_t as string[]).forEach((t:string) => { if (!_all.includes(t)) _all.push(t); });
                             });
 
-                            // Group by immediate child of /project1 — that's the component name
-                            // e.g. /project1/StreamDiffusionTD/... → component = "StreamDiffusionTD"
-                            // All TOPs inside that component (any depth) become options
+                            // Group by node (depth-2: /project1/NodeName)
                             const nodeMap: Record<string,string[]> = {};
                             _all.forEach(t => {
                               const parts = t.split('/').filter(Boolean);
-                              // parts[0] = project1, parts[1] = ComponentName
                               if (parts.length < 2) return;
-                              const component = parts[1]; // e.g. "StreamDiffusionTD"
-                              if (!nodeMap[component]) nodeMap[component] = [];
-                              if (!nodeMap[component].includes(t)) nodeMap[component].push(t);
+                              const node = parts[1]; // NodeName
+                              if (!nodeMap[node]) nodeMap[node] = [];
+                              if (!nodeMap[node].includes(t)) nodeMap[node].push(t);
                             });
                             const nodes = Object.keys(nodeMap).sort();
 
-                            // Derive selected component from selectedTop
-                            const stParts = (setup.selectedTop || '').split('/').filter(Boolean);
-                            const selNode = stParts.length >= 2 ? stParts[1] : ''; // component name only
-                            const selParam = setup.selectedTop || '';
-                            const nodeParams = selNode ? (nodeMap[selNode] || []) : [];
+                            // Selected node + TOP derived from selectedTop
+                            const stParts  = (setup.selectedTop || '').split('/').filter(Boolean);
+                            const selNode  = stParts.length >= 2 ? stParts[1] : '';
+                            const selTop   = setup.selectedTop || '';
+                            const nodeTops = selNode ? (nodeMap[selNode] || []) : [];
+
+                            // Stream type filter
+                            const STREAM_TYPES = [
+                              { key: '', label: 'All' },
+                              { key: 'texture', label: 'Texture' },
+                              { key: 'video',   label: 'Video' },
+                              { key: 'spout',   label: 'Spout' },
+                              { key: 'ndi',     label: 'NDI' },
+                              { key: 'syphon',  label: 'Syphon' },
+                              { key: 'audio',   label: 'Audio' },
+                              { key: 'data',    label: 'Data' },
+                              { key: 'osc',     label: 'OSC' },
+                              { key: 'midi',    label: 'MIDI' },
+                            ];
+                            const streamFilter = (setup.stateType === 'string' || !setup.stateType) ? '' : setup.stateType;
+
+                            // Filter nodeTops by stream type hint in path
+                            const filteredTops = streamFilter
+                              ? nodeTops.filter(t => t.toLowerCase().includes(streamFilter))
+                              : nodeTops;
 
                             return (
                               <>
+                                {/* Stream type chips */}
+                                <div style={{ width: '100%' }}>
+                                  <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 4 }}>
+                                    Stream Type
+                                  </div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                                    {STREAM_TYPES.map(({ key, label }) => {
+                                      const active = (key === '' && !streamFilter) || key === streamFilter;
+                                      return (
+                                        <button key={key}
+                                          onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateType: key || 'string' } })); }}
+                                          style={{ fontSize: 8, padding: '2px 7px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                                            background: active ? `${slotColor}25` : 'rgba(255,255,255,0.03)',
+                                            border: `1px solid ${active ? slotColor + '70' : 'rgba(255,255,255,0.08)'}`,
+                                            color: active ? slotColor : 'rgba(255,255,255,0.3)',
+                                            transition: 'all 0.1s' }}>
+                                          {label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
                                 {/* Node picker */}
                                 <div style={{ width: '100%' }}>
                                   <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
-                                    Component {nodes.length > 0 && <span style={{ color: slotColor }}>· {nodes.length} detected</span>}
+                                    Select Node {nodes.length > 0 && <span style={{ color: slotColor }}>· {nodes.length} found</span>}
                                   </div>
                                   {nodes.length > 0 ? (
                                     <select value={selNode} onClick={e => e.stopPropagation()}
                                       onChange={e => {
                                         e.stopPropagation();
                                         const n = e.target.value;
-                                        const first = nodeMap[n]?.[0] || '';
+                                        const tops = nodeMap[n] || [];
+                                        const first = tops[0] || '';
                                         const key = first.split('/').pop() || '';
-                                        setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id],
-                                          selectedTop: first,
-                                          stateKey: key,
-                                        }}));
+                                        setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: first, stateKey: key } }));
                                       }}
-                                      style={{ width:'100%', padding:'5px 8px', fontSize:10,
-                                        fontFamily:'var(--font-mono)', background:'rgba(0,0,0,0.6)',
-                                        border:`1px solid ${slotColor}40`, color:slotColor, outline:'none' }}>
-                                      <option value="">— select component —</option>
-                                      {nodes.map(n => <option key={n} value={n} style={{background:'#0a0a14'}}>{n}</option>)}
+                                      style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)',
+                                        background: 'rgba(0,0,0,0.6)', border: `1px solid ${slotColor}40`, color: slotColor, outline: 'none' }}>
+                                      <option value="">— select node —</option>
+                                      {nodes.map(n => <option key={n} value={n} style={{ background: '#0a0a14' }}>{n}</option>)}
                                     </select>
                                   ) : (
-                                    <div style={{ fontSize:9, color:'rgba(255,255,255,0.2)', fontFamily:'var(--font-mono)', padding:'4px 0' }}>
-                                      Waiting for TOX — run exec(open(r&apos;build_maestra_tox.py&apos;).read()) once in TD
+                                    <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)', padding: '4px 0', lineHeight: 1.6 }}>
+                                      No nodes detected. Run exec(open(r&apos;add_maestra_startup.py&apos;).read()) in TD once.
                                     </div>
                                   )}
                                 </div>
 
-                                {/* Parameter picker — only shows when node selected */}
+                                {/* TOP picker — within selected node */}
                                 {selNode && (
                                   <div style={{ width: '100%' }}>
-                                    <div style={{ fontSize:7, letterSpacing:'0.1em', color:'rgba(255,255,255,0.25)', textTransform:'uppercase', marginBottom:3 }}>
-                                      Output TOP
+                                    <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
+                                      TOP within {selNode} {filteredTops.length > 0 && <span style={{ color: slotColor }}>· {filteredTops.length}</span>}
                                     </div>
-                                    {nodeParams.length > 0 ? (
-                                      <select value={selParam} onClick={e => e.stopPropagation()}
+                                    {filteredTops.length > 0 ? (
+                                      <select value={selTop} onClick={e => e.stopPropagation()}
                                         onChange={e => {
                                           e.stopPropagation();
-                                          const fullPath = e.target.value;
-                                          const key = fullPath.split('/').pop() || '';
-                                          setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id],
-                                            selectedTop: fullPath,
-                                            stateKey: key,
-                                          }}));
+                                          const full = e.target.value;
+                                          const key = full.split('/').pop() || '';
+                                          setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: full, stateKey: key } }));
                                         }}
-                                        style={{ width:'100%', padding:'5px 8px', fontSize:10,
-                                          fontFamily:'var(--font-mono)', background:'rgba(0,0,0,0.6)',
-                                          border:`1px solid ${slotColor}40`, color:slotColor, outline:'none' }}>
-                                        <option value="">— select output TOP —</option>
-                                        {nodeParams.map(p => { const rel = p.split('/').slice(2).join('/'); return <option key={p} value={p} style={{background:'#0a0a14'}}>{rel}</option>; })}
+                                        style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)',
+                                          background: 'rgba(0,0,0,0.6)', border: `1px solid ${slotColor}40`, color: slotColor, outline: 'none' }}>
+                                        <option value="">— select TOP —</option>
+                                        {filteredTops.map(t => {
+                                          const rel = t.split('/').slice(2).join('/');
+                                          return <option key={t} value={t} style={{ background: '#0a0a14' }}>{rel}</option>;
+                                        })}
                                       </select>
                                     ) : (
-                                      <input type="text" value={selParam} placeholder="e.g. promptdict5concept"
-                                        onClick={e => e.stopPropagation()}
-                                        onChange={e => { e.stopPropagation(); const p=e.target.value;
-                                          setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id],
-                                            selectedTop: selNode+'/'+p, stateKey: p }})); }}
-                                        style={{ width:'100%', padding:'5px 8px', fontSize:10, fontFamily:'var(--font-mono)',
-                                          color:'rgba(255,255,255,0.7)', background:'rgba(0,0,0,0.4)',
-                                          border:'1px solid rgba(255,255,255,0.1)', outline:'none', boxSizing:'border-box' }} />
+                                      <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)', padding: '4px 0' }}>
+                                        No TOPs match this stream type filter
+                                      </div>
                                     )}
                                   </div>
                                 )}
 
                                 {/* State key — auto-filled, always editable */}
-                                <div style={{ width:'100%' }}>
-                                  <div style={{ fontSize:7, letterSpacing:'0.1em', color:'rgba(255,255,255,0.25)', textTransform:'uppercase', marginBottom:3 }}>
-                                    State Key Name <span style={{opacity:0.4}}>(rename if needed)</span>
+                                <div style={{ width: '100%' }}>
+                                  <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
+                                    State Key <span style={{ opacity: 0.4 }}>(rename if needed)</span>
                                   </div>
                                   <input type="text" value={setup.stateKey}
                                     placeholder="e.g. prompt_concept"
                                     onClick={e => e.stopPropagation()}
-                                    onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev,
-                                      [slot.id]: { ...prev[slot.id], stateKey: e.target.value } })); }}
-                                    style={{ width:'100%', padding:'5px 8px', fontSize:11,
-                                      fontFamily:'var(--font-mono)', color:slotColor, fontWeight:700,
-                                      background:'rgba(0,0,0,0.4)', border:`1px solid ${slotColor}40`,
-                                      outline:'none', boxSizing:'border-box' }} />
+                                    onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateKey: e.target.value } })); }}
+                                    style={{ width: '100%', padding: '5px 8px', fontSize: 11, fontFamily: 'var(--font-mono)',
+                                      color: slotColor, fontWeight: 700, background: 'rgba(0,0,0,0.4)',
+                                      border: `1px solid ${slotColor}40`, outline: 'none', boxSizing: 'border-box' }} />
                                 </div>
                               </>
                             );
