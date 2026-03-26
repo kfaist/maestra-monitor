@@ -880,24 +880,50 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     </div>
                   ) : (
                     /* ════ CONNECT YOUR NODE ════ */
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: '28px 20px', minHeight: 180 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: '0.14em', color: slotColor, textTransform: 'uppercase', opacity: 0.85 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '32px 24px', minHeight: 320 }}>
+                      {/* Title */}
+                      <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: '0.14em', color: slotColor, textTransform: 'uppercase' }}>
                         Connect Your Node
                       </div>
+                      {/* Drop zone — primary CTA */}
                       <div
                         onClick={(e) => { e.stopPropagation(); handleSlotClick(slot); }}
-                        style={{ width: '100%', border: `1.5px dashed ${slotColor}45`, background: `${slotColor}06`, borderRadius: 4, padding: '16px 14px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const f = e.dataTransfer.files[0]; if (f) handleFileUpload(slot.id, f); }}
+                        style={{
+                          width: '100%', flex: 1,
+                          border: `1.5px dashed ${slotColor}50`,
+                          background: `${slotColor}07`,
+                          borderRadius: 4, padding: '32px 20px',
+                          textAlign: 'center', cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          display: 'flex', flexDirection: 'column',
+                          alignItems: 'center', justifyContent: 'center', gap: 10,
+                          minHeight: 160,
+                        }}
                       >
-                        <div style={{ fontSize: 16, marginBottom: 6, opacity: 0.35, fontFamily: 'var(--font-display)' }}>v</div>
-                        <div style={{ fontSize: 10, color: slotColor, fontWeight: 600, letterSpacing: '0.07em', marginBottom: 4 }}>Drop .tox here or click to begin</div>
-                        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.22)', letterSpacing: '0.05em' }}>Run build_maestra_tox.py in TD Textport first</div>
+                        <div style={{ fontSize: 28, opacity: 0.25, lineHeight: 1 }}>↓</div>
+                        <div style={{ fontSize: 11, color: slotColor, fontWeight: 700, letterSpacing: '0.08em' }}>
+                          Drop .tox here or click to begin
+                        </div>
+                        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5, maxWidth: 200 }}>
+                          Run <span style={{ fontFamily: 'var(--font-mono)', color: `${slotColor}cc` }}>build_maestra_tox.py</span> in TD Textport first
+                        </div>
                       </div>
+                      {/* Download link — secondary, dim */}
                       <a
                         href='/build_maestra_tox.py'
                         download='build_maestra_tox.py'
                         onClick={(e) => e.stopPropagation()}
-                        style={{ fontSize: 9, color: `${slotColor}70`, letterSpacing: '0.07em', textDecoration: 'none', borderBottom: `1px solid ${slotColor}25`, paddingBottom: 1, fontFamily: 'var(--font-display)' }}
-                      >download build_maestra_tox.py</a>
+                        style={{
+                          fontSize: 9, color: `${slotColor}70`,
+                          textDecoration: 'none',
+                          borderBottom: `1px solid ${slotColor}30`,
+                          paddingBottom: 1,
+                          fontFamily: 'var(--font-display)',
+                          letterSpacing: '0.06em',
+                        }}
+                      >↓ download build_maestra_tox.py</a>
                     </div>
                   )}
                 </div>
