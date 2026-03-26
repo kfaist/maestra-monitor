@@ -361,6 +361,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     borderBottom: `1px solid ${slotColor}18`,
                     flexWrap: 'wrap',
                   }}>
+                    <span style={{
+                      fontSize: 7, fontFamily: 'var(--font-display)', letterSpacing: '0.1em',
+                      color: 'rgba(255,255,255,0.3)', marginRight: 3, whiteSpace: 'nowrap',
+                      textTransform: 'uppercase',
+                    }}>Server Mode: //</span>
                     {modes.map(({ key, label, color }) => {
                       const active = slotMode === key;
                       return (
@@ -372,7 +377,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             padding: '1px 5px', cursor: 'pointer',
                             background: active ? `${color}20` : 'none',
                             border: `1px solid ${active ? color + '60' : 'rgba(255,255,255,0.06)'}`,
-                            color: active ? color : 'rgba(255,255,255,0.2)',
+                            color: active ? color : 'rgba(255,255,255,0.38)',
                             transition: 'all 0.12s',
                           }}
                         >{label}</button>
@@ -1077,7 +1082,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     color: lockedSlots.has(slot.id) ? '#000' : 'rgba(255,255,255,0.35)',
                     transition: 'all 0.15s', flexShrink: 0, fontWeight: 700,
                   }}
-                >{lockedSlots.has(slot.id) ? 'LK' : 'UN'}</button>
+                >{lockedSlots.has(slot.id) ? '🔒' : '🔓'}</button>
                 {/* Pin — sets slot to view-only default */}
                 <button
                   onClick={e => { e.stopPropagation(); togglePin(slot.id); }}
