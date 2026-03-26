@@ -1598,52 +1598,37 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       )}
 
                       {/* ══ STAGE: direction ══ */}
-                      {setup.stage === 'direction' && (
+                       {setup.stage === 'direction' && (
                         <div className="slot-wizard-content">
-                          <div className="slot-wizard-title" style={{ color: slotColor }}>Direction</div>
-                          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginBottom: 4, textAlign: 'center' }}>
-                            How does this node participate?
+                          <div className="slot-wizard-title" style={{ color: slotColor }}>Select Your Node</div>
+                          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginBottom: 6, textAlign: 'center' }}>
+                            Pick the TD project you want to connect to this slot
                           </div>
-                          <div style={{ display: 'flex', gap: 10, width: '100%' }}>
-                            {([
-                              { role: 'send' as NodeRole, icon: '+', label: 'Send', color: '#22c55e', desc: 'Publishes state to the bus — other nodes can subscribe' },
-                              { role: 'receive' as NodeRole, icon: '−', label: 'Receive', color: '#5cc8ff', desc: 'Subscribes to state from other nodes on the bus' },
-                            ]).map(({ role, icon, label, color, desc }) => {
-                              const active = setup.direction === role;
-                              return (
-                                <button key={role}
-                                  onClick={e => { e.stopPropagation();
-                                    setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], direction: role } }));
-                                  }}
-                                  style={{
-                                    flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
-                                    padding: '12px 6px', cursor: 'pointer',
-                                    background: active ? `${color}12` : 'rgba(255,255,255,0.02)',
-                                    border: `1.5px solid ${active ? color + '70' : 'rgba(255,255,255,0.08)'}`,
-                                    transition: 'all 0.15s',
-                                  }}>
-                                  <span style={{ fontSize: 22, fontWeight: 700, color, lineHeight: 1 }}>{icon}</span>
-                                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' as const, color }}>{label}</span>
-                                  <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.3)', textAlign: 'center' as const, lineHeight: 1.4 }}>{desc}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                          <div style={{ display: 'flex', gap: 6, width: '100%' }}>
+                          <EntityPicker
+                            slotColor={slotColor}
+                            current={setup.slug}
+                            onSelect={slug => setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], slug } }))}
+                          />
+                          <div style={{ display: 'flex', gap: 6, width: '100%', marginTop: 4 }}>
                             <button className="slot-wizard-btn slot-wizard-btn-ghost"
                               onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'connect' } })); }}>
                               ← Back
                             </button>
                             <button className="slot-wizard-btn slot-wizard-btn-primary" style={{ flex: 1 }}
-                              disabled={!setup.direction}
-                              onClick={e => { e.stopPropagation();
-                                if (setup.direction) setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'addState' } }));
+                              disabled={!setup.slug.trim()}
+                              onClick={e => {
+                                e.stopPropagation();
+                                if (!setup.slug.trim()) return;
+                                // Auto-set send direction and advance
+                                setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'addState' } }));
+                                onSlotSetupComplete?.(slot.id, 'send' as NodeRole, 'touchdesigner' as SignalSource);
                               }}>
-                              {setup.direction ? 'Next →' : 'Pick a direction'}
+                              {setup.slug.trim() ? `Connect "${setup.slug}" →` : 'Select a node first'}
                             </button>
                           </div>
                         </div>
                       )}
+
 
                       {/* ══ STAGE: addState ══ */}
                       {setup.stage === 'addState' && (
