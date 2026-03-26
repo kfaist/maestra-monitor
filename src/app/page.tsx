@@ -1307,7 +1307,7 @@ export default function Home() {
   }, [log, pushBusEntry]);
 
   // ═══ Scene activation — publish scene state + trigger DMX cue set ═══
-  const handleActivateScene = useCallback((scene:) => {
+  const handleActivateScene = useCallback((scene: { label: string; state: Record<string, unknown> }) => {
     const payload = { type: 'state_update', entity_id: 'scene_controller', data: scene.state };
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(payload));
