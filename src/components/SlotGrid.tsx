@@ -350,7 +350,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   { key: 'auto',    label: 'Auto',   color: '#fbbf24' },
                   { key: 'gallery', label: '⚡ Local', color: '#00ff88' },
                   { key: 'railway', label: '☁ Railway', color: '#00d4ff' },
-                  { key: 'custom',  label: '⚙ Advanced', color: '#a78bfa' },
+                  { key: 'custom',  label: '⚙ Adv', color: '#a78bfa' },
                 ];
                 const activeMode = modes.find(m => m.key === slotMode)!;
                 return (
@@ -363,7 +363,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   }}>
                     <span style={{
                       fontSize: 7, fontFamily: 'var(--font-display)', letterSpacing: '0.1em',
-                      color: 'rgba(255,255,255,0.3)', marginRight: 3, whiteSpace: 'nowrap',
+                      color: 'rgba(255,255,255,0.2)', marginRight: 3, whiteSpace: 'nowrap',
                       textTransform: 'uppercase',
                     }}>Server Mode: //</span>
                     {modes.map(({ key, label, color }) => {
