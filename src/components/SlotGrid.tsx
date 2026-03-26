@@ -103,11 +103,6 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     return () => clearInterval(id);
   }, []);
 
-  // Auto-lock newly active slots
-  useEffect(() => {
-    slots.forEach(s => { if (s.active) setLockedSlots(prev => new Set([...prev, s.id])); });
-  }, [slots.map(s => s.id + ':' + s.active).join(',')]);
-
   // When a slot becomes active, clear its setup state
   useEffect(() => {
     setSetupState(prev => {
@@ -727,13 +722,13 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   {slot.active && (
                     <button
                       onClick={e => { e.stopPropagation(); toggleLock(slot.id); }}
-                      title={lockedSlots.has(slot.id) ? 'Unlock slot (allow reconfiguration)' : 'Lock slot (protect from changes)'}
+                      title={lockedSlots.has(slot.id) ? 'Locked — click to unlock' : 'Unlocked — click to lock'}
                       style={{
-                        background: 'none', border: `1px solid ${lockedSlots.has(slot.id) ? 'rgba(255,255,255,0.15)' : 'rgba(0,255,136,0.3)'}`,
-                        color: lockedSlots.has(slot.id) ? 'rgba(255,255,255,0.3)' : 'var(--active)',
+                        background: 'none',
+                        border: `1px solid ${lockedSlots.has(slot.id) ? slotColor + '80' : 'rgba(255,255,255,0.1)'}`,
+                        color: lockedSlots.has(slot.id) ? slotColor : 'rgba(255,255,255,0.2)',
                         borderRadius: 2, padding: '1px 5px', fontSize: 9, cursor: 'pointer',
-                        fontFamily: 'var(--font-display)', letterSpacing: '0.08em',
-                        transition: 'all 0.15s',
+                        transition: 'all 0.15s', lineHeight: 1.2,
                       }}
                     >
                       {lockedSlots.has(slot.id) ? '🔒' : '🔓'}
