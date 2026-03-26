@@ -98,7 +98,7 @@ export default function Header({
                   transition: 'all 0.2s',
                   userSelect: 'none',
                 }}
-                title={isGallery ? 'Gallery: 192.168.128.115:8080 — click to switch to Railway' : 'Railway backend — click to switch to Gallery (on-site only)'}
+                title={isGallery ? 'Connected to Gallery server (192.168.128.115:8080)' : 'Offline — switch to Gallery when on-site at the venue'}
               >
                 <div style={{
                   width: 5, height: 5, borderRadius: '50%',
@@ -108,9 +108,9 @@ export default function Header({
                 <span style={{
                   fontFamily: 'var(--font-display)', fontSize: 8, fontWeight: 700,
                   letterSpacing: '0.12em', textTransform: 'uppercase',
-                  color: isGallery ? 'var(--active)' : 'var(--accent)',
+                  color: isGallery ? 'var(--active)' : 'rgba(255,255,255,0.3)',
                 }}>
-                  {isGallery ? '⚡ Gallery' : '☁ Railway'}
+                  {isGallery ? '⚡ Gallery' : '☁ Offline'}
                 </span>
               </div>
             </>
