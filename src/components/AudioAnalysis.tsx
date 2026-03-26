@@ -19,12 +19,12 @@ interface HistoryRow {
 }
 
 const BAND_CONFIG = [
-  { key: 'sub', label: 'Sub', hue: 280 },
-  { key: 'bass', label: 'Bass', hue: 340 },
-  { key: 'mid', label: 'Mid', hue: 35 },
-  { key: 'high', label: 'High', hue: 190 },
-  { key: 'rms', label: 'RMS', hue: 160, max: 1.0 },
-  { key: 'bpm', label: 'BPM', hue: 220, max: 200 },
+  { key: 'sub',  label: 'Sub',  hue: 280, color: '#7C3AED' },
+  { key: 'bass', label: 'Bass', hue: 340, color: '#FF2FA3' },
+  { key: 'mid',  label: 'Mid',  hue: 35,  color: '#FF8A3D' },
+  { key: 'high', label: 'High', hue: 190, color: '#3DD6FF' },
+  { key: 'rms',  label: 'RMS',  hue: 160, color: '#59FFD8', max: 1.0 },
+  { key: 'bpm',  label: 'BPM',  hue: 220, color: '#FFD84D', max: 200 },
 ];
 
 const STEM_CONFIG = [
