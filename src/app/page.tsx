@@ -37,8 +37,10 @@ export default function Home() {
   // State
   const [activeTab, setActiveTab] = useState('dashboard');
   const [wsStatus, setWsStatus] = useState<'online' | 'offline' | 'connecting'>('connecting');
-  const [serverMode, setServerMode] = useState<'railway' | 'gallery'>('railway');
-  const serverModeRef = useRef<'railway' | 'gallery'>('railway');
+  const [serverMode, setServerMode] = useState<'railway' | 'gallery' | 'auto' | 'custom'>('auto');
+  const [customUrl, setCustomUrl] = useState<string>('');
+  const serverModeRef = useRef<'railway' | 'gallery' | 'auto' | 'custom'>('auto');
+  const customUrlRef = useRef<string>('');
   const [apiStatus, setApiStatus] = useState<'online' | 'offline'>('offline');
   const [slots, setSlots] = useState<FleetSlot[]>(createInitialSlots);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -86,6 +88,7 @@ export default function Home() {
   const slotsRef = useRef(slots);
   slotsRef.current = slots;
   serverModeRef.current = serverMode;
+  customUrlRef.current = customUrl;
   // Track remote entity IDs (e.g. TD nodes) so we can target prompt/p6 at them
   const remoteEntitiesRef = useRef<Set<string>>(new Set());
   const selectedIdRef = useRef(selectedId);
@@ -694,7 +697,11 @@ export default function Home() {
   // API polling
   const fetchEntities = useCallback(async () => {
     try {
-      const activeBase = serverModeRef.current === 'gallery' ? GALLERY_URL : RAILWAY_URL;
+      const mode = serverModeRef.current;
+    const activeBase = mode === 'gallery' ? GALLERY_URL
+      : mode === 'custom' ? (customUrlRef.current || RAILWAY_URL)
+      : mode === 'auto' ? GALLERY_URL  // auto starts with gallery, falls back on connection error
+      : RAILWAY_URL;
       const res = await fetch(`${activeBase}/entities`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setApiStatus('online');
@@ -1519,6 +1526,8 @@ export default function Home() {
         onJoinMaestra={() => setJoinModalOpen(true)}
         serverMode={serverMode}
         onServerModeChange={handleServerModeChange}
+        customUrl={customUrl}
+        onCustomUrlChange={setCustomUrl}
       />
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
