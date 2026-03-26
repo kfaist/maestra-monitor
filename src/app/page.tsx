@@ -37,9 +37,9 @@ export default function Home() {
   // State
   const [activeTab, setActiveTab] = useState('dashboard');
   const [wsStatus, setWsStatus] = useState<'online' | 'offline' | 'connecting'>('connecting');
-  const [serverMode, setServerMode] = useState<'railway' | 'gallery' | 'auto' | 'custom'>('auto');
+  const [serverMode, setServerMode] = useState<'railway' | 'gallery' | 'auto' | 'custom' | 'auto' | 'custom'>('auto');
   const [customUrl, setCustomUrl] = useState<string>('');
-  const serverModeRef = useRef<'railway' | 'gallery' | 'auto' | 'custom'>('auto');
+  const serverModeRef = useRef<'railway' | 'gallery' | 'auto' | 'custom' | 'auto' | 'custom'>('auto');
   const customUrlRef = useRef<string>('');
   const [apiStatus, setApiStatus] = useState<'online' | 'offline'>('offline');
   const [slots, setSlots] = useState<FleetSlot[]>(createInitialSlots);
@@ -312,7 +312,7 @@ export default function Home() {
   }, [log, logEvent, saveConnectedSlots]);
 
   // Update connection config
-  const handleServerModeChange = useCallback((mode: 'railway' | 'gallery') => {
+  const handleServerModeChange = useCallback((mode: 'railway' | 'gallery' | 'auto' | 'custom') => {
     setServerMode(mode);
     // Reconnect WS to new server — use ref to avoid forward declaration issue
     if (wsRef.current) {
