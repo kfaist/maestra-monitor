@@ -355,42 +355,95 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <div className={`live-node-badge ${statusCls}`}>LIVE</div>
                   </div>
 
-                  {/* ── Section 1: Device · Entity · Heartbeat · Stream ── */}
+                                    {/* ── Entity Identity + Live Status ── */}
                   <div className="live-section">
-                    <div className="live-section-head">Status</div>
+                    <div className="live-section-head">Entity</div>
                     <div className="live-kv-grid">
-                      <span className="live-kv-key">Device</span>
-                      <span className={`live-kv-val ${mStatus?.server === 'connected' ? 'val-ok' : 'val-warn'}`}>
+                      {/* entity name / toe_name */}
+                      <span className="live-kv-key">name</span>
+                      <span className="live-kv-val" style={{ color: slotColor, fontWeight: 700 }}>
+                        {(entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.toe_name as string
+                          || slot.entity_id || slot.id}
+                      </span>
+                      {/* slug */}
+                      <span className="live-kv-key">slug</span>
+                      <span className="live-kv-val" style={{ fontFamily: 'var(--font-mono)', fontSize: 9 }}>
+                        {slot.entity_id || slot.id}
+                      </span>
+                      {/* server */}
+                      <span className="live-kv-key">server</span>
+                      <span className="live-kv-val" style={{ fontSize: 8, opacity: 0.55 }}>
+                        {(() => {
+                          const s = (entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.server as string | undefined;
+                          if (!s) return '—';
+                          return s.replace('https://','').replace('http://','').slice(0,28);
+                        })()}
+                      </span>
+                      {/* connection status */}
+                      <span className="live-kv-key">status</span>
+                      <span className={`live-kv-val ${mStatus?.server === 'connected' ? 'val-ok' : 'val-warn'}`}
+                        style={{ color: mStatus?.server === 'connected' ? slotColor : undefined }}>
                         {mStatus?.server === 'connected' ? 'connected' : mStatus?.server || 'offline'}
                       </span>
-                      <span className="live-kv-key">Entity</span>
-                      <span className="live-kv-val">{slot.entity_id || slot.id}</span>
-                      {/* Entity type from TOX metadata */}
-                      {(() => {
-                        const eid = slot.entity_id || slot.id;
-                        const meta = entityStates[eid] as Record<string,unknown>|undefined;
-                        const t = meta?.entity_type || meta?.type;
-                        const st = meta?.stream_type;
-                        if (!t && !st) return null;
-                        return (<>
-                          <span className="live-kv-key">Type</span>
-                          <span className="live-kv-val" style={{ color: 'var(--slot-color, #00d4ff)', fontSize: 9 }}>
-                            {t ? String(t) : ''}{st ? ` · ${String(st)}` : ''}
-                          </span>
-                        </>);
-                      })()}
-                      <span className="live-kv-key">Heartbeat</span>
-                      <span className={`live-kv-val ${mStatus?.heartbeat === 'live' ? 'val-ok' : mStatus?.heartbeat === 'stale' ? 'val-warn' : ''}`}>
-                        {heartbeatMs ? `${heartbeatMs} ago` : 'waiting'}
-                      </span>
-                      <span className="live-kv-key">Stream</span>
-                      <span className={`live-kv-val ${mStatus?.stream === 'live' ? 'val-ok' : ''}`}>
-                        {mStatus?.stream || 'none'}
+                      {/* last seen */}
+                      <span className="live-kv-key">last seen</span>
+                      <span className={`live-kv-val ${mStatus?.heartbeat === 'live' ? 'val-ok' : mStatus?.heartbeat === 'stale' ? 'val-warn' : 'val-dim'}`}>
+                        {mStatus?.heartbeat === 'live' ? 'now'
+                          : mStatus?.lastHeartbeatAt ? `${formatAge(now - mStatus.lastHeartbeatAt)} ago`
+                          : 'waiting'}
                       </span>
                     </div>
                   </div>
 
-                  {/* ── Section 2: Signals ── */}
+                  {/* ── State Schema: ↑output + ↓input chips with live values ── */}
+                  {(() => {
+                    const eid = slot.entity_id || slot.id;
+                    const eState = entityStates[eid] as Record<string,unknown> | undefined;
+                    const schema = eState?.stateSchema as Record<string, {type:string; direction:string}> | undefined;
+                    const entries = schema
+                      ? Object.entries(schema)
+                      : Object.entries(eState || {})
+                          .filter(([k]) => !['toe_name','tops','server','active','metadata','stateSchema','publishing','listening'].includes(k))
+                          .map(([k]) => [k, { type: 'string', direction: 'output' }] as [string, {type:string;direction:string}]);
+                    if (!entries.length) return null;
+                    const outs = entries.filter(([,v]) => v.direction !== 'input');
+                    const ins  = entries.filter(([,v]) => v.direction === 'input');
+                    return (
+                      <div className="live-section">
+                        <div className="live-section-head">State</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                          {outs.map(([key, varDef]) => {
+                            const lv = eState?.[key] != null ? String(eState[key]).slice(0, 16) : null;
+                            return (
+                              <div key={key} style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 3,
+                                background: `${slotColor}12`, border: `1px solid ${slotColor}40`,
+                                padding: '2px 5px', fontSize: 8,
+                              }}>
+                                <span style={{ color: slotColor, fontSize: 7 }}>↑</span>
+                                <span style={{ fontFamily: 'var(--font-mono)', color: slotColor }}>{key}</span>
+                                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 7 }}>{varDef.type}</span>
+                                {lv && <span style={{ color: 'var(--text-dim)', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: 3 }}>{lv}</span>}
+                              </div>
+                            );
+                          })}
+                          {ins.map(([key, varDef]) => (
+                            <div key={key} style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 3,
+                              background: 'rgba(255,255,255,0.03)', border: `1px solid ${slotColor}20`,
+                              padding: '2px 5px', fontSize: 8,
+                            }}>
+                              <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: 7 }}>↓</span>
+                              <span style={{ fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,0.4)' }}>{key}</span>
+                              <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: 7 }}>{varDef.type}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+{/* ── Section 2: Signals ── */}
                   <div className="live-section">
                     <div className="live-section-head">Signals</div>
                     {publishing.length > 0 && (
