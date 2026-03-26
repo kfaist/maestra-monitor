@@ -93,12 +93,20 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   const [setupState, setSetupState] = useState<Record<string, SlotSetup>>({});
   const [injectState, setInjectState] = useState<Record<string, InjectState>>({});
   const [sourceState, setSourceState] = useState<Record<string, SourceState>>({});
+  // Lock state — active slots are auto-locked, can be manually unlocked
+  const [lockedSlots, setLockedSlots] = useState<Set<string>>(new Set());
+  const toggleLock = (slotId: string) => setLockedSlots(prev => { const n = new Set(prev); if (n.has(slotId)) n.delete(slotId); else n.add(slotId); return n; });
 
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(id);
   }, []);
+
+  // Auto-lock newly active slots
+  useEffect(() => {
+    slots.forEach(s => { if (s.active) setLockedSlots(prev => new Set([...prev, s.id])); });
+  }, [slots.map(s => s.id + ':' + s.active).join(',')]);
 
   // When a slot becomes active, clear its setup state
   useEffect(() => {
@@ -301,6 +309,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                 slot.cloudNode ? 'cloud-node' : '',
                 inSetup ? 'setup-mode' : '',
                 slot.active ? 'live-mode' : '',
+                (slot.active && lockedSlots.has(slot.id)) ? 'locked-slot' : '',
               ].filter(Boolean).join(' ')}
               data-signal={slot.signalType || undefined}
               onClick={() => handleSlotClick(slot)}
@@ -715,6 +724,21 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   </span>
                   {slot.cloudNode && <span className="cloud-badge">&#x2601; Cloud</span>}
                   {/* State badge for active slots */}
+                  {slot.active && (
+                    <button
+                      onClick={e => { e.stopPropagation(); toggleLock(slot.id); }}
+                      title={lockedSlots.has(slot.id) ? 'Unlock slot (allow reconfiguration)' : 'Lock slot (protect from changes)'}
+                      style={{
+                        background: 'none', border: `1px solid ${lockedSlots.has(slot.id) ? 'rgba(255,255,255,0.15)' : 'rgba(0,255,136,0.3)'}`,
+                        color: lockedSlots.has(slot.id) ? 'rgba(255,255,255,0.3)' : 'var(--active)',
+                        borderRadius: 2, padding: '1px 5px', fontSize: 9, cursor: 'pointer',
+                        fontFamily: 'var(--font-display)', letterSpacing: '0.08em',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {lockedSlots.has(slot.id) ? '🔒' : '🔓'}
+                    </button>
+                  )}
                   {slot.active ? (
                     <span className={`slot-state-badge ${stateBadge.cls}`}>{stateBadge.text}</span>
                   ) : inSetup ? (
