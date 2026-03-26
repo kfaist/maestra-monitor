@@ -108,12 +108,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   // Per-slot server mode: which Maestra server this slot is targeting
   const [slotServerModes, setSlotServerModes] = useState<Record<string, 'auto' | 'gallery' | 'railway' | 'custom'>>({});
   // Cached tops from /api/tops — populated by build_maestra_tox.py
-  const [cachedTops, setCachedTops] = useState<string[]>(() => {
-    try { const v = localStorage.getItem('maestra_cached_tops'); return v ? JSON.parse(v) : []; } catch { return []; }
-  });
-  const [cachedTree, setCachedTree] = useState<Record<string, string[]>>(() => {
-    try { const v = localStorage.getItem('maestra_cached_tree'); return v ? JSON.parse(v) : {}; } catch { return {}; }
-  });
+  const [cachedTops, setCachedTops] = useState<string[]>(() => { try { const v = localStorage.getItem('maestra_cached_tops'); return v ? JSON.parse(v) : []; } catch { return []; } });
+  const [cachedTree, setCachedTree] = useState<Record<string, string[]>>(() => { try { const v = localStorage.getItem('maestra_cached_tree'); return v ? JSON.parse(v) : {}; } catch { return {}; } });
   useEffect(() => {
     const LS_TOPS = 'maestra_cached_tops';
     const LS_TREE = 'maestra_cached_tree';
@@ -218,7 +214,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
       return;
     }
     onSelectSlot(slot.id);
-    setSetupState(prev => ({ ...prev, [slot.id]: { stage: 'connect', slug: '', refFile: null, selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [], streamType: '', selectedNode: '', nodeSearch: '', opSearch: '' } }));
+    setSetupState(prev => ({ ...prev, [slot.id]: { stage: 'connect', slug: '', refFile: null, selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [], streamType: '', selectedNode: '' , nodeSearch: '', opSearch: '' } }));
   }, [setupState, onSelectSlot]);
 
   const handleConnect = useCallback((slotId: string, e: React.MouseEvent) => {
@@ -562,7 +558,25 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
 {/* ── Section 2: Signals ── */}
                   <div className="live-section">
                     <div className="live-section-head">Signals</div>
-
+                    {publishing.length > 0 && (
+                      <div className="live-signal-group">
+                        <span className="live-signal-dir">↑ Publishing</span>
+                        <div className="live-signal-list">
+                          {publishing.map(s => <span key={s} className="live-signal-tag pub">{s}</span>)}
+                        </div>
+                      </div>
+                    )}
+                    {listening.length > 0 && (
+                      <div className="live-signal-group">
+                        <span className="live-signal-dir">↓ Listening</span>
+                        <div className="live-signal-list">
+                          {listening.map(s => <span key={s} className="live-signal-tag sub">{s}</span>)}
+                        </div>
+                      </div>
+                    )}
+                    {publishing.length === 0 && listening.length === 0 && (
+                      <span className="live-empty">No signals configured</span>
+                    )}
                   </div>
 
                   {/* ── Section 3: Entity State ── */}
@@ -893,13 +907,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                     </div>
                                     {(nodeMap[setup.selectedNode]||[]).length > 0 ? (
                                       <>
-                                      <input type="text" value={setup.opSearch || ''}
-                                        placeholder="search operators…"
-                                        onClick={e => e.stopPropagation()}
-                                        onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], opSearch: e.target.value } })); }}
-                                        style={{ width: '100%', padding: '4px 8px', fontSize: 9, fontFamily: 'var(--font-mono)',
-                                          background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)',
-                                          color: 'rgba(255,255,255,0.7)', outline: 'none', boxSizing: 'border-box', marginBottom: 3 }} />
+                                      <input type="text" value={setup.opSearch||''} placeholder="search operators…" onClick={e=>e.stopPropagation()} onChange={e=>{e.stopPropagation();setSetupState(prev=>({...prev,[slot.id]:{...prev[slot.id],opSearch:e.target.value}}));}} style={{width:'100%',padding:'3px 7px',fontSize:9,fontFamily:'var(--font-mono)',background:'rgba(0,0,0,0.4)',border:'1px solid rgba(255,255,255,0.1)',color:'rgba(255,255,255,0.6)',outline:'none',boxSizing:'border-box',marginBottom:3}}/>
                                       <select value={setup.selectedTop || ''} onClick={e => e.stopPropagation()}
                                         onChange={e => {
                                           e.stopPropagation();
@@ -912,20 +920,12 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                         style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)',
                                           background: 'rgba(0,0,0,0.6)', border: `1px solid ${slotColor}40`, color: slotColor, outline: 'none' }}>
                                         <option value="">— select operator —</option>
-                                        {[...(nodeMap[setup.selectedNode]||[])].sort((a,b) => {
-                                          const na = a.split(':')[1]||a, nb = b.split(':')[1]||b;
-                                          return na.localeCompare(nb);
-                                        }).filter(entry => {
-                                          if (!setup.opSearch) return true;
-                                          const pts = entry.split(':');
-                                          return (pts[1]||entry).toLowerCase().includes(setup.opSearch.toLowerCase());
-                                        }).map(entry => {
+                                        {[...(nodeMap[setup.selectedNode]||[])].sort((a,b)=>(a.split(':')[1]||a).localeCompare(b.split(':')[1]||b)).filter(entry=>{if(!(setup.opSearch||'')) return true; return (entry.split(':')[1]||entry).toLowerCase().includes((setup.opSearch||'').toLowerCase());}).map(entry => {
                                           const pts = entry.split(':');
                                           if (pts.length < 3) return null;
                                           const raw  = pts[0];
                                           const name = pts[1];
                                           const kind = raw.endsWith('CHOP') ? 'CHOP' : raw.endsWith('TOP') ? 'TOP' : raw.endsWith('DAT') ? 'DAT' : raw.endsWith('COMP') ? 'COMP' : raw.endsWith('SOP') ? 'SOP' : raw.slice(0,5);
-                                          // Apply stream type filter if set
                                           const sf = setup.streamType || '';
                                           if (sf) {
                                             const STREAM_TO_KIND: Record<string,string[]> = {
@@ -936,7 +936,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                             const allowed = STREAM_TO_KIND[sf] || [];
                                             if (allowed.length && !allowed.includes(kind)) return null;
                                           }
-                                          return <option key={entry} value={entry} style={{ background: '#0a0a14' }}>{kind} · {name}</option>;
+                                          return <option key={entry} value={entry} style={{ background: '#0a0a14' }}>{name}</option>;
                                         })}
                                       </select>
                                       </>
@@ -1066,7 +1066,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           border: `1px solid ${slotColor}60`,
                           color: slotColor, transition: 'all 0.15s',
                         }}
-                      >CONNECT</button>
+                      >+ CONNECT</button>
                       <a
                         href='/maestra.tox'
                         target='_blank' rel='noreferrer'
@@ -1244,9 +1244,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   title="Set PIN to identify this slot"
                   onClick={e => {
                     e.stopPropagation();
-                    // PIN = shows slot number as identifier — no prompt needed
-                    const idx = slots.indexOf(slot) + 1;
-                    alert('Slot ' + idx + ' · ' + (slot.entity_id || slot.id));
+                    const pin = prompt('Set a PIN for this slot (short label, e.g. "CAM1"):');
+                    if (pin) {
+                      const label = pin.slice(0,6).toUpperCase();
+                      setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateKey: label } }));
+                    }
                   }}
                   style={{
                     background: 'none', border: 'none', padding: '1px 2px',
