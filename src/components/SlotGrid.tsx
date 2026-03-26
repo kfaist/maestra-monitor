@@ -1069,7 +1069,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           border: `1px solid ${slotColor}60`,
                           color: slotColor, transition: 'all 0.15s',
                         }}
-                      >+ Connect Your Node</button>
+                      >+ CONNECT</button>
                       <a
                         href='/maestra.tox'
                         target='_blank' rel='noreferrer'
