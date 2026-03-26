@@ -8,17 +8,12 @@ import {
   SlotGrid,
   DetailPanel,
   AudioAnalysis,
-  ColorPalette,
-  ModulationGrid,
 ToxReferenceTab,
-  UseCases,
   ConnectionPanel,
   JoinModal,
-  ScenePanel,
-  LightingPanel,
-} from '@/components';
+  LightingPanel} from '@/components';
 import { JoinMaestraResult } from '@/components/JoinModal';
-import { SceneDefinition } from '@/components/ScenePanel';
+import { } from '@/components/';
 import { EntityBusEntry } from '@/components/DetailPanel';
 import { DmxState, defaultDmxState, SCENE_CUE_MAP } from '@/components/LightingPanel';
 import { FleetSlot, LogEntry, EventEntry, AudioAnalysisData, SlotConnectionInfo, MaestraSlotStatus, defaultSlotStatus } from '@/types';
@@ -33,8 +28,7 @@ import { FRAME_FETCH_INTERVAL } from '@/lib/constants';
 import {
   MaestraConnection,
   MAESTRA_API_URL,
-  generateEntityId,
-} from '@/lib/maestra-connection';
+  generateEntityId} from '@/lib/maestra-connection';
 
 const LS_KEY = 'maestra_connected_slots';
 
@@ -51,8 +45,7 @@ export default function Home() {
   const [eventEntries, setEventEntries] = useState<EventEntry[]>([]);
   const [audioData, setAudioData] = useState<AudioAnalysisData>({
     sub: 65, bass: 82, mid: 45, high: 73, rms: 0.76, bpm: 128,
-    drums: 88, stemBass: 70, vocals: 56, melody: 62, keys: 44, other: 38, peak: 94,
-  });
+    drums: 88, stemBass: 70, vocals: 56, melody: 62, keys: 44, other: 38, peak: 94});
   const [connectionInfo, setConnectionInfo] = useState<SlotConnectionInfo | null>(null);
   const [joinModalOpen, setJoinModalOpen] = useState(false);
   const [entityBus, setEntityBus] = useState<EntityBusEntry[]>([]);
@@ -165,8 +158,7 @@ export default function Home() {
         errorMessage: status.errorMessage,
         optimistic: status.optimistic,
         mixedContent: status.mixedContent,
-        maestraStatus: status,
-      };
+        maestraStatus: status};
     });
 
     // Update slot in grid — preserve stream status if incoming status has default 'none'
@@ -183,8 +175,7 @@ export default function Home() {
           : status.server === 'error' ? 'error'
           : status.server === 'connecting' ? 'connecting'
           : 'disconnected',
-        last_heartbeat: status.lastHeartbeatAt || s.last_heartbeat,
-      };
+        last_heartbeat: status.lastHeartbeatAt || s.last_heartbeat};
     }));
   }, []);
 
@@ -204,8 +195,7 @@ export default function Home() {
       entityId,
       serverUrl: MAESTRA_API_URL,
       autoConnect: true,
-      autoDiscover: true,
-    });
+      autoDiscover: true});
 
     // Track previous server status for logging
     let prevServer = 'disconnected';
@@ -258,9 +248,7 @@ export default function Home() {
         maestraStatus: {
           ...defaultSlotStatus(),
           server: 'connecting',
-          stream: isSDSlot ? 'advertised' : 'none',
-        },
-      };
+          stream: isSDSlot ? 'advertised' : 'none'}};
     }));
 
     // Set initial connectionInfo
@@ -276,8 +264,7 @@ export default function Home() {
       streamPath: '/ws',
       discoveredUrl: null,
       errorMessage: null,
-      maestraStatus: { ...defaultSlotStatus(), server: 'connecting' },
-    });
+      maestraStatus: { ...defaultSlotStatus(), server: 'connecting' }});
 
     conn.connect();
   }, [log, logEvent, syncSlotStatus, saveConnectedSlots]);
@@ -306,8 +293,7 @@ export default function Home() {
         maestraStatus: defaultSlotStatus(),
         _frameTimes: [],
         _fpsSmooth: null,
-        suggestion: SUGGESTIONS[(prev.indexOf(s)) % SUGGESTIONS.length],
-      };
+        suggestion: SUGGESTIONS[(prev.indexOf(s)) % SUGGESTIONS.length]};
     }));
 
     setConnectionInfo(prev => {
@@ -396,8 +382,7 @@ export default function Home() {
               type: 'stream_frame',
               entity_id: entityId,
               data: { frame: b64, format: 'jpeg', source: slot.active_stream || 'unknown' },
-              timestamp: Date.now(),
-            }));
+              timestamp: Date.now()}));
             frameRelayPostingRef.current = false;
 
             // Bump relay counter
@@ -487,8 +472,7 @@ export default function Home() {
               ...prev,
               ...(b ? { sub: b.sub || 0, bass: b.bass || 0, mid: b.mid || 0, high: b.high || 0 } : {}),
               ...(s ? { drums: s.drums || 0, stemBass: s.bass || 0, melody: s.melody || 0, vocals: s.vocals || 0 } : {}),
-              ...(bpm ? { bpm: bpm as number } : {}),
-            }));
+              ...(bpm ? { bpm: bpm as number } : {})}));
           }
           return;
         }
@@ -596,8 +580,7 @@ export default function Home() {
             });
             setEntityStates(prev => ({
               ...prev,
-              [eid]: { ...(prev[eid] || {}), ...updates },
-            }));
+              [eid]: { ...(prev[eid] || {}), ...updates }}));
           }
           // ── Reflect dmx-lighting entity state updates into local DmxState ──
           if (msg.entity_id === 'dmx-lighting' && msg.data) {
@@ -609,8 +592,7 @@ export default function Home() {
               ...(d.step !== undefined ? { step: Number(d.step) } : {}),
               ...(d.progress !== undefined ? { progress: Number(d.progress) } : {}),
               ...(d.paused !== undefined ? { paused: Boolean(d.paused) } : {}),
-              lastTrigger: Date.now(),
-            }));
+              lastTrigger: Date.now()}));
           }
           return;
         }
@@ -727,8 +709,7 @@ export default function Home() {
         streamPath: '/ws',
         discoveredUrl: null,
         errorMessage: null,
-        maestraStatus: slot.maestraStatus || defaultSlotStatus(),
-      });
+        maestraStatus: slot.maestraStatus || defaultSlotStatus()});
     }
   }, [syncSlotStatus]);
 
@@ -751,8 +732,7 @@ export default function Home() {
         state_summary: {},
         suggestion: SUGGESTIONS[(n - 2) % SUGGESTIONS.length],
         _frameTimes: [],
-        _fpsSmooth: null,
-      }];
+        _fpsSmooth: null}];
     });
   }, []);
 
@@ -781,8 +761,7 @@ export default function Home() {
         state_summary: {},
         maestraStatus: { ...defaultSlotStatus(), server: 'connected', entity: 'registered', heartbeat: 'waiting' },
         _frameTimes: [],
-        _fpsSmooth: null,
-      }]);
+        _fpsSmooth: null}]);
       setTimeout(() => {
         selectSlot(newId);
         saveConnectedSlots();
@@ -798,8 +777,7 @@ export default function Home() {
           connection_status: 'connected',
           last_heartbeat: Date.now(),
           suggestion: undefined,
-          maestraStatus: { ...defaultSlotStatus(), server: 'connected', entity: 'registered', heartbeat: 'waiting' },
-        };
+          maestraStatus: { ...defaultSlotStatus(), server: 'connected', entity: 'registered', heartbeat: 'waiting' }};
       }));
       selectSlot(availableSlot.id);
       saveConnectedSlots();
@@ -938,8 +916,7 @@ export default function Home() {
         type: 'state_update',
         entity_id: 'lighting_palette',
         data: { hue: color.hue, saturation: color.saturation, brightness: color.value },
-        timestamp: Date.now(),
-      }));
+        timestamp: Date.now()}));
     }
     pushBusEntry('lighting_palette.hue', String(color.hue));
   }, [sendToTarget, pushBusEntry]);
@@ -1011,9 +988,7 @@ export default function Home() {
           stream_source: 'webcam',
           status: 'live',
           fps: String(computedFps),
-          frames: String(frameRelayCountRef.current),
-        },
-      }));
+          frames: String(frameRelayCountRef.current)}}));
       pushBusEntry(`${entityId}.webcam_fps`, String(computedFps));
     }
   }, [pushBusEntry]); // uses refs for everything else
@@ -1054,8 +1029,7 @@ export default function Home() {
           type: 'stream_frame',
           entity_id: entityId,
           data: { frame: base64, format: 'jpeg', source: 'webcam' },
-          timestamp: ts,
-        }));
+          timestamp: ts}));
       }
     }
 
@@ -1071,8 +1045,7 @@ export default function Home() {
         fetch(`${API_BASE}/video/frame/td`, {
           method: 'POST',
           headers: { 'Content-Type': 'image/jpeg' },
-          body: bytes,
-        }).then(res => {
+          body: bytes}).then(res => {
           webcamHttpPostingRef.current = false;
           if (res.ok) {
             webcamHttpOkCountRef.current++;
@@ -1119,9 +1092,7 @@ export default function Home() {
           relay_frames: String(frameRelayCountRef.current),
           relay_http_ok: String(httpOk),
           relay_http_err: String(httpErr),
-          frame_size: `${sizeKB}KB`,
-        },
-      }));
+          frame_size: `${sizeKB}KB`}}));
     }
   }, [log, pushBusEntry]); // uses refs for everything else
 
@@ -1156,9 +1127,7 @@ export default function Home() {
           status: 'starting',
           fps: '0',
           frames: '0',
-          relay_frames: '0',
-        },
-      }));
+          relay_frames: '0'}}));
       pushBusEntry(`${entityId}.stream_source`, 'webcam');
       pushBusEntry(`${entityId}.status`, 'starting');
 
@@ -1168,8 +1137,7 @@ export default function Home() {
           type: 'state_update',
           entity_id: entityId,
           data: { stream_source: 'webcam', status: 'live', device: target },
-          timestamp: Date.now(),
-        }));
+          timestamp: Date.now()}));
       }
 
       // Reset relay tracking for fresh session
@@ -1192,9 +1160,7 @@ export default function Home() {
         [entityId]: {
           ...(prev[entityId] || {}),
           status: 'stopped',
-          stream_source: 'webcam (off)',
-        },
-      }));
+          stream_source: 'webcam (off)'}}));
       pushBusEntry(`${entityId}.webcam`, 'stream_stopped');
 
       // Notify backend
@@ -1203,8 +1169,7 @@ export default function Home() {
           type: 'state_update',
           entity_id: entityId,
           data: { stream_source: 'none', status: 'idle', device: target },
-          timestamp: Date.now(),
-        }));
+          timestamp: Date.now()}));
       }
 
       webcamSlotRef.current = null; // release lock
@@ -1289,8 +1254,7 @@ export default function Home() {
       ...prev,
       currentCue: cueId,
       lastTrigger: ts,
-      history: [{ cue: cueId, time: ts }, ...prev.history].slice(0, 20),
-    }));
+      history: [{ cue: cueId, time: ts }, ...prev.history].slice(0, 20)}));
     log(`[DMX] Cue triggered: ${cueId}`, 'ok');
     logEvent('state', 'dmx-lighting', `Cue → ${cueId}`);
     pushBusEntry('dmx-lighting.cue', cueId);
@@ -1318,14 +1282,13 @@ export default function Home() {
       ...prev,
       currentCue: 'fade_out',
       lastTrigger: ts,
-      history: [{ cue: 'fade_out', time: ts }, ...prev.history].slice(0, 20),
-    }));
+      history: [{ cue: 'fade_out', time: ts }, ...prev.history].slice(0, 20)}));
     log('[DMX] Fade out triggered', 'info');
     pushBusEntry('dmx-lighting.cue', 'fade_out');
   }, [log, pushBusEntry]);
 
   // ═══ Scene activation — publish scene state + trigger DMX cue set ═══
-  const handleActivateScene = useCallback((scene: SceneDefinition) => {
+  const handleActivateScene = useCallback((scene:) => {
     const payload = { type: 'state_update', entity_id: 'scene_controller', data: scene.state };
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(payload));
@@ -1352,8 +1315,7 @@ export default function Home() {
         step: 0,
         progress: 0,
         lastTrigger: ts,
-        history: [{ cue: cueSet[0], time: ts }, ...prev.history].slice(0, 20),
-      }));
+        history: [{ cue: cueSet[0], time: ts }, ...prev.history].slice(0, 20)}));
       pushBusEntry('dmx-lighting.sequence', `scene_${scene.id}`);
       pushBusEntry('dmx-lighting.cue', cueSet[0]);
       log(`[DMX] Scene cue set: ${cueSet.join(', ')}`, 'ok');
@@ -1443,8 +1405,7 @@ export default function Home() {
           });
           setEntityStates(prev => ({
             ...prev,
-            [event.entity_id!]: { ...(prev[event.entity_id!] || {}), ...updates },
-          }));
+            [event.entity_id!]: { ...(prev[event.entity_id!] || {}), ...updates }}));
         }
       }
     });
@@ -1569,16 +1530,6 @@ export default function Home() {
 
             <AudioAnalysis audioData={audioData} onSendAudio={sendToTarget} />
 
-            <ScenePanel
-              onActivateScene={handleActivateScene}
-              injectActive={injectActive}
-              onInjectToggle={setInjectActive}
-              promptText={promptText}
-              onPromptChange={setPromptText}
-              onBroadcast={broadcastPrompt}
-              onP6Flush={p6Flush}
-            />
-
             <LightingPanel
               dmxState={dmxState}
               onTriggerCue={triggerDmxCue}
@@ -1589,9 +1540,6 @@ export default function Home() {
               audioReactiveEnabled={audioReactiveEnabled}
               onAudioReactiveToggle={setAudioReactiveEnabled}
             />
-
-            <ColorPalette onColorChange={handleColorChange} />
-            <ModulationGrid onModulationChange={handleModulationChange} />
           </div>
 
           {/* Right: Detail Panel */}
@@ -1621,8 +1569,6 @@ export default function Home() {
             entityStates={entityStates as Record<string, Record<string, unknown>>}
           />
         </div>
-
-        <UseCases />
       </div>
 
       {/* TOX REFERENCE TAB */}
