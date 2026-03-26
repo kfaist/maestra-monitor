@@ -909,16 +909,17 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       >
                         <div style={{ fontSize: 28, opacity: 0.25, lineHeight: 1 }}>↓</div>
                         <div style={{ fontSize: 11, color: slotColor, fontWeight: 700, letterSpacing: '0.08em' }}>
-                          Drop .tox here or click to begin
+                          1. Download maestra.tox
                         </div>
-                        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5, maxWidth: 200 }}>
-                          Run <span style={{ fontFamily: 'var(--font-mono)', color: `${slotColor}cc` }}>build_maestra_tox.py</span> in TD Textport first
+                        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', lineHeight: 1.8, maxWidth: 200, textAlign: 'center' }}>
+                          2. Drag into your .toe file<br/>
+                          <span style={{ opacity: 0.55 }}>3. Appears as a slot automatically</span>
                         </div>
                       </div>
                       {/* Download link — secondary, dim */}
                       <a
-                        href='/build_maestra_tox.py'
-                        download='build_maestra_tox.py'
+                        href='https://github.com/jordansnyder/maestra-core/releases/latest'
+                        target='_blank' rel='noreferrer'
                         onClick={(e) => e.stopPropagation()}
                         style={{
                           fontSize: 9, color: `${slotColor}70`,
@@ -1095,7 +1096,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     color: pinnedSlots.has(slot.id) ? slotColor : 'rgba(255,255,255,0.2)',
                     transition: 'all 0.15s', flexShrink: 0, fontWeight: 700,
                   }}
-                >PIN</button>
+                >📌</button>
               </div>
               <style>{'.slot:hover .slot-top-controls { opacity: 1 !important; }'}</style>
             </div>
