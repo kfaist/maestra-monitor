@@ -776,58 +776,116 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             </div>
                           )}
 
-                                                    {/* TOP — dropdown if WS has data, text input always editable */}
+                                                                              {/* Node → Parameter grouped dropdowns, fed from /api/tops + entityStates */}
                           {(() => {
-                            // Collect tops from ALL connected entities — use any that has tops
-                            const _allTops: string[] = [];
+                            // All tops: cachedTops (from /api/tops) + WS entityStates
+                            const _all: string[] = [...cachedTops];
                             Object.values(entityStates).forEach((es: unknown) => {
-                              const _es = es as Record<string,unknown>;
-                              if (Array.isArray(_es?.tops)) (_es.tops as string[]).forEach(t => { if (!_allTops.includes(t)) _allTops.push(t); });
+                              const _t = (es as Record<string,unknown>)?.tops;
+                              if (Array.isArray(_t)) (_t as string[]).forEach((t:string) => { if (!_all.includes(t)) _all.push(t); });
                             });
-                            // Also check slot.metadata REST data
-                            const _sm = ((slot as unknown as Record<string,unknown>).metadata || {}) as Record<string,unknown>;
-                            if (Array.isArray(_sm?.tops)) (_sm.tops as string[]).forEach((t: string) => { if (!_allTops.includes(t)) _allTops.push(t); });
-                            const _tops: string[] = _allTops;
+
+                            // Group by parent: /project1/StreamDiffusionTD → [out1, in1, ...]
+                            const nodeMap: Record<string,string[]> = {};
+                            _all.forEach(t => {
+                              const parts = t.split('/').filter(Boolean);
+                              const param = parts.pop() || '';
+                              const node  = '/' + parts.join('/');
+                              if (!nodeMap[node]) nodeMap[node] = [];
+                              if (!nodeMap[node].includes(param)) nodeMap[node].push(param);
+                            });
+                            const nodes = Object.keys(nodeMap).sort();
+
+                            // Derive current node/param from selectedTop
+                            const stParts  = (setup.selectedTop || '').split('/').filter(Boolean);
+                            const selParam = stParts.length > 1 ? stParts.pop()! : '';
+                            const selNode  = stParts.length ? '/' + stParts.join('/') : '';
+                            const nodeParams = selNode ? (nodeMap[selNode] || []) : [];
+
                             return (
-                              <div style={{ width: '100%' }}>
-                                <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
-                                  TOP Path {_tops.length > 0 && <span style={{ color: slotColor }}>· {_tops.length} detected</span>}
+                              <>
+                                {/* Node picker */}
+                                <div style={{ width: '100%' }}>
+                                  <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
+                                    Node {nodes.length > 0 && <span style={{ color: slotColor }}>· {nodes.length} detected</span>}
+                                  </div>
+                                  {nodes.length > 0 ? (
+                                    <select value={selNode} onClick={e => e.stopPropagation()}
+                                      onChange={e => {
+                                        e.stopPropagation();
+                                        const n = e.target.value;
+                                        const first = nodeMap[n]?.[0] || '';
+                                        setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id],
+                                          selectedTop: first ? n+'/'+first : n,
+                                          stateKey: first,
+                                        }}));
+                                      }}
+                                      style={{ width:'100%', padding:'5px 8px', fontSize:10,
+                                        fontFamily:'var(--font-mono)', background:'rgba(0,0,0,0.6)',
+                                        border:`1px solid ${slotColor}40`, color:slotColor, outline:'none' }}>
+                                      <option value="">— select node —</option>
+                                      {nodes.map(n => <option key={n} value={n} style={{background:'#0a0a14'}}>{n}</option>)}
+                                    </select>
+                                  ) : (
+                                    <div style={{ fontSize:9, color:'rgba(255,255,255,0.2)', fontFamily:'var(--font-mono)', padding:'4px 0' }}>
+                                      Waiting for TOX — run exec(open(r&apos;build_maestra_tox.py&apos;).read()) once in TD
+                                    </div>
+                                  )}
                                 </div>
-                                {_tops.length > 0 && (
-                                  <select value={setup.selectedTop} onClick={e => e.stopPropagation()}
-                                    onChange={e => { e.stopPropagation(); const _t = e.target.value; const _k = _t.split('/').pop() || ''; setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: _t, stateKey: _k } })); }}
-                                    style={{ width: '100%', padding: '4px 8px', fontSize: 10, marginBottom: 4,
-                                      fontFamily: 'var(--font-mono)', background: 'rgba(0,0,0,0.6)',
-                                      border: `1px solid ${slotColor}40`, color: slotColor, outline: 'none' }}>
-                                    <option value="">— pick from detected —</option>
-                                    {_tops.map(t => <option key={t} value={t} style={{ background: '#0a0a14' }}>{t}</option>)}
-                                  </select>
+
+                                {/* Parameter picker — only shows when node selected */}
+                                {selNode && (
+                                  <div style={{ width: '100%' }}>
+                                    <div style={{ fontSize:7, letterSpacing:'0.1em', color:'rgba(255,255,255,0.25)', textTransform:'uppercase', marginBottom:3 }}>
+                                      Parameter / TOP
+                                    </div>
+                                    {nodeParams.length > 0 ? (
+                                      <select value={selParam} onClick={e => e.stopPropagation()}
+                                        onChange={e => {
+                                          e.stopPropagation();
+                                          const p = e.target.value;
+                                          setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id],
+                                            selectedTop: selNode+'/'+p,
+                                            stateKey: p,
+                                          }}));
+                                        }}
+                                        style={{ width:'100%', padding:'5px 8px', fontSize:10,
+                                          fontFamily:'var(--font-mono)', background:'rgba(0,0,0,0.6)',
+                                          border:`1px solid ${slotColor}40`, color:slotColor, outline:'none' }}>
+                                        <option value="">— select parameter —</option>
+                                        {nodeParams.map(p => <option key={p} value={p} style={{background:'#0a0a14'}}>{p}</option>)}
+                                      </select>
+                                    ) : (
+                                      <input type="text" value={selParam} placeholder="e.g. promptdict5concept"
+                                        onClick={e => e.stopPropagation()}
+                                        onChange={e => { e.stopPropagation(); const p=e.target.value;
+                                          setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id],
+                                            selectedTop: selNode+'/'+p, stateKey: p }})); }}
+                                        style={{ width:'100%', padding:'5px 8px', fontSize:10, fontFamily:'var(--font-mono)',
+                                          color:'rgba(255,255,255,0.7)', background:'rgba(0,0,0,0.4)',
+                                          border:'1px solid rgba(255,255,255,0.1)', outline:'none', boxSizing:'border-box' }} />
+                                    )}
+                                  </div>
                                 )}
-                                <input type="text" value={setup.selectedTop}
-                                  placeholder="e.g. /project1/StreamDiffusionTD/out1"
-                                  onClick={e => e.stopPropagation()}
-                                  onChange={e => { e.stopPropagation(); const _t = e.target.value; const _k = _t.split('/').pop() || ''; setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: _t, stateKey: _k } })); }}
-                                  style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)',
-                                    color: 'rgba(255,255,255,0.7)', background: 'rgba(0,0,0,0.4)',
-                                    border: '1px solid rgba(255,255,255,0.1)', outline: 'none', boxSizing: 'border-box' }} />
-                              </div>
+
+                                {/* State key — auto-filled, always editable */}
+                                <div style={{ width:'100%' }}>
+                                  <div style={{ fontSize:7, letterSpacing:'0.1em', color:'rgba(255,255,255,0.25)', textTransform:'uppercase', marginBottom:3 }}>
+                                    State Key Name <span style={{opacity:0.4}}>(rename if needed)</span>
+                                  </div>
+                                  <input type="text" value={setup.stateKey}
+                                    placeholder="e.g. prompt_concept"
+                                    onClick={e => e.stopPropagation()}
+                                    onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev,
+                                      [slot.id]: { ...prev[slot.id], stateKey: e.target.value } })); }}
+                                    style={{ width:'100%', padding:'5px 8px', fontSize:11,
+                                      fontFamily:'var(--font-mono)', color:slotColor, fontWeight:700,
+                                      background:'rgba(0,0,0,0.4)', border:`1px solid ${slotColor}40`,
+                                      outline:'none', boxSizing:'border-box' }} />
+                                </div>
+                              </>
                             );
                           })()}
-
-                                                    {/* State key name */}
-                          <div style={{ width: '100%' }}>
-                            <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)',
-                              textTransform: 'uppercase', marginBottom: 3 }}>State Key Name</div>
-                            <input type="text" value={setup.stateKey}
-                              placeholder="e.g. promptdict5concept"
-                              onClick={e => e.stopPropagation()}
-                              onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev,
-                                [slot.id]: { ...prev[slot.id], stateKey: e.target.value } })); }}
-                              style={{ width: '100%', padding: '5px 8px', fontSize: 11,
-                                fontFamily: 'var(--font-mono)', color: slotColor, fontWeight: 700,
-                                background: 'rgba(0,0,0,0.4)', border: `1px solid ${slotColor}40`,
-                                outline: 'none', boxSizing: 'border-box' }} />
-                          </div>
 
                           {/* Type chips */}
                           <div style={{ width: '100%' }}>
