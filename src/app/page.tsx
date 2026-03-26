@@ -42,7 +42,7 @@ export default function Home() {
   const serverModeRef = useRef<'railway' | 'gallery' | 'auto' | 'custom' | 'auto' | 'custom'>('auto');
   const customUrlRef = useRef<string>('');
   const [apiStatus, setApiStatus] = useState<'online' | 'offline'>('offline');
-  const [slots, setSlots] = useState<FleetSlot[]>(createInitialSlots);
+  const [slots, setSlots] = useState<FleetSlot[]>([]); // populated from GET /entities
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [eventEntries, setEventEntries] = useState<EventEntry[]>([]);
@@ -85,6 +85,16 @@ export default function Home() {
   const frameIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const simulatorRef = useRef<WSSimulator | null>(null);
   const activeNodeUrlRef = useRef<string | null>(null);
+  // Resolve active server URL from mode
+  const resolveActiveBase = (() => {
+    const mode = serverModeRef.current;
+    const cu = customUrlRef.current;
+    if (mode === 'gallery') return GALLERY_URL;
+    if (mode === 'custom' && cu) return cu;
+    if (mode === 'railway') return RAILWAY_URL;
+    return GALLERY_URL; // auto: try gallery first
+  });
+
   const slotsRef = useRef(slots);
   slotsRef.current = slots;
   serverModeRef.current = serverMode;
@@ -696,196 +706,82 @@ export default function Home() {
 
   // API polling
   const fetchEntities = useCallback(async () => {
+    const base = resolveActiveBase();
+    setResolvedServerUrl(base);
     try {
-      const mode = serverModeRef.current;
-    const activeBase = mode === 'gallery' ? GALLERY_URL
-      : mode === 'custom' ? (customUrlRef.current || RAILWAY_URL)
-      : mode === 'auto' ? GALLERY_URL  // auto starts with gallery, falls back on connection error
-      : RAILWAY_URL;
-      const res = await fetch(`${activeBase}/entities`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setApiStatus('online');
-    } catch {
-      setApiStatus('offline');
-    }
-  }, []);
+      const res = await fetch(`${base}/entities`, { signal: AbortSignal.timeout(6000) });
+      if (!res.ok) { setServerConnected(false); return; }
+      const data = await res.json();
+      const entities: Record<string, unknown>[] = Array.isArray(data) ? data : (data.entities ?? []);
+      setServerConnected(true);
 
-  // Slot selection — only sets selectedId and opens inspector with correct state
-  // Does NOT auto-connect or attach streams. Streams attach only via stream_advertised WS event.
-  const selectSlot = useCallback((id: string) => {
-    setSelectedId(id);
-    const slot = slotsRef.current.find(s => s.id === id);
-    if (!slot) return;
-
-    const conn = connectionsRef.current.get(id);
-    if (conn) {
-      // Existing connection — sync its current status to the inspector
-      syncSlotStatus(id, conn.getStatus());
-    } else {
-      // No connection yet (available, stale, or edge case) — show slot info in inspector
-      // Do NOT auto-connect — user must explicitly connect via the setup wizard
-      const entityId = slot.entity_id || generateEntityId(slot.label, slot.suggestion?.tag);
-      setConnectionInfo({
-        serverUrl: MAESTRA_API_URL,
-        entityId,
-        slotId: id,
-        connected: false,
-        status: slot.connection_status === 'connected' ? 'connected' : 'disconnected',
-        autoConnect: true,
-        autoDiscover: true,
-        port: 8080,
-        streamPath: '/ws',
-        discoveredUrl: null,
-        errorMessage: null,
-        maestraStatus: slot.maestraStatus || defaultSlotStatus()});
-    }
-  }, [syncSlotStatus]);
-
-  // Add slot
-  const addSlot = useCallback(() => {
-    setSlots(prev => {
-      const n = prev.length + 1;
-      return [...prev, {
-        id: `slot${n}`,
-        label: `Slot ${n}`,
-        entity_id: null,
-        endpoint: null,
-        active: false,
-        fps: null,
-        frameUrl: null,
-        cloudNode: false,
-        connection_status: 'disconnected',
-        last_heartbeat: null,
-        active_stream: null,
-        state_summary: {},
-        suggestion: SUGGESTIONS[(n - 2) % SUGGESTIONS.length],
-        _frameTimes: [],
-        _fpsSmooth: null}];
-    });
-  }, []);
-
-  // Join Maestra from modal
-  const handleJoinMaestra = useCallback((result: JoinMaestraResult) => {
-    setJoinModalOpen(false);
-
-    const label = result.method === 'monitor_only' ? 'Monitor' : 'Operator';
-    const availableSlot = slotsRef.current.find(s => !s.active);
-
-    if (!availableSlot) {
-      const n = slotsRef.current.length + 1;
-      const newId = result.slotId || `slot${n}`;
-      setSlots(prev => [...prev, {
-        id: newId,
-        label,
-        entity_id: result.entityId,
-        endpoint: null,
-        active: true,
-        fps: null,
-        frameUrl: null,
-        cloudNode: false,
-        connection_status: 'connected',
-        last_heartbeat: Date.now(),
-        active_stream: null,
-        state_summary: {},
-        maestraStatus: { ...defaultSlotStatus(), server: 'connected', entity: 'registered', heartbeat: 'waiting' },
-        _frameTimes: [],
-        _fpsSmooth: null}]);
-      setTimeout(() => {
-        selectSlot(newId);
-        saveConnectedSlots();
-      }, 50);
-    } else {
-      setSlots(prev => prev.map(s => {
-        if (s.id !== availableSlot.id) return s;
-        return {
-          ...s,
-          label,
-          entity_id: result.entityId,
-          active: true,
-          connection_status: 'connected',
-          last_heartbeat: Date.now(),
-          suggestion: undefined,
-          maestraStatus: { ...defaultSlotStatus(), server: 'connected', entity: 'registered', heartbeat: 'waiting' }};
-      }));
-      selectSlot(availableSlot.id);
-      saveConnectedSlots();
-    }
-
-    const methodLabel = result.method === 'join_show' ? 'Join Show'
-      : result.method === 'claim_station' ? 'Claim Station'
-      : 'Monitor Only';
-    const roleLabel = result.tdRole ? ` (${result.tdRole})` : '';
-
-    log(`[Maestra] ${methodLabel}${roleLabel} — Entity: ${result.entityId}`, 'ok');
-    logEvent('connect', result.entityId, `${methodLabel}${roleLabel} joined the fleet`);
-  }, [selectSlot, log, logEvent, saveConnectedSlots]);
-
-  // Reconnect stream
-  const reconnectStream = useCallback(() => {
-    setSlots(prev => prev.map(s => {
-      if (s.id !== 'krista1') return s;
-      if (s.frameUrl && s.frameUrl.startsWith('blob:')) URL.revokeObjectURL(s.frameUrl);
-      return { ...s, frameUrl: null, fps: null, _frameTimes: [], _fpsSmooth: null };
-    }));
-    log('Stream reconnect triggered', 'info');
-    if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
-    setTimeout(() => {
-      fetchFrame();
-      frameIntervalRef.current = setInterval(fetchFrame, FRAME_FETCH_INTERVAL);
-      log('Fetch loop restarted', 'ok');
-    }, 400);
-  }, [fetchFrame, log]);
-
-  // Collect all entity IDs that should receive prompt/p6 messages
-  const getAllTargetEntityIds = useCallback((): string[] => {
-    const ids = new Set<string>();
-    // Add all remote entities we've seen via WS (TD nodes, etc.)
-    remoteEntitiesRef.current.forEach(id => ids.add(id));
-    // Add all dashboard-side connections
-    connectionsRef.current.forEach(conn => ids.add(conn.entityId));
-    // Add entity_ids from ALL slots (active or selected — covers pre-connection and post-connection)
-    slotsRef.current.forEach(s => {
-      if (s.entity_id) ids.add(s.entity_id);
-    });
-    // Always include the selected slot's entity ID
-    const selSlot = slotsRef.current.find(s => s.id === selectedIdRef.current);
-    if (selSlot) {
-      const selEntityId = selSlot.entity_id || selSlot.id;
-      ids.add(selEntityId);
-    }
-    return Array.from(ids);
-  }, []);
-
-  // Helper: send a message via WS if open, plus HTTP POST to Maestra entity state
-  const sendViaAll = useCallback((msg: Record<string, unknown>, targets: string[], label: string) => {
-    const ts = Date.now();
-    const ws = wsRef.current;
-    const wsOpen = ws && ws.readyState === WebSocket.OPEN;
-
-    const payload = msg.data as Record<string, unknown> | undefined;
-
-    // ── WS delivery (3 routes for redundancy) ──
-    if (wsOpen) {
-      // 1. Fleet-wide broadcast (backend relays to all WS subscribers)
-      ws.send(JSON.stringify({ ...msg, timestamp: ts }));
-
-      // 2. Fleet-wide state_update (no entity_id)
-      if (payload) {
-        ws.send(JSON.stringify({ type: 'state_update', data: payload, timestamp: ts }));
+      // Hydrate slots from server entities — server is truth
+      if (entities.length > 0) {
+        setSlots(prev => {
+          const bySlug = new Map(prev.map(s => [s.entity_id || s.id, s]));
+          const hydrated = entities.map((e, i) => {
+            const slug = (e.slug as string) || (e.name as string) || String(e.id);
+            const existing = bySlug.get(slug) || bySlug.get(String(e.id));
+            const state = (e.state as Record<string, unknown>) || {};
+            return {
+              ...(existing || {
+                id: slug,
+                label: (e.name as string) || slug,
+                endpoint: null,
+                cloudNode: false,
+                connection_status: 'disconnected' as const,
+                last_heartbeat: null,
+                active_stream: null,
+                state_summary: {},
+                _frameTimes: [],
+                _fpsSmooth: null,
+                fps: null,
+                frameUrl: null,
+                active: false,
+              }),
+              entity_id: slug,
+              entityId: String(e.id),      // UUID from server
+              slug,                          // human slug
+              label: (state.toe_name as string) || (e.name as string) || slug,
+              last_heartbeat: (e.last_heartbeat as number) || null,
+              state_summary: state,
+              stateSchema: (e.metadata as Record<string, unknown>)?.stateSchema as Record<string, {type: string; direction: string}> | undefined,
+              active: !!(existing?.active),
+            } as import('@/types').FleetSlot;
+          });
+          // Keep any local-only active slots not yet on server
+          const serverSlugs = new Set(hydrated.map(s => s.entity_id));
+          const localOnly = prev.filter(s => s.active && !serverSlugs.has(s.entity_id || s.id));
+          return [...hydrated, ...localOnly];
+        });
       }
 
-      // 3. Target every known entity specifically
-      targets.forEach(entityId => {
-        ws.send(JSON.stringify({ type: 'state_update', entity_id: entityId, data: payload, timestamp: ts }));
+      // Update entityStates from server state
+      entities.forEach(e => {
+        const slug = (e.slug as string) || String(e.id);
+        const state = (e.state as Record<string, unknown>) || {};
+        if (Object.keys(state).length > 0) {
+          setEntityStates(prev => ({ ...prev, [slug]: state as Record<string, string> }));
+        }
       });
-    }
 
-    // NOTE: No HTTP entity state endpoint exists on Maestra backend.
-    // All prompt/state delivery is WS-only. If WS is down, messages are lost.
-    if (!wsOpen) {
-      log(`[${label}] WS offline — message not delivered (no HTTP fallback available)`, 'warn');
-    } else {
-      log(`[${label}] → ${targets.length} entities via WS`, 'ok');
+      // Also update remoteEntityList
+      setRemoteEntityList(entities.map(e => (e.slug as string) || String(e.id)));
+      log(`[Server] ${entities.length} entities from ${base.replace('https://','').replace('http://','')}`, 'ok');
+    } catch (err) {
+      setServerConnected(false);
+      log(`[Server] ${base.replace('https://','').replace('http://','')} unreachable`, 'warn');
+      // Auto mode: if gallery failed, try Railway
+      if (serverModeRef.current === 'auto') {
+        try {
+          const res2 = await fetch(`${RAILWAY_URL}/entities`, { signal: AbortSignal.timeout(6000) });
+          if (res2.ok) {
+            setResolvedServerUrl(RAILWAY_URL);
+            setServerConnected(true);
+            log('[Server] Fell back to Railway', 'ok');
+          }
+        } catch { /* both failed */ }
+      }
     }
   }, [log]);
 
@@ -1528,6 +1424,8 @@ export default function Home() {
         onServerModeChange={handleServerModeChange}
         customUrl={customUrl}
         onCustomUrlChange={setCustomUrl}
+        serverUrl={resolvedServerUrl}
+        serverConnected={serverConnected}
       />
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
