@@ -4,7 +4,7 @@ import { SLOT_COLORS } from './SignalPanel';
 import { useState, useEffect, useCallback } from 'react';
 import { FleetSlot, slotStatusLabel, slotStatusClass, formatAge, EventEntry } from '@/types';
 
-type InlineStage = 'idle' | 'connect' | 'slug' | 'direction' | 'addState';
+type InlineStage = 'idle' | 'connect' | 'direction' | 'addState';
 type NodeRole = 'receive' | 'send' | 'two_way';
 type SignalSource = 'touchdesigner' | 'json_stream' | 'osc' | 'audio_reactive' | 'text' | 'test_signal';
 
@@ -381,7 +381,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     e.stopPropagation();
     setSetupState(prev => ({
       ...prev,
-      [slotId]: { ...prev[slotId], stage: 'slug' },
+      [slotId]: { ...prev[slotId], stage: 'direction' },
     }));
   }, []);
 
@@ -431,8 +431,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     setSetupState(prev => {
       const s = prev[slotId]?.stage;
       if (s === 'addState')  return { ...prev, [slotId]: { ...prev[slotId], stage: 'direction' } };
-      if (s === 'direction') return { ...prev, [slotId]: { ...prev[slotId], stage: 'slug' } };
-      if (s === 'slug')      return { ...prev, [slotId]: { ...prev[slotId], stage: 'connect' } };
+      if (s === 'direction') return { ...prev, [slotId]: { ...prev[slotId], stage: 'connect' } };
       return prev;
     });
   }, []);
@@ -1451,7 +1450,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <div className="slot-inline-wizard">
                       {/* Step dots: 4 stages */}
                       <div className="slot-wizard-steps">
-                        {(['connect','slug','direction','addState'] as InlineStage[]).map((s, i, arr) => (
+                        {(['connect','direction','addState'] as InlineStage[]).map((s, i, arr) => (
                           <span key={s} style={{ display: 'flex', alignItems: 'center' }}>
                             <span className={`slot-wizard-dot ${
                               setup.stage === s ? 'active' :
@@ -1503,43 +1502,10 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 const f = e.target.files?.[0];
                                 if (f) {
                                   const derived = f.name.replace(/\.(toe|tox)$/i,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-                                  setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], refFile: f.name, slug: derived, stage: 'slug' } }));
+                                  setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], refFile: f.name, slug: derived, stage: 'direction' } }));
                                 }
                               }} />
                           </label>
-                        </div>
-                      )}
-
-                      {/* ══ STAGE: slug ══ */}
-                      {setup.stage === 'slug' && (
-                        <div className="slot-wizard-content">
-                          <div className="slot-wizard-title" style={{ color: slotColor }}>Name Your Node</div>
-                          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginBottom: 6 }}>
-                            Slug from your .toe filename — edit if needed
-                          </div>
-                          <input type="text"
-                            value={setup.slug}
-                            placeholder="e.g. mirrors-echo"
-                            onClick={e => e.stopPropagation()}
-                            onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], slug: e.target.value } })); }}
-                            onKeyDown={e => { if (e.key === 'Enter' && setup.slug.trim()) setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'direction' } })); }}
-                            style={{ width: '100%', padding: '6px 10px', fontSize: 13,
-                              fontFamily: 'var(--font-mono)', color: slotColor, fontWeight: 700,
-                              background: 'rgba(0,0,0,0.5)', border: `1px solid ${slotColor}50`,
-                              outline: 'none', boxSizing: 'border-box' }}
-                            autoFocus
-                          />
-                          <div style={{ display: 'flex', gap: 6, width: '100%' }}>
-                            <button className="slot-wizard-btn slot-wizard-btn-ghost"
-                              onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'connect' } })); }}>
-                              ← Back
-                            </button>
-                            <button className="slot-wizard-btn slot-wizard-btn-primary" style={{ flex: 1 }}
-                              disabled={!setup.slug.trim()}
-                              onClick={e => { e.stopPropagation(); if (setup.slug.trim()) setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'direction' } })); }}>
-                              {setup.slug.trim() ? 'Next →' : 'Enter a slug first'}
-                            </button>
-                          </div>
                         </div>
                       )}
 
@@ -1577,7 +1543,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           </div>
                           <div style={{ display: 'flex', gap: 6, width: '100%' }}>
                             <button className="slot-wizard-btn slot-wizard-btn-ghost"
-                              onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'slug' } })); }}>
+                              onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'connect' } })); }}>
                               ← Back
                             </button>
                             <button className="slot-wizard-btn slot-wizard-btn-primary" style={{ flex: 1 }}
@@ -2111,7 +2077,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <span className={`slot-state-badge ${stateBadge.cls}`}>{stateBadge.text}</span>
                   ) : inSetup ? (
                     <span className="slot-tag setup-tag">
-                      {setup.stage === 'connect' ? 'Setting up…' : setup.stage === 'slug' ? 'Name node' : setup.stage === 'direction' ? 'Direction' : 'Add State'}
+                      {setup.stage === 'connect' ? 'Setting up…' : setup.stage === 'direction' ? 'Direction' : 'Add State'}
                     </span>
                   ) : (
                     <span className="slot-tag available-tag">
