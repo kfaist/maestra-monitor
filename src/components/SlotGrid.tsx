@@ -121,6 +121,15 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     const next = { ...slotPins, [slotId]: h };
     setSlotPins(next);
     try { localStorage.setItem('maestra_slot_pins', JSON.stringify(next)); } catch {}
+    // Also persist outputSignals so they survive refresh
+    const setup = setupState[slotId];
+    const sigs = setup?.outputSignals || [];
+    const slug = setup?.slug || slotId;
+    if (sigs.length > 0) {
+      fetch('/api/slots', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ slug, outputSignals: sigs }) }).catch(()=>{});
+      try { localStorage.setItem('maestra_slot_'+slug, JSON.stringify(sigs)); } catch {}
+    }
   };
 
   const unlockSlot = (slotId: string, pin: string) => {
@@ -1258,6 +1267,19 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         <option value="raspberry_pi" style={{ background: '#0a0a14', color: '#fff' }}>Raspberry Pi</option>
                       </select>
                     )}
+                  {/* Edit Signals button — only when unlocked */}
+                  {slot.active && !isLocked(slot.id) && (
+                    <button
+                      onClick={e => { e.stopPropagation();
+                        setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'addState' } }));
+                      }}
+                      style={{ fontSize: 7, padding: '1px 6px', cursor: 'pointer',
+                        fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
+                        background: `${slotColor}10`, border: `1px solid ${slotColor}30`,
+                        color: slotColor, opacity: 0.7, marginBottom: 3 }}>
+                      + edit signals
+                    </button>
+                  )}
                   {/* Lock + controls — show on hover */}
                   {slot.active && (
                     <div className="slot-footer-controls" style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
