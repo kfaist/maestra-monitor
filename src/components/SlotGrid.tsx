@@ -825,18 +825,45 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   )}
                 </div>
               </div>
-              <div className="selected-badge">
-                {slot.active ? (
-                  <svg viewBox="0 0 10 10" fill="none" stroke="#000" strokeWidth="1.5">
-                    <rect x="2.5" y="4.5" width="5" height="4" rx="0.5"/>
-                    <path d="M3.5 4.5V3a2 2 0 0 1 4 0v1.5"/>
-                  </svg>
-                ) : (
-                  <svg viewBox="0 0 10 10" fill="none" stroke="#000" strokeWidth="2">
-                    <polyline points="1.5,5 4,7.5 8.5,2.5" />
-                  </svg>
+              {/* Top-right: lock + behavior — visible on hover, always on active */}
+              <div className="slot-top-controls" style={{
+                position: 'absolute', top: 6, right: 6,
+                display: 'flex', alignItems: 'center', gap: 3,
+                opacity: slot.active ? 1 : 0,
+                transition: 'opacity 0.15s',
+                zIndex: 10,
+              }}>
+                {/* Behavior indicator: ↑ send / ↓ receive / ↕ both */}
+                {slot.active && slot.nodeRole && (
+                  <span style={{
+                    fontSize: 9, color: slotColor,
+                    border: `1px solid ${slotColor}50`,
+                    background: `${slotColor}15`,
+                    borderRadius: 2, padding: '1px 5px',
+                    fontFamily: 'var(--font-display)',
+                    letterSpacing: '0.06em',
+                  }}>
+                    {slot.nodeRole === 'send' ? '↑ OUT' : slot.nodeRole === 'receive' ? '↓ IN' : '↕ BOTH'}
+                  </span>
+                )}
+                {/* Lock/unlock */}
+                {slot.active && (
+                  <button
+                    onClick={e => { e.stopPropagation(); toggleLock(slot.id, slot, entityStates[slot.entity_id || slot.id] as Record<string, unknown> || {}); }}
+                    title={lockedSlots.has(slot.id) ? '🔒 Locked — click to unlock and modify' : '🔓 Click to lock and protect this slot'}
+                    style={{
+                      width: 22, height: 22, borderRadius: '50%',
+                      background: lockedSlots.has(slot.id) ? slotColor : 'rgba(0,0,0,0.5)',
+                      border: `1px solid ${lockedSlots.has(slot.id) ? slotColor : 'rgba(255,255,255,0.15)'}`,
+                      color: lockedSlots.has(slot.id) ? '#000' : 'rgba(255,255,255,0.4)',
+                      cursor: 'pointer', fontSize: 9, display: 'flex',
+                      alignItems: 'center', justifyContent: 'center',
+                      transition: 'all 0.15s', flexShrink: 0,
+                    }}
+                  >{lockedSlots.has(slot.id) ? '🔒' : '🔓'}</button>
                 )}
               </div>
+              <style>{'.slot:hover .slot-top-controls { opacity: 1 !important; }'}</style>
             </div>
           );
         })}
