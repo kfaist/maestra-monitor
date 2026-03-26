@@ -169,7 +169,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     e.stopPropagation();
     setSetupState(prev => ({
       ...prev,
-      [slotId]: { ...prev[slotId], role, stage: 'signal' },
+      [slotId]: { ...prev[slotId], role, stage: 'path' },
     }));
   }, []);
 
