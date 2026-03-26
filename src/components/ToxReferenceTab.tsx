@@ -5,6 +5,57 @@ import { TOX_CUSTOM_PARAMS, TOX_INTERNAL_OPERATORS } from '@/mock/tox-reference'
 export default function ToxReferenceTab() {
   return (
     <div>
+      {/* ── QUICKSTART — build_maestra_tox.py ── */}
+      <div className="tox-section" style={{ background: 'rgba(0,212,255,0.03)', border: '1px solid rgba(0,212,255,0.18)', marginBottom: 0 }}>
+        <div className="tox-title" style={{ color: 'var(--active)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span>Quick Start — Auto-Setup Script</span>
+          <span style={{ fontSize: 9, color: 'var(--text-dim)', fontWeight: 400 }}>v0.5 · Jordan Snyder</span>
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.8, marginBottom: 14 }}>
+          Drop <code style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>build_maestra_tox.py</code> into your project
+          and run it once. It creates <code style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>/project1/maestra</code>,
+          registers your entity, and pushes your <strong style={{ color: 'var(--accent)' }}>TOE name + available TOPs</strong> to the Monitor
+          so the slot wizard can auto-name and show a TOP dropdown.
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+          <div style={{ fontSize: 10, color: 'var(--text-dim)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Option A — Text DAT (Recommended)</div>
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', padding: '10px 12px', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-dim)', lineHeight: 1.7 }}>
+            <span style={{ color: 'var(--text-dim)', opacity: 0.5 }}># In TouchDesigner Textport (Alt+P / Opt+P):</span><br />
+            <span style={{ color: 'var(--accent)' }}>exec</span>(<span style={{ color: 'var(--active)' }}>open</span>(<span style={{ color: '#fbbf24' }}>&apos;/path/to/build_maestra_tox.py&apos;</span>).<span style={{ color: 'var(--active)' }}>read</span>())<br /><br />
+            <span style={{ color: 'var(--text-dim)', opacity: 0.5 }}># Or create a Text DAT, paste the script, right-click → Run Script</span>
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--text-dim)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2, marginTop: 8 }}>What it publishes to your entity state</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {[
+              { key: 'toe_name', desc: 'your .toe filename → auto-names the slot' },
+              { key: 'tops', desc: 'array of TOP paths → wizard dropdown' },
+              { key: 'server', desc: 'which server connected' },
+              { key: 'active', desc: 'true when alive' },
+            ].map(({ key, desc }) => (
+              <div key={key} style={{ display: 'flex', alignItems: 'baseline', gap: 6, background: 'var(--surface2)', border: '1px solid var(--border)', padding: '4px 8px', fontSize: 9 }}>
+                <code style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{key}</code>
+                <span style={{ color: 'var(--text-dim)' }}>{desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <a
+            href="/build_maestra_tox.py"
+            download="build_maestra_tox.py"
+            className="btn primary"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none', fontSize: 11, fontWeight: 700 }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Download build_maestra_tox.py
+          </a>
+        </div>
+      </div>
+
       <div className="tox-section">
         <div className="tox-title">Custom Parameters</div>
         <div className="tox-params">
