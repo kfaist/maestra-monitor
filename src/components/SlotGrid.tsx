@@ -590,7 +590,36 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       <div className="live-signal-group">
                         <span className="live-signal-dir">↑ Publishing</span>
                         <div className="live-signal-list">
-                          {publishing.map(s => <span key={s} className="live-signal-tag pub">{s}</span>)}
+                          {publishing.map(s => {
+                            const eid = slot.entity_id || slot.id;
+                            const liveVal = (entityStates[eid] as Record<string,unknown>|undefined)?.[s];
+                            const setup = setupState[slot.id];
+                            const sigDef = (setup?.outputSignals||[]).find(o => o.key === s);
+                            const isNum = sigDef?.type === 'number' || typeof liveVal === 'number';
+                            const isBool = sigDef?.type === 'boolean' || typeof liveVal === 'boolean';
+                            return (
+                              <span key={s} className="live-signal-tag pub" style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+                                {s}
+                                {liveVal !== undefined && liveVal !== null && (
+                                  <span style={{
+                                    fontSize: 8, fontFamily: 'var(--font-mono)',
+                                    color: isBool
+                                      ? (liveVal ? '#4ade80' : 'rgba(255,255,255,0.3)')
+                                      : 'rgba(255,255,255,0.6)',
+                                    fontWeight: 700,
+                                    background: isBool && liveVal ? 'rgba(74,222,128,0.12)' : 'rgba(255,255,255,0.06)',
+                                    padding: '0 4px', borderRadius: 2,
+                                  }}>
+                                    {isBool
+                                      ? (liveVal ? '● ON' : '○ off')
+                                      : isNum
+                                        ? Number(liveVal).toFixed(3)
+                                        : String(liveVal).slice(0,24)}
+                                  </span>
+                                )}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -598,7 +627,20 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       <div className="live-signal-group">
                         <span className="live-signal-dir">↓ Listening</span>
                         <div className="live-signal-list">
-                          {listening.map(s => <span key={s} className="live-signal-tag sub">{s}</span>)}
+                          {listening.map(s => {
+                            const eid = slot.entity_id || slot.id;
+                            const liveVal = (entityStates[eid] as Record<string,unknown>|undefined)?.[s];
+                            return (
+                              <span key={s} className="live-signal-tag sub" style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+                                {s}
+                                {liveVal !== undefined && liveVal !== null && (
+                                  <span style={{ fontSize:8, fontFamily:'var(--font-mono)', color:'rgba(255,255,255,0.5)', fontWeight:700 }}>
+                                    {typeof liveVal === 'boolean' ? (liveVal ? '● ON' : '○ off') : String(liveVal).slice(0,24)}
+                                  </span>
+                                )}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
