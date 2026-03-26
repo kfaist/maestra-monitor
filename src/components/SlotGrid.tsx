@@ -103,6 +103,17 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     setPinnedSlots(prev => { const n = new Set(prev); n.has(slotId) ? n.delete(slotId) : n.add(slotId); return n; });
   // Per-slot server mode: which Maestra server this slot is targeting
   const [slotServerModes, setSlotServerModes] = useState<Record<string, 'auto' | 'gallery' | 'railway' | 'custom'>>({});
+  // Cached tops from /api/tops — populated by build_maestra_tox.py
+  const [cachedTops, setCachedTops] = useState<string[]>([]);
+  useEffect(() => {
+    const load = () => fetch('/api/tops')
+      .then(r => r.json())
+      .then(d => { if (d.tops?.length) setCachedTops(d.tops); })
+      .catch(() => {});
+    load();
+    const t = setInterval(load, 15000);
+    return () => clearInterval(t);
+  }, []);
   const setSlotServer = (slotId: string, mode: 'auto' | 'gallery' | 'railway' | 'custom') =>
     setSlotServerModes(prev => ({ ...prev, [slotId]: mode }));
   const [lockedLabels, setLockedLabels] = useState<Record<string, string>>({});
