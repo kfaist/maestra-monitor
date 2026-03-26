@@ -3,7 +3,6 @@
 import { FleetSlot, LogEntry, EventEntry, SlotConnectionInfo } from '@/types';
 import ConnectionPanel from './ConnectionPanel';
 import Explainer from './Explainer';
-import SignalPanel from './SignalPanel';
 import TDConnectGuide from './TDConnectGuide';
 import WebcamCapture from './WebcamCapture';
 import WSLog from './WSLog';
@@ -198,17 +197,6 @@ export default function DetailPanel({
         hidePreview
       />
 
-      {/* Signal Panel — Transcription, Nouns, Prompt, Inject */}
-      <SignalPanel
-        injectActive={injectActive}
-        onInjectToggle={onInjectToggle}
-        promptText={promptText}
-        onPromptChange={onPromptChange}
-        onBroadcast={onBroadcast}
-        onP6Flush={onP6Flush}
-        slots={slots}
-        entityStates={entityStates as Record<string, Record<string, unknown>>}
-      />
 
       {/* Maestra Status + Connection */}
       <ConnectionPanel
