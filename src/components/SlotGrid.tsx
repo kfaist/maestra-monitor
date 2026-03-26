@@ -817,7 +817,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               { key: 'sensor',  label: 'Sensor',  desc: 'Sensor data' },
                               { key: 'data',    label: 'Data',    desc: 'Generic data' },
                             ];
-                            const streamFilter = (setup.stateType === 'string' || !setup.stateType) ? '' : setup.stateType;
+                            const streamFilter = setup.streamType || '';
 
                             // Filter nodeTops by stream type hint in path
                             // Map stream type → op type prefixes in tree format
