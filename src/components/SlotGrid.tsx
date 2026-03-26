@@ -810,7 +810,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 {/* Node picker */}
                                 <div style={{ width: '100%' }}>
                                   <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
-                                    Node {nodes.length > 0 && <span style={{ color: slotColor }}>· {nodes.length} detected</span>}
+                                    Component {nodes.length > 0 && <span style={{ color: slotColor }}>· {nodes.length} detected</span>}
                                   </div>
                                   {nodes.length > 0 ? (
                                     <select value={selNode} onClick={e => e.stopPropagation()}
