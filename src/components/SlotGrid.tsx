@@ -37,6 +37,20 @@ interface SourceState {
 /** Per-entity state map: entity_id → { key: value } */
 export type EntityStateMap = Record<string, Record<string, string>>;
 
+/** Wire route — mirrors WireRoute from /api/routes */
+interface WireRoute {
+  id: string;
+  sourceSlug: string;
+  sourceKey: string;
+  targetSlug: string;
+  targetKey: string;
+  active: boolean;
+  createdAt: number;
+}
+
+/** Per-wire gain/amount value */
+type WireAmounts = Record<string, number>; // wireId → 0.0–1.0
+
 interface SlotGridProps {
   slots: FleetSlot[];
   selectedId: string | null;
@@ -226,6 +240,76 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     return () => clearInterval(id);
   }, []);
 
+  // ═══ Wire routes state — fetched from /api/routes ═══
+  const [wireRoutes, setWireRoutes] = useState<WireRoute[]>([]);
+  const [wireAmounts, setWireAmounts] = useState<WireAmounts>(() => {
+    try { return JSON.parse(localStorage.getItem('maestra_wire_amounts') || '{}'); } catch { return {}; }
+  });
+
+  // Fetch routes periodically
+  useEffect(() => {
+    const loadRoutes = () => fetch('/api/routes')
+      .then(r => r.json())
+      .then(d => { if (d.routes) setWireRoutes(d.routes); })
+      .catch(() => {});
+    loadRoutes();
+    const t = setInterval(loadRoutes, 5000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Persist wire amounts
+  useEffect(() => {
+    try { localStorage.setItem('maestra_wire_amounts', JSON.stringify(wireAmounts)); } catch {}
+  }, [wireAmounts]);
+
+  /** Create a wire route */
+  const createWire = useCallback(async (sourceSlug: string, sourceKey: string, targetSlug: string, targetKey: string) => {
+    try {
+      const res = await fetch('/api/routes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceSlug, sourceKey, targetSlug, targetKey }),
+      });
+      const data = await res.json();
+      if (data.route) {
+        setWireRoutes(prev => {
+          if (prev.find(r => r.id === data.route.id)) return prev;
+          return [...prev, data.route];
+        });
+        // Default amount = 1.0
+        setWireAmounts(prev => ({ ...prev, [data.route.id]: 1.0 }));
+      }
+    } catch {}
+  }, []);
+
+  /** Delete a wire route */
+  const deleteWire = useCallback(async (wireId: string) => {
+    try {
+      await fetch('/api/routes', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: wireId }),
+      });
+      setWireRoutes(prev => prev.filter(r => r.id !== wireId));
+      setWireAmounts(prev => { const n = { ...prev }; delete n[wireId]; return n; });
+    } catch {}
+  }, []);
+
+  /** Toggle a wire's active state */
+  const toggleWireActive = useCallback(async (wireId: string) => {
+    try {
+      const res = await fetch('/api/routes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: wireId }),
+      });
+      const data = await res.json();
+      if (data.route) {
+        setWireRoutes(prev => prev.map(r => r.id === wireId ? { ...r, active: data.route.active } : r));
+      }
+    } catch {}
+  }, []);
+
   // When a slot becomes active, clear its setup state
   useEffect(() => {
     setSetupState(prev => {
@@ -368,6 +452,32 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   const getOriginKey = (slot: FleetSlot): string => {
     return (sourceState[slot.id]?.path || setupState[slot.id]?.refFile || '').trim().toLowerCase();
   };
+
+  /** Collect all available + outputs across the fleet for wiring dropdowns */
+  const allPlusOutputs = (() => {
+    const results: Array<{ slug: string; key: string; type: string; slotLabel: string; color: string }> = [];
+    slots.forEach((s, i) => {
+      const setup = setupState[s.id];
+      const dir = setup?.direction || (s.nodeRole === 'receive' ? 'receive' : s.nodeRole === 'send' ? 'send' : null);
+      if (dir === 'receive') return; // skip pure receivers
+      const slug = setup?.slug || s.entity_id || s.id;
+      const color = getSlotColor(s, i);
+      // From setup outputSignals
+      (setup?.outputSignals || []).forEach(sig => {
+        if (sig.signalDir === 'input') return;
+        results.push({ slug, key: sig.key, type: sig.type, slotLabel: slug, color });
+      });
+      // From live publishing signals
+      if (s.active) {
+        getPublishingSignals(s).forEach(key => {
+          if (!results.find(r => r.slug === slug && r.key === key)) {
+            results.push({ slug, key, type: 'string', slotLabel: slug, color });
+          }
+        });
+      }
+    });
+    return results;
+  })();
 
   return (
     <>
@@ -840,7 +950,256 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     );
                   })()}
 
-                  {/* ── Section 6: Recent Activity ── */}
+                  {/* ── Section 6: Signal Wiring / Audio Reactive Modulation ── */}
+                  {(() => {
+                    const slotSlug = setupState[slot.id]?.slug || slot.entity_id || slot.id;
+                    const slotDir = directionForSlot;
+                    // Routes where this slot is a target (receive)
+                    const inboundWires = wireRoutes.filter(r => r.targetSlug === slotSlug);
+                    // Routes where this slot is a source (send)
+                    const outboundWires = wireRoutes.filter(r => r.sourceSlug === slotSlug);
+                    // For receive slots: show modulation rows
+                    // For send slots: show who's wired to us
+                    const isReceiver = slotDir === 'receive' || listening.length > 0;
+                    const isSender = slotDir === 'send' || publishing.length > 0;
+
+                    // Get input keys for this slot (what it listens to)
+                    const inputKeys = (() => {
+                      const keys: string[] = [];
+                      // From listening signals
+                      listening.forEach(k => { if (!keys.includes(k)) keys.push(k); });
+                      // From setup outputSignals that are inputs
+                      (setupState[slot.id]?.outputSignals || []).forEach(sig => {
+                        if (sig.signalDir === 'input' && !keys.includes(sig.key)) keys.push(sig.key);
+                      });
+                      // If no specific inputs, provide some defaults based on signal type
+                      if (keys.length === 0 && isReceiver) {
+                        const sig = slot.signalType;
+                        if (sig === 'touchdesigner') keys.push('prompt_text', 'visual_palette', 'lighting_scene', 'opacity', 'speed');
+                        else if (sig === 'audio_reactive') keys.push('shimmer', 'speed', 'bump', 'opacity', 'photorealism', 'temporal_intensity');
+                        else keys.push('param_1', 'param_2', 'param_3');
+                      }
+                      return keys;
+                    })();
+
+                    // Labels for common modulation params (matching the production UI)
+                    const PARAM_LABELS: Record<string, string> = {
+                      shimmer: 'SHIMMER', speed: 'SPEED', bump: 'BUMP', opacity: 'OPACITY',
+                      photorealism: 'PHOTOREALISM', temporal_intensity: 'TEMPORAL INTENSITY',
+                      prompt_text: 'PROMPT', visual_palette: 'PALETTE', lighting_scene: 'SCENE',
+                      param_1: 'PARAM 1', param_2: 'PARAM 2', param_3: 'PARAM 3',
+                    };
+
+                    if (!isReceiver && !isSender) return null;
+
+                    return (
+                      <div className="live-section">
+                        <div className="live-section-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span>{isReceiver ? 'Audio Reactive Modulation' : 'Outbound Wires'}</span>
+                          <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)' }}>
+                            {isReceiver ? `${inboundWires.length} wires` : `${outboundWires.length} wires`}
+                          </span>
+                        </div>
+
+                        {/* ── RECEIVER: Modulation rows with SOURCE dropdowns + AMOUNT sliders ── */}
+                        {isReceiver && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {inputKeys.map(inputKey => {
+                              const wire = inboundWires.find(w => w.targetKey === inputKey);
+                              const amount = wire ? (wireAmounts[wire.id] ?? 1.0) : 0;
+                              const label = PARAM_LABELS[inputKey] || inputKey.toUpperCase().replace(/_/g, ' ');
+                              const sourceVal = wire ? `${wire.sourceSlug}.${wire.sourceKey}` : '';
+                              const liveVal = wire
+                                ? (entityStates[wire.sourceSlug] as Record<string,unknown>|undefined)?.[wire.sourceKey]
+                                : undefined;
+
+                              return (
+                                <div key={inputKey} style={{
+                                  display: 'flex', alignItems: 'center', gap: 6,
+                                  padding: '4px 6px',
+                                  background: wire?.active ? `${slotColor}08` : 'rgba(255,255,255,0.02)',
+                                  border: `1px solid ${wire?.active ? slotColor + '30' : 'rgba(255,255,255,0.06)'}`,
+                                }}>
+                                  {/* Param label */}
+                                  <div style={{
+                                    width: 80, fontSize: 8, fontFamily: 'var(--font-display)',
+                                    fontWeight: 700, letterSpacing: '0.08em', color: 'rgba(255,255,255,0.5)',
+                                    textTransform: 'uppercase', flexShrink: 0,
+                                  }}>
+                                    {label}
+                                  </div>
+
+                                  {/* SOURCE dropdown */}
+                                  <select
+                                    value={sourceVal}
+                                    onClick={e => e.stopPropagation()}
+                                    onChange={e => {
+                                      e.stopPropagation();
+                                      const val = e.target.value;
+                                      // If clearing, delete existing wire
+                                      if (!val && wire) {
+                                        deleteWire(wire.id);
+                                        return;
+                                      }
+                                      if (!val) return;
+                                      const [srcSlug, srcKey] = val.split('.');
+                                      // If existing wire, delete first
+                                      if (wire) deleteWire(wire.id);
+                                      createWire(srcSlug, srcKey, slotSlug, inputKey);
+                                    }}
+                                    style={{
+                                      flex: 1, fontSize: 8, fontFamily: 'var(--font-mono)',
+                                      background: 'rgba(0,0,0,0.5)', color: wire ? '#22c55e' : 'rgba(255,255,255,0.3)',
+                                      border: `1px solid ${wire ? '#22c55e40' : 'rgba(255,255,255,0.08)'}`,
+                                      padding: '3px 4px', outline: 'none', cursor: 'pointer',
+                                      maxWidth: 120,
+                                    }}>
+                                    <option value="">SOURCE</option>
+                                    {allPlusOutputs.map((out, oi) => (
+                                      <option key={oi} value={`${out.slug}.${out.key}`}>
+                                        +{out.slotLabel}/{out.key}
+                                      </option>
+                                    ))}
+                                  </select>
+
+                                  {/* AMOUNT slider */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, width: 90 }}>
+                                    <input
+                                      type="range" min="0" max="100" step="1"
+                                      value={Math.round(amount * 100)}
+                                      onClick={e => e.stopPropagation()}
+                                      onChange={e => {
+                                        e.stopPropagation();
+                                        if (wire) {
+                                          setWireAmounts(prev => ({ ...prev, [wire.id]: Number(e.target.value) / 100 }));
+                                        }
+                                      }}
+                                      disabled={!wire}
+                                      style={{
+                                        flex: 1, height: 3, accentColor: slotColor,
+                                        cursor: wire ? 'pointer' : 'default',
+                                        opacity: wire ? 1 : 0.2,
+                                      }}
+                                    />
+                                    <span style={{
+                                      fontSize: 8, fontFamily: 'var(--font-mono)', fontWeight: 700,
+                                      color: wire ? slotColor : 'rgba(255,255,255,0.15)',
+                                      width: 28, textAlign: 'right',
+                                    }}>
+                                      {wire ? `${Math.round(amount * 100)}%` : '—'}
+                                    </span>
+                                  </div>
+
+                                  {/* Live value indicator */}
+                                  {wire && liveVal !== undefined && (
+                                    <span style={{
+                                      fontSize: 7, fontFamily: 'var(--font-mono)',
+                                      color: 'rgba(255,255,255,0.4)', maxWidth: 40,
+                                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                    }}>
+                                      {typeof liveVal === 'number' ? Number(liveVal).toFixed(2) : String(liveVal).slice(0, 8)}
+                                    </span>
+                                  )}
+
+                                  {/* Active toggle / delete */}
+                                  {wire && (
+                                    <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+                                      <button
+                                        title={wire.active ? 'Disable wire' : 'Enable wire'}
+                                        onClick={e => { e.stopPropagation(); toggleWireActive(wire.id); }}
+                                        style={{
+                                          background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px',
+                                          color: wire.active ? '#22c55e' : 'rgba(255,255,255,0.2)', fontSize: 10,
+                                        }}>
+                                        {wire.active ? '●' : '○'}
+                                      </button>
+                                      <button
+                                        title="Remove wire"
+                                        onClick={e => { e.stopPropagation(); deleteWire(wire.id); }}
+                                        style={{
+                                          background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px',
+                                          color: 'rgba(255,255,255,0.15)', fontSize: 9,
+                                        }}>
+                                        ×
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+
+                            {/* Add custom wire button */}
+                            {!isLocked(slot.id) && (
+                              <button
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  const key = prompt('Input parameter name (e.g. brightness):');
+                                  if (key?.trim()) {
+                                    // Add it as a new input signal to this slot's setup
+                                    setSetupState(prev => ({
+                                      ...prev,
+                                      [slot.id]: {
+                                        ...prev[slot.id],
+                                        outputSignals: [
+                                          ...(prev[slot.id]?.outputSignals || []),
+                                          { key: key.trim(), type: 'number', desc: '', top: '', streamType: '', signalDir: 'input' as const },
+                                        ],
+                                      },
+                                    }));
+                                  }
+                                }}
+                                style={{
+                                  fontSize: 8, padding: '3px 8px', cursor: 'pointer',
+                                  fontFamily: 'var(--font-mono)', letterSpacing: '0.05em',
+                                  background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.1)',
+                                  color: 'rgba(255,255,255,0.25)', textAlign: 'left',
+                                }}>
+                                + add modulation input
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* ── SENDER: Show who receives our outputs ── */}
+                        {isSender && !isReceiver && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            {outboundWires.length > 0 ? outboundWires.map(wire => (
+                              <div key={wire.id} style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                padding: '3px 6px', fontSize: 8, fontFamily: 'var(--font-mono)',
+                                background: wire.active ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.02)',
+                                border: `1px solid ${wire.active ? 'rgba(34,197,94,0.25)' : 'rgba(255,255,255,0.06)'}`,
+                              }}>
+                                <span style={{ color: '#22c55e', fontWeight: 700 }}>+</span>
+                                <span style={{ color: '#22c55e' }}>{wire.sourceKey}</span>
+                                <span style={{ color: 'rgba(255,255,255,0.15)' }}>→</span>
+                                <span style={{ color: '#5cc8ff' }}>−{wire.targetSlug}/{wire.targetKey}</span>
+                                <span style={{ marginLeft: 'auto', color: 'rgba(255,255,255,0.2)' }}>
+                                  {wireAmounts[wire.id] != null ? `${Math.round((wireAmounts[wire.id] ?? 1) * 100)}%` : '100%'}
+                                </span>
+                                <button
+                                  title={wire.active ? 'Disable' : 'Enable'}
+                                  onClick={e => { e.stopPropagation(); toggleWireActive(wire.id); }}
+                                  style={{ background:'none', border:'none', cursor:'pointer', color: wire.active ? '#22c55e' : 'rgba(255,255,255,0.2)', fontSize:10, padding:'0 2px' }}>
+                                  {wire.active ? '●' : '○'}
+                                </button>
+                                <button
+                                  title="Remove"
+                                  onClick={e => { e.stopPropagation(); deleteWire(wire.id); }}
+                                  style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.15)', fontSize:9, padding:'0 2px' }}>
+                                  ×
+                                </button>
+                              </div>
+                            )) : (
+                              <span className="live-empty" style={{ fontSize: 8 }}>No receivers wired yet</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* ── Section 7: Recent Activity ── */}
                   <div className="live-section">
                     <div className="live-section-head">Recent Activity</div>
                     <div className="live-activity-log">
