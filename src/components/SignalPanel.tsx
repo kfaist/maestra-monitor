@@ -31,6 +31,7 @@ interface SignalPanelProps {
   promptText:string; onPromptChange:(t:string)=>void;
   onBroadcast:(p:string)=>void; onP6Flush:(p:string)=>void;
   slots?:FleetSlot[];
+  entityStates?:Record<string,Record<string,unknown>>;
 }
 type RoutingMap = Record<string,string[]>;
 
@@ -43,7 +44,7 @@ async function fetchState(slug:string) {
   } catch { return null; }
 }
 
-export default function SignalPanel({ slots=[] }:SignalPanelProps) {
+export default function SignalPanel({ slots=[], entityStates={} }:SignalPanelProps) {
   const [live, setLive] = useState<Record<string,string|number|boolean>>({});
   const [dmxOnline, setDmxOnline] = useState(false);
   const [routing, setRouting] = useState<RoutingMap>({});
@@ -94,10 +95,22 @@ export default function SignalPanel({ slots=[] }:SignalPanelProps) {
   const getOuts=(slot:FleetSlot):GlobalSignal[]=>{
     if(!slot.active)return[];
     const sig=slot.signalType;
-    if(sig==='touchdesigner')return GLOBAL_SIGNALS.filter(s=>s.source==='mirrors-echo');
-    if(sig==='audio_reactive')return GLOBAL_SIGNALS.filter(s=>s.source==='audio');
-    if(sig==='json_stream')return GLOBAL_SIGNALS.filter(s=>s.type==='string');
-    return [];
+    // Base signals from signal type
+    let base:GlobalSignal[]=[];
+    if(sig==='touchdesigner') base=GLOBAL_SIGNALS.filter(s=>s.source==='mirrors-echo');
+    else if(sig==='audio_reactive') base=GLOBAL_SIGNALS.filter(s=>s.source==='audio');
+    else if(sig==='json_stream') base=GLOBAL_SIGNALS.filter(s=>s.type==='string');
+    // Also surface any keys from live entity state not already in base
+    const eid=slot.entity_id||slot.id;
+    const state=entityStates[eid];
+    if(state) {
+      Object.keys(state).forEach(k=>{
+        if(!base.find(s=>s.id===k||s.label===k)) {
+          base.push({id:k,label:k,type:typeof state[k] as string,color:'var(--slot-color,#00d4ff)',icon:'◈',source:'entity'});
+        }
+      });
+    }
+    return base;
   };
 
   const chip=(sig:GlobalSignal,key?:string,slotId?:string,removable=false)=>(
