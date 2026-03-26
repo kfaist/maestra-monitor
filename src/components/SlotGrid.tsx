@@ -95,7 +95,29 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   const [sourceState, setSourceState] = useState<Record<string, SourceState>>({});
   // Lock state — active slots are auto-locked, can be manually unlocked
   const [lockedSlots, setLockedSlots] = useState<Set<string>>(new Set());
-  const toggleLock = (slotId: string) => setLockedSlots(prev => { const n = new Set(prev); if (n.has(slotId)) n.delete(slotId); else n.add(slotId); return n; });
+  const [lockedLabels, setLockedLabels] = useState<Record<string, string>>({});
+
+  const toggleLock = (slotId: string, slot: FleetSlot, entityState: Record<string, unknown>) => {
+    setLockedSlots(prev => {
+      const n = new Set(prev);
+      if (n.has(slotId)) {
+        n.delete(slotId);
+      } else {
+        // On lock: derive label from tool type + entity name
+        const toeName = entityState?.toe_name as string | undefined;
+        const entityId = slot.entity_id || slotId;
+        // Detect tool type from entity metadata or signal type
+        const toolTag = slot.signalType === 'audio_reactive' ? 'Max/MSP'
+          : slot.signalType === 'osc' ? 'Max/MSP'
+          : slot.cloudNode ? 'Scope'
+          : 'TouchDesigner';
+        const shortName = toeName || entityId.replace(/_/g, ' ').replace(/\w/g, l => l.toUpperCase());
+        setLockedLabels(p => ({ ...p, [slotId]: `${toolTag} · ${shortName}` }));
+        n.add(slotId);
+      }
+      return n;
+    });
+  };
 
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -696,11 +718,14 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <span className="slot-label-id">Slot {slots.indexOf(slot) + 1}</span>
                     <span className="slot-label-sep"> — </span>
                     <span className="slot-label-name">
-                      {(() => {
-                        const eid = slot.entity_id || slot.id;
-                        const toeName = (entityStates[eid] as Record<string,unknown>|undefined)?.toe_name;
-                        return toeName ? String(toeName) : slot.label;
-                      })()}
+                      {lockedSlots.has(slot.id) && lockedLabels[slot.id]
+                        ? lockedLabels[slot.id]
+                        : (() => {
+                            const eid = slot.entity_id || slot.id;
+                            const toeName = (entityStates[eid] as Record<string,unknown>|undefined)?.toe_name;
+                            return toeName ? String(toeName) : slot.label;
+                          })()
+                      }
                     </span>
                   </div>
                   {/* Entity ID tag */}
@@ -721,7 +746,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   {/* State badge for active slots */}
                   {slot.active && (
                     <button
-                      onClick={e => { e.stopPropagation(); toggleLock(slot.id); }}
+                      onClick={e => { e.stopPropagation(); toggleLock(slot.id, slot, entityStates[slot.entity_id || slot.id] as Record<string, unknown> || {}); }}
                       title={lockedSlots.has(slot.id) ? 'Locked — click to unlock' : 'Unlocked — click to lock'}
                       style={{
                         background: 'none',
