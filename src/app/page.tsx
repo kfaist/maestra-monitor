@@ -1519,7 +1519,7 @@ export default function Home() {
       <JoinModal
         open={joinModalOpen}
         onClose={() => setJoinModalOpen(false)}
-        onJoin={handleJoinMaestra}
+        onJoin={() => {}}
       />
     </>
   );
