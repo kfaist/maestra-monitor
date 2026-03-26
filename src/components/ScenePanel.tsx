@@ -68,12 +68,6 @@ function extractNouns(text: string): string[] {
 
 interface ScenePanelProps {
   onActivateScene: (scene: SceneDefinition) => void;
-  injectActive: boolean;
-  onInjectToggle: (active: boolean) => void;
-  promptText: string;
-  onPromptChange: (text: string) => void;
-  onBroadcast: (prompt: string) => void;
-  onP6Flush: (prompt: string) => void;
 }
 
 export default function ScenePanel({
@@ -93,6 +87,8 @@ export default function ScenePanel({
   const [autoInjectCountdown, setAutoInjectCountdown] = useState(5);
   const [lastBroadcast, setLastBroadcast] = useState<number | null>(null);
   const [p6Flushing, setP6Flushing] = useState(false);
+  const [publishOnActivate, setPublishOnActivate] = useState(true);
+  const [receiveUpdates, setReceiveUpdates] = useState(false);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
@@ -197,10 +193,11 @@ export default function ScenePanel({
 
   return (
     <div className="scene-bar">
-      {/* ── Row 1: Scenes ── */}
-      <div className="scene-bar-row">
+      {/* ── Scenes row + controls ── */}
+      <div className="scene-bar-row" style={{ alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <div className="scene-bar-label">// Scenes</div>
-        <div className="scene-grid">
+
+        <div className="scene-grid" style={{ flex: 1 }}>
           {SCENES.map(scene => (
             <button
               key={scene.id}
@@ -212,66 +209,51 @@ export default function ScenePanel({
             </button>
           ))}
         </div>
-      </div>
 
-      {/* ── Row 2: Prompt + Transcription ── */}
-      <div className="scene-bar-row scene-bar-prompt-row">
-        <div className="scene-bar-prompt-group">
-          {/* Transcription toggle */}
-          <button
-            onClick={() => setTransEnabled(!transEnabled)}
-            className={`scene-bar-trans-btn ${transEnabled ? 'trans-on' : ''}`}
-          >
-            {isListening && <span className="scene-bar-listening-dot" />}
-            {transEnabled ? 'MIC ON' : 'MIC'}
-          </button>
+        {/* ▶ / ⏸ trigger */}
+        <button
+          onClick={() => {
+            if (activeScene) {
+              const scene = SCENES.find(s => s.id === activeScene);
+              if (scene) handleSceneClick(scene);
+            } else {
+              handleSceneClick(SCENES[0]);
+            }
+          }}
+          title={activeScene ? 'Re-trigger active scene' : 'Trigger first scene'}
+          style={{
+            background: 'none',
+            border: '1px solid rgba(255,255,255,0.15)',
+            color: activeScene ? 'var(--active)' : 'var(--text-dim)',
+            borderRadius: 2, padding: '3px 9px', cursor: 'pointer',
+            fontSize: 13, lineHeight: 1, transition: 'all 0.15s',
+            flexShrink: 0,
+          }}
+        >
+          {activeScene ? '⏵' : '▶'}
+        </button>
 
-          {/* Prompt input */}
-          <input
-            className="scene-bar-prompt-input"
-            type="text"
-            placeholder="baroque cathedral, golden light..."
-            value={promptText}
-            onChange={e => onPromptChange(e.target.value)}
-          />
-
-          {/* Inject toggle */}
-          <button
-            className={`scene-bar-inject-btn ${injectActive ? 'live' : ''}`}
-            onClick={() => onInjectToggle(!injectActive)}
-          >
-            {injectActive ? 'STOP' : 'INJECT'}
-          </button>
+        {/* IN / OUT event checkboxes */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.08em', userSelect: 'none' }}>
+            <input
+              type="checkbox"
+              checked={publishOnActivate}
+              onChange={e => setPublishOnActivate(e.target.checked)}
+              style={{ accentColor: 'var(--active)', width: 11, height: 11, cursor: 'pointer' }}
+            />
+            ↑ OUT
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.08em', userSelect: 'none' }}>
+            <input
+              type="checkbox"
+              checked={receiveUpdates}
+              onChange={e => setReceiveUpdates(e.target.checked)}
+              style={{ accentColor: 'var(--accent)', width: 11, height: 11, cursor: 'pointer' }}
+            />
+            ↓ IN
+          </label>
         </div>
-
-        {/* Transcript + nouns */}
-        {(transEnabled || transcript) && (
-          <div className="scene-bar-transcript-line">
-            {transcript ? (
-              <span className="scene-bar-transcript-text">{transcript}</span>
-            ) : (
-              <span className="scene-bar-transcript-placeholder">Speak into your microphone...</span>
-            )}
-            {nouns.length > 0 && (
-              <div className="scene-bar-nouns">
-                {nouns.map((n, i) => <span key={i} className="scene-bar-noun">{n}</span>)}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Combined preview + auto-inject bar */}
-        {injectActive && combinedPreview && (
-          <div className="scene-bar-sending">
-            <span className="scene-bar-sending-label">Sending</span>
-            <span className="scene-bar-sending-text">{combinedPreview}</span>
-            <div className="scene-bar-progress">
-              <div className="scene-bar-progress-fill" style={{ width: `${((5 - autoInjectCountdown) / 5) * 100}%` }} />
-            </div>
-            <span className="scene-bar-countdown">{autoInjectCountdown}s</span>
-            {p6Flushing && <span className="scene-bar-p6">P6</span>}
-          </div>
-        )}
       </div>
     </div>
   );
