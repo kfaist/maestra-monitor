@@ -198,12 +198,12 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   const handleReferenceComplete = useCallback((slotId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const setup = setupState[slotId];
-    if (!setup?.role || !setup?.signal) return;
+    if (!setup?.role) return;
     setSetupState(prev => ({
       ...prev,
       [slotId]: { ...prev[slotId], stage: 'idle' },
     }));
-    onSlotSetupComplete?.(slotId, setup.role, setup.signal);
+    onSlotSetupComplete?.(slotId, setup.role, (setup.signal || 'touchdesigner') as import('@/types').SignalType);
   }, [setupState, onSlotSetupComplete]);
 
   const handleBack = useCallback((slotId: string, e: React.MouseEvent) => {
