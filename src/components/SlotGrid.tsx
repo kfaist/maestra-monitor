@@ -909,7 +909,13 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       >
                         <div style={{ fontSize: 28, opacity: 0.25, lineHeight: 1 }}>↓</div>
                         <div style={{ fontSize: 11, color: slotColor, fontWeight: 700, letterSpacing: '0.08em' }}>
-                          1. Download maestra.tox
+                          <a
+                            href='https://github.com/jordansnyder/maestra-core/releases/latest'
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            onClick={e => e.stopPropagation()}
+                            style={{ color: slotColor, textDecoration: 'underline', cursor: 'pointer' }}
+                          >↓ Download maestra.tox</a>
                         </div>
                         <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', lineHeight: 1.8, maxWidth: 200, textAlign: 'center' }}>
                           2. Drag into your .toe file<br/>
