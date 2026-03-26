@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -1108,14 +1108,16 @@ header {
 }
 @keyframes paletteBreathe { 0%, 100% { opacity: 0.85; filter: brightness(0.95); } 50% { opacity: 1; filter: brightness(1.02); } }
 .palette-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.5; margin-bottom: 0.75rem; }
-.palette { display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.5rem; margin-bottom: 1rem; }
+.palette { display: grid; grid-template-columns: repeat(8, 56px); gap: 6px; margin-bottom: 0.5rem; }
 .palette-btn {
-  aspect-ratio: 1;
+  width: 56px;
+  height: 56px;
+  min-height: 0;
+  aspect-ratio: unset;
   border: none;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  min-height: 48px;
   position: relative;
   background: transparent !important;
   overflow: visible;
