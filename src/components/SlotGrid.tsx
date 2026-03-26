@@ -701,7 +701,13 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         <span className="slot-available-flicker">AVAILABLE</span>
                       </div>
                       {slot.suggestion && (
-                        <span className={`suggestion-tag ${slot.suggestion.tag}`}>{slot.suggestion.tagLabel}</span>
+                        <span style={{
+                          fontSize: 8, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.3)',
+                          border: '1px solid rgba(255,255,255,0.1)', padding: '2px 7px',
+                          display: 'flex', alignItems: 'center', gap: 4, cursor: 'default',
+                        }}>
+                          ◂ {slot.suggestion.tagLabel}
+                        </span>
                       )}
                       <div className="slot-available-hover-btn">
                         <span className="slot-available-hover-icon">+</span>
@@ -727,6 +733,30 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <span style={{ fontSize: 8, letterSpacing: '0.1em', color: 'var(--text-dim)', opacity: 0.35, marginLeft: 4, textTransform: 'uppercase' }}>
                       slot {slots.indexOf(slot) + 1}
                     </span>
+                  {/* Lock + controls — only on active slots */}
+                  {slot.active && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
+                      <button
+                        onClick={e => { e.stopPropagation(); toggleLock(slot.id, slot, entityStates[slot.entity_id || slot.id] as Record<string, unknown> || {}); }}
+                        title={lockedSlots.has(slot.id) ? 'Locked — click to unlock' : 'Unlocked — click to lock'}
+                        style={{
+                          background: 'none', border: 'none', padding: '0 2px',
+                          color: lockedSlots.has(slot.id) ? slotColor : 'rgba(255,255,255,0.18)',
+                          cursor: 'pointer', fontSize: 10, lineHeight: 1, transition: 'color 0.15s',
+                        }}
+                      >{lockedSlots.has(slot.id) ? '🔒' : '🔓'}</button>
+                      <button
+                        onClick={e => { e.stopPropagation(); onAddSlot?.(); }}
+                        title="Add a new slot"
+                        style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.3)', borderRadius: 2, width: 14, height: 14, fontSize: 10, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                      >+</button>
+                      <button
+                        onClick={e => { e.stopPropagation(); /* disconnect */ }}
+                        title="Disconnect slot"
+                        style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.3)', borderRadius: 2, width: 14, height: 14, fontSize: 10, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                      >−</button>
+                    </div>
+                  )}
                   </div>
                   {/* Entity ID tag */}
                   {(slot.entity_id || slot.active) && (
@@ -744,21 +774,6 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   </span>
                   {slot.cloudNode && <span className="cloud-badge">&#x2601; Cloud</span>}
                   {/* State badge for active slots */}
-                  {slot.active && (
-                    <button
-                      onClick={e => { e.stopPropagation(); toggleLock(slot.id, slot, entityStates[slot.entity_id || slot.id] as Record<string, unknown> || {}); }}
-                      title={lockedSlots.has(slot.id) ? 'Locked — click to unlock' : 'Unlocked — click to lock'}
-                      style={{
-                        background: 'none',
-                        border: `1px solid ${lockedSlots.has(slot.id) ? slotColor + '80' : 'rgba(255,255,255,0.1)'}`,
-                        color: lockedSlots.has(slot.id) ? slotColor : 'rgba(255,255,255,0.2)',
-                        borderRadius: 2, padding: '1px 5px', fontSize: 9, cursor: 'pointer',
-                        transition: 'all 0.15s', lineHeight: 1.2,
-                      }}
-                    >
-                      {lockedSlots.has(slot.id) ? '🔒' : '🔓'}
-                    </button>
-                  )}
                   {slot.active ? (
                     <span className={`slot-state-badge ${stateBadge.cls}`}>{stateBadge.text}</span>
                   ) : inSetup ? (
