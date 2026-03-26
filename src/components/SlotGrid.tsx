@@ -785,23 +785,23 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               if (Array.isArray(_t)) (_t as string[]).forEach((t:string) => { if (!_all.includes(t)) _all.push(t); });
                             });
 
-                            // Group by TOP-LEVEL container (depth 2: /project1/NodeName)
-                            // All TOPs under that subtree become options, showing their full relative path
+                            // Group by immediate child of /project1 — that's the component name
+                            // e.g. /project1/StreamDiffusionTD/... → component = "StreamDiffusionTD"
+                            // All TOPs inside that component (any depth) become options
                             const nodeMap: Record<string,string[]> = {};
                             _all.forEach(t => {
                               const parts = t.split('/').filter(Boolean);
+                              // parts[0] = project1, parts[1] = ComponentName
                               if (parts.length < 2) return;
-                              // Node = /project1/ContainerName (always depth 2)
-                              const node = '/' + parts[0] + '/' + parts[1];
-                              // Param = full path for uniqueness, display as relative
-                              if (!nodeMap[node]) nodeMap[node] = [];
-                              if (!nodeMap[node].includes(t)) nodeMap[node].push(t);
+                              const component = parts[1]; // e.g. "StreamDiffusionTD"
+                              if (!nodeMap[component]) nodeMap[component] = [];
+                              if (!nodeMap[component].includes(t)) nodeMap[component].push(t);
                             });
                             const nodes = Object.keys(nodeMap).sort();
 
-                            // Derive selected node from selectedTop
+                            // Derive selected component from selectedTop
                             const stParts = (setup.selectedTop || '').split('/').filter(Boolean);
-                            const selNode = stParts.length >= 2 ? '/' + stParts[0] + '/' + stParts[1] : '';
+                            const selNode = stParts.length >= 2 ? stParts[1] : ''; // component name only
                             const selParam = setup.selectedTop || '';
                             const nodeParams = selNode ? (nodeMap[selNode] || []) : [];
 
@@ -828,7 +828,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                         fontFamily:'var(--font-mono)', background:'rgba(0,0,0,0.6)',
                                         border:`1px solid ${slotColor}40`, color:slotColor, outline:'none' }}>
                                       <option value="">— select component —</option>
-                                      {nodes.map(n => <option key={n} value={n} style={{background:'#0a0a14'}}>{n.split('/').pop()}</option>)}
+                                      {nodes.map(n => <option key={n} value={n} style={{background:'#0a0a14'}}>{n}</option>)}
                                     </select>
                                   ) : (
                                     <div style={{ fontSize:9, color:'rgba(255,255,255,0.2)', fontFamily:'var(--font-mono)', padding:'4px 0' }}>
@@ -858,7 +858,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                           fontFamily:'var(--font-mono)', background:'rgba(0,0,0,0.6)',
                                           border:`1px solid ${slotColor}40`, color:slotColor, outline:'none' }}>
                                         <option value="">— select output TOP —</option>
-                                        {nodeParams.map(p => <option key={p} value={p} style={{background:'#0a0a14'}}>{p.split('/').pop()}</option>)}
+                                        {nodeParams.map(p => { const rel = p.split('/').slice(2).join('/'); return <option key={p} value={p} style={{background:'#0a0a14'}}>{rel}</option>; })}
                                       </select>
                                     ) : (
                                       <input type="text" value={selParam} placeholder="e.g. promptdict5concept"
