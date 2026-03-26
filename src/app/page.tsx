@@ -1606,6 +1606,7 @@ export default function Home() {
             onSignalTypeChange={handleSignalTypeChange}
             onNodeRoleChange={handleNodeRoleChange}
             entityBus={entityBus}
+            slots={slots}
           />
         </div>
 
