@@ -363,7 +363,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   }}>
                     <span style={{
                       fontSize: 7, fontFamily: 'var(--font-display)', letterSpacing: '0.1em',
-                      color: 'rgba(255,255,255,0.18)', marginRight: 3, whiteSpace: 'nowrap',
+                      color: 'rgba(255,255,255,0.15)', marginRight: 3, whiteSpace: 'nowrap',
                       textTransform: 'uppercase',
                     }}>Server Mode: //</span>
                     {modes.map(({ key, label, color }) => {
@@ -375,9 +375,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             fontSize: 7, fontFamily: 'var(--font-display)', fontWeight: 700,
                             letterSpacing: '0.08em', textTransform: 'uppercase',
                             padding: '1px 5px', cursor: 'pointer',
-                            background: active ? `${color}18` : 'none',
-                            border: `1px solid ${active ? color + '55' : 'rgba(255,255,255,0.07)'}`,
-                            color: active ? color : 'rgba(255,255,255,0.18)',
+                            background: active ? `${color}15` : 'transparent',
+                            border: `1px solid ${active ? color + '60' : 'rgba(255,255,255,0.04)'}`,
+                            color: active ? color : 'rgba(255,255,255,0.15)',
                             transition: 'all 0.12s',
                           }}
                         >{label}</button>
@@ -666,19 +666,42 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       {/* STAGE: Connect */}
                       {setup.stage === 'connect' && (
                         <div className="slot-wizard-content">
-                          <div className="slot-wizard-title">Connect a Node</div>
-                          <button
-                            className="slot-wizard-btn slot-wizard-btn-primary"
-                            onClick={(e) => handleConnect(slot.id, e)}
+                          <div className="slot-wizard-title" style={{ color: slotColor, letterSpacing: '0.15em' }}>
+                            CONNECT YOUR NODE
+                          </div>
+
+                          {/* Primary: drag zone */}
+                          <div
+                            style={{
+                              width: '100%', border: `1px dashed ${slotColor}50`,
+                              background: `${slotColor}06`, padding: '20px 12px',
+                              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                              cursor: 'pointer',
+                            }}
+                            onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'role' } })); }}
                           >
-                            <span style={{ fontSize: 12 }}>⚡</span> Connect
-                          </button>
-                          <button
-                            className="slot-wizard-btn slot-wizard-btn-ghost"
-                            onClick={(e) => { e.stopPropagation(); handleBack(slot.id, e); }}
-                          >
-                            Cancel
-                          </button>
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ color: slotColor, opacity: 0.6 }}>
+                              <path d="M9 3v9M5 8l4-5 4 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              <path d="M3 14h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                            </svg>
+                            <span style={{ fontSize: 10, color: slotColor, fontFamily: 'var(--font-display)', letterSpacing: '0.08em' }}>
+                              Drop maestra.tox here
+                            </span>
+                            <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)' }}>
+                              or click to begin setup
+                            </span>
+                          </div>
+
+                          {/* Secondary: download link */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                            <a
+                              href="/maestra.tox"
+                              download="maestra.tox"
+                              onClick={e => e.stopPropagation()}
+                              style={{ fontSize: 8, color: slotColor, opacity: 0.6, textDecoration: 'underline', cursor: 'pointer' }}
+                            >↓ Download maestra.tox</a>
+                            <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.2)' }}>— drag into your .toe</span>
+                          </div>
                         </div>
                       )}
 
@@ -910,7 +933,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         }}
                       >+ Connect Your Node</button>
                       <a
-                        href='https://github.com/jordansnyder/maestra-core/releases/latest'
+                        href='/maestra.tox'
                         target='_blank' rel='noreferrer'
                         onClick={(e) => e.stopPropagation()}
                         style={{
