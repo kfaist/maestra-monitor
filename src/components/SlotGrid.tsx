@@ -4,21 +4,19 @@ import { SLOT_COLORS } from './SignalPanel';
 import { useState, useEffect, useCallback } from 'react';
 import { FleetSlot, slotStatusLabel, slotStatusClass, formatAge, EventEntry } from '@/types';
 
-type InlineStage = 'idle' | 'connect' | 'slug' | 'states';
+type InlineStage = 'idle' | 'connect' | 'slug' | 'addState';
 type NodeRole = 'receive' | 'send' | 'two_way';
 type SignalSource = 'touchdesigner' | 'json_stream' | 'osc' | 'audio_reactive' | 'text' | 'test_signal';
 
 interface SlotSetup {
   stage: InlineStage;
-  role: NodeRole | null;
-  signal: SignalSource | null;
-  refPath: string;          // slug
+  slug: string;
   refFile: string | null;
-  selectedTop: string | null;
-  stateKey: string;         // renamed param
-  stateType: string;        // string|number|boolean|color|vector2|vector3|range|enum|array|object
+  selectedTop: string;
+  stateKey: string;
+  stateType: string;
   stateDesc: string;
-  outputSignals: Array<{ key: string; type: string; desc: string }>;
+  outputSignals: Array<{ key: string; type: string; desc: string; top: string }>;
 }
 
 interface InjectState {
@@ -163,10 +161,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
       return;
     }
     onSelectSlot(slot.id);
-    setSetupState(prev => ({
-      ...prev,
-      [slot.id]: { stage: 'connect', role: null, signal: null, refPath: '', refFile: null, selectedTop: null, stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [] },
-    }));
+    setSetupState(prev => ({ ...prev, [slot.id]: { stage: 'connect', slug: '', refFile: null, selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [] } }));
   }, [setupState, onSelectSlot]);
 
   const handleConnect = useCallback((slotId: string, e: React.MouseEvent) => {
@@ -181,7 +176,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     e.stopPropagation();
     setSetupState(prev => ({
       ...prev,
-      [slotId]: { ...prev[slotId], role, stage: 'states' },
+      [slotId]: { ...prev[slotId], role, stage: 'addState' },
     }));
   }, []);
 
@@ -189,7 +184,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     e.stopPropagation();
     setSetupState(prev => ({
       ...prev,
-      [slotId]: { ...prev[slotId], signal, stage: 'states' },
+      [slotId]: { ...prev[slotId], signal, stage: 'addState' },
     }));
   }, []);
 
@@ -215,20 +210,16 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
       ...prev,
       [slotId]: { ...prev[slotId], stage: 'idle' },
     }));
-    onSlotSetupComplete?.(slotId, setup.role as NodeRole, (setup.signal || 'touchdesigner') as SignalSource);
+    onSlotSetupComplete?.(slotId, 'send' as NodeRole, 'touchdesigner' as SignalSource);
   }, [setupState, onSlotSetupComplete]);
 
   const handleBack = useCallback((slotId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setSetupState(prev => {
-      const current = prev[slotId];
-      if (!current) return prev;
-      if (current.stage === 'states') return { ...prev, [slotId]: { ...current, stage: 'states' } };
-      // removed dead stage check { ...prev, [slotId]: { ...current, stage: 'slug' } };
-      if (current.stage === 'slug') return { ...prev, [slotId]: { ...current, stage: 'connect' } };
-      const next = { ...prev };
-      delete next[slotId];
-      return next;
+      const s = prev[slotId]?.stage;
+      if (s === 'addState') return { ...prev, [slotId]: { ...prev[slotId], stage: 'slug' } };
+      if (s === 'slug')     return { ...prev, [slotId]: { ...prev[slotId], stage: 'connect' } };
+      return prev;
     });
   }, []);
 
@@ -649,35 +640,37 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                 /* ═══════ INACTIVE SLOT ═══════ */
                 <div className="slot-video-area">
                   {inSetup ? (
-                    /* ════ INLINE SETUP WIZARD ════ */
+                    /* ════ INLINE SETUP WIZARD: connect → slug → addState ════ */
                     <div className="slot-inline-wizard">
-                      {/* Step indicator — 4 steps */}
+                      {/* Step dots: 3 only */}
                       <div className="slot-wizard-steps">
-                        {(['connect','slug','top','states'] as string[]).map((s, i, arr) => (
+                        {(['connect','slug','addState'] as InlineStage[]).map((s, i, arr) => (
                           <span key={s} style={{ display: 'flex', alignItems: 'center' }}>
                             <span className={`slot-wizard-dot ${
                               setup.stage === s ? 'active' :
-                              (arr as string[]).indexOf(setup.stage) > i ? 'done' : ''
+                              arr.indexOf(setup.stage) > i ? 'done' : ''
                             }`} />
                             {i < arr.length - 1 && <span className="slot-wizard-line" />}
                           </span>
                         ))}
                       </div>
 
-                      {/* ══ STAGE: Connect ══ */}
+                      {/* ══ STAGE: connect ══ */}
                       {setup.stage === 'connect' && (
                         <div className="slot-wizard-content">
-                          <div className="slot-wizard-title" style={{ color: slotColor, letterSpacing: '0.15em', marginBottom: 8 }}>
+                          <div className="slot-wizard-title" style={{ color: slotColor, letterSpacing: '0.15em' }}>
                             CONNECT YOUR NODE
                           </div>
-                          {/* Primary: download TOX */}
-                          <a href="/maestra.tox" download="maestra.tox" onClick={e => e.stopPropagation()}
-                            style={{ width: '100%', boxSizing: 'border-box', display: 'block', padding: '10px 12px',
-                              textDecoration: 'none', border: `1px solid ${slotColor}40`, background: `${slotColor}08` }}>
-                            <div style={{ fontSize: 15.5, fontWeight: 700, color: slotColor, marginBottom: 3, fontFamily: 'var(--font-display)', letterSpacing: '0.05em' }}>
+                          <a href="/maestra.tox" download="maestra.tox"
+                            onClick={e => e.stopPropagation()}
+                            style={{ display: 'block', width: '100%', boxSizing: 'border-box',
+                              padding: '10px 12px', textDecoration: 'none',
+                              border: `1px solid ${slotColor}40`, background: `${slotColor}08` }}>
+                            <div style={{ fontSize: 15.5, fontWeight: 700, color: slotColor,
+                              fontFamily: 'var(--font-display)', letterSpacing: '0.05em', marginBottom: 3 }}>
                               ↓ Download maestra.tox
                             </div>
-                            <div style={{ fontSize: 15.5, color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-mono)' }}>
+                            <div style={{ fontSize: 15.5, color: 'rgba(255,255,255,0.35)' }}>
                               Drag into your .toe → auto-registers when project opens
                             </div>
                           </a>
@@ -686,11 +679,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em' }}>OR</span>
                             <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
                           </div>
-                          {/* Secondary: already have TOX — browse */}
-                          <label style={{ width: '100%', boxSizing: 'border-box', display: 'block', padding: '10px 12px',
-                            cursor: 'pointer', position: 'relative', border: '1px solid rgba(255,255,255,0.1)',
-                            background: 'rgba(255,255,255,0.02)' }} onClick={e => e.stopPropagation()}>
-                            <div style={{ fontSize: 15.5, color: 'rgba(255,255,255,0.55)', marginBottom: 4, pointerEvents: 'none' }}>
+                          <label style={{ display: 'block', width: '100%', boxSizing: 'border-box',
+                            padding: '10px 12px', cursor: 'pointer', position: 'relative',
+                            border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}
+                            onClick={e => e.stopPropagation()}>
+                            <div style={{ fontSize: 15.5, color: 'rgba(255,255,255,0.6)', marginBottom: 4, pointerEvents: 'none' }}>
                               {setup.refFile ? `📁 ${setup.refFile}` : 'Browse to your .toe file'}
                             </div>
                             <div style={{ fontSize: 15.5, color: 'rgba(255,255,255,0.25)', lineHeight: 1.7, pointerEvents: 'none' }}>
@@ -702,195 +695,196 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               onChange={e => {
                                 const f = e.target.files?.[0];
                                 if (f) {
-                                  handleFileUpload(slot.id, f);
                                   const derived = f.name.replace(/\.(toe|tox)$/i,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-                                  setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], refPath: derived, stage: 'slug' } }));
+                                  setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], refFile: f.name, slug: derived, stage: 'slug' } }));
                                 }
-                              }}
-                            />
+                              }} />
                           </label>
-                          {/* Continue without file — for when TOX is already running */}
-                          <button
-                            className="slot-wizard-btn slot-wizard-btn-primary"
-                            style={{ width: '100%', marginTop: 4 }}
-                            onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'states' } })); }}
-                          >
-                            TOX already running in TD → Continue
-                          </button>
                         </div>
                       )}
 
-                      {/* ══ STAGE: Slug — auto-derived from TOE name, confirm/edit ══ */}
+                      {/* ══ STAGE: slug ══ */}
                       {setup.stage === 'slug' && (
                         <div className="slot-wizard-content">
                           <div className="slot-wizard-title" style={{ color: slotColor }}>Name Your Node</div>
-                          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>
+                          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginBottom: 6 }}>
                             Slug from your .toe filename — edit if needed
                           </div>
-                          <input
-                            type="text"
-                            value={setup.refPath}
-                            onChange={e => handleRefPathChange(slot.id, e.target.value)}
+                          <input type="text"
+                            value={setup.slug}
+                            placeholder="e.g. mirrors-echo"
                             onClick={e => e.stopPropagation()}
-                            placeholder="my-td-node"
-                            style={{ width: '100%', boxSizing: 'border-box', padding: '6px 10px', fontSize: 13,
+                            onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], slug: e.target.value } })); }}
+                            onKeyDown={e => { if (e.key === 'Enter' && setup.slug.trim()) setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'addState' } })); }}
+                            style={{ width: '100%', padding: '6px 10px', fontSize: 13,
                               fontFamily: 'var(--font-mono)', color: slotColor, fontWeight: 700,
-                              background: 'rgba(0,0,0,0.4)', border: `1px solid ${slotColor}50`, outline: 'none' }}
+                              background: 'rgba(0,0,0,0.5)', border: `1px solid ${slotColor}50`,
+                              outline: 'none', boxSizing: 'border-box' }}
+                            autoFocus
                           />
-                          <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)' }}>
-                            This becomes your entity slug — unique ID on the network
-                          </div>
                           <div style={{ display: 'flex', gap: 6, width: '100%' }}>
-                            <button className="slot-wizard-btn slot-wizard-btn-ghost" onClick={e => handleBack(slot.id, e)}>← Back</button>
+                            <button className="slot-wizard-btn slot-wizard-btn-ghost"
+                              onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'connect' } })); }}>
+                              ← Back
+                            </button>
                             <button className="slot-wizard-btn slot-wizard-btn-primary" style={{ flex: 1 }}
-                              onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'states' } })); }}
-                              disabled={!setup.refPath}>
-                              Next →
+                              disabled={!setup.slug.trim()}
+                              onClick={e => { e.stopPropagation(); if (setup.slug.trim()) setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'addState' } })); }}>
+                              {setup.slug.trim() ? 'Enter →' : 'Enter a slug first'}
                             </button>
                           </div>
                         </div>
                       )}
 
-                      {/* ══ STAGE: TOP — dropdown from TOPs detected by the TOX in TD ══ */}
-                      {false && (() => {
-                        const eid = slot.entity_id || setup.refPath || slot.id;
-                        const eState = entityStates[eid] as Record<string,unknown> | undefined;
-                        const tops = Array.isArray(eState?.tops) ? (eState!.tops as string[]) : null;
-                        return (
-                          <div className="slot-wizard-content">
-                            <div className="slot-wizard-title" style={{ color: slotColor }}>Select Output TOP</div>
-                            {(tops ?? []).length > 0 ? (
-                              <>
-                                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', marginBottom: 2 }}>
-                                  TOPs detected by the TOX in your open project:
-                                </div>
-                                <select
-                                  value={setup.selectedTop || ''}
-                                  onClick={e => e.stopPropagation()}
-                                  onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: e.target.value } })); }}
-                                  style={{ width: '100%', padding: '6px 8px', fontSize: 10, fontFamily: 'var(--font-mono)',
-                                    background: 'rgba(0,0,0,0.5)', border: `1px solid ${slotColor}50`, color: slotColor, outline: 'none' }}
-                                >
-                                  <option value="">— select a TOP —</option>
-                                  {(tops as string[]).map(t => <option key={t} value={t} style={{ background: '#0a0a14' }}>{t}</option>)}
-                                </select>
-                              </>
-                            ) : (
-                              <>
-                                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', lineHeight: 1.6, marginBottom: 4 }}>
-                                  No TOPs detected yet.<br/>
-                                  The TOX auto-registers TOPs when your project opens in TD.
-                                </div>
-                                <input type="text" value={setup.selectedTop || ''} placeholder="/project1/out1"
-                                  onClick={e => e.stopPropagation()}
-                                  onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: e.target.value } })); }}
-                                  style={{ width: '100%', boxSizing: 'border-box', padding: '6px 8px', fontSize: 10,
-                                    fontFamily: 'var(--font-mono)', color: slotColor, background: 'rgba(0,0,0,0.4)',
-                                    border: `1px solid ${slotColor}30`, outline: 'none' }}
-                                />
-                              </>
-                            )}
-                            <div style={{ display: 'flex', gap: 6, width: '100%' }}>
-                              <button className="slot-wizard-btn slot-wizard-btn-ghost" onClick={e => handleBack(slot.id, e)}>← Back</button>
-                              <button className="slot-wizard-btn slot-wizard-btn-primary" style={{ flex: 1 }}
-                                onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'states' } })); }}>
-                                {setup.selectedTop ? 'Next →' : 'Skip →'}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      {/* ══ STAGE: States — declare output signals, accumulate chips ══ */}
-                      {setup.stage === 'states' && (
+                      {/* ══ STAGE: addState ══ */}
+                      {setup.stage === 'addState' && (
                         <div className="slot-wizard-content">
                           <div className="slot-wizard-title" style={{ color: slotColor }}>Add State</div>
 
-                          {/* Accumulated chips so far */}
-                          {setup.outputSignals && setup.outputSignals.length > 0 && (
-                            <div style={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: 4 }}>
-                              {setup.outputSignals.map((item, i) => (
-                                <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 3,
-                                  background: `${slotColor}15`, border: `1px solid ${slotColor}50`,
-                                  padding: '2px 7px', fontSize: 8 }}>
-                                  <span style={{ color: slotColor, fontSize: 7 }}>↑</span>
-                                  <span style={{ fontFamily: 'var(--font-mono)', color: slotColor }}>{item.key}</span>
-                                  <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: 7 }}>{item.type}</span>
-                                </div>
-                              ))}
+                          {/* Accumulated output chips */}
+                          {setup.outputSignals.length > 0 && (
+                            <div style={{ width: '100%', marginBottom: 6 }}>
+                              <div style={{ fontSize: 7, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.25)',
+                                textTransform: 'uppercase', marginBottom: 4 }}>↑ Outputs</div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                                {setup.outputSignals.map((sig, i) => (
+                                  <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4,
+                                    padding: '2px 7px', fontSize: 9, fontFamily: 'var(--font-mono)',
+                                    background: `${slotColor}18`, border: `1px solid ${slotColor}50`, color: slotColor }}>
+                                    <span style={{ opacity: 0.6, fontSize: 8 }}>↑</span>
+                                    {sig.key}
+                                    <span style={{ opacity: 0.4, fontSize: 8 }}>· {sig.type}</span>
+                                    <button onClick={e => { e.stopPropagation();
+                                      setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id],
+                                        outputSignals: prev[slot.id].outputSignals.filter((_,j) => j !== i) } })); }}
+                                      style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)',
+                                        cursor: 'pointer', padding: '0 0 0 2px', fontSize: 10, lineHeight: 1 }}>×</button>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
 
-                          {/* Parameter / channel — free text with typeahead hint */}
-                          <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', marginBottom: 2 }}>Parameter or channel name</div>
-                          <input type="text" value={setup.stateKey}
-                            placeholder={setup.selectedTop ? `${setup.selectedTop.split('/').pop()}…` : 'e.g. prompt_text'}
-                            onClick={e => e.stopPropagation()}
-                            onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateKey: e.target.value } })); }}
-                            style={{ width: '100%', boxSizing: 'border-box', padding: '5px 8px', fontSize: 11,
-                              fontFamily: 'var(--font-mono)', color: '#e5f9ff', fontWeight: 700,
-                              background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', outline: 'none' }}
-                          />
+                          {/* TOP dropdown — populated from metadata.tops sent by TOX */}
+                          {(() => {
+                            const eid = setup.slug || slot.entity_id || slot.id;
+                            const eState = entityStates[eid] as Record<string,unknown> | undefined;
+                            const tops: string[] = Array.isArray(eState?.tops) ? (eState!.tops as string[]) : Array.isArray(eState?.metadata) ? [] : Array.isArray((eState?.metadata as Record<string,unknown>|undefined)?.tops) ? ((eState!.metadata as Record<string,unknown>).tops as string[]) : [];
+                            return (
+                              <div style={{ width: '100%' }}>
+                                <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)',
+                                  textTransform: 'uppercase', marginBottom: 3 }}>Select TOP</div>
+                                {tops.length === 0 ? (
+                                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)',
+                                    fontFamily: 'var(--font-mono)', padding: '6px 0', lineHeight: 1.6 }}>
+                                    No TOPs detected yet.<br/>
+                                    The TOX auto-registers TOPs when your project opens in TD.
+                                  </div>
+                                ) : (
+                                  <select value={setup.selectedTop} onClick={e => e.stopPropagation()}
+                                    onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev,
+                                      [slot.id]: { ...prev[slot.id], selectedTop: e.target.value } })); }}
+                                    style={{ width: '100%', padding: '5px 8px', fontSize: 10,
+                                      fontFamily: 'var(--font-mono)', background: 'rgba(0,0,0,0.6)',
+                                      border: `1px solid ${slotColor}40`, color: slotColor, outline: 'none' }}>
+                                    <option value="">— select a TOP —</option>
+                                    {tops.map(t => <option key={t} value={t} style={{ background: '#0a0a14' }}>{t}</option>)}
+                                  </select>
+                                )}
+                              </div>
+                            );
+                          })()}
 
-                          {/* Type picker */}
-                          <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', marginBottom: 2, marginTop: 4 }}>Type</div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, width: '100%' }}>
-                            {['string','number','boolean','color','vector2','vector3','range','enum','array','object'].map(t => (
-                              <button key={t} onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateType: t } })); }}
-                                style={{ fontSize: 8, padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
-                                  background: setup.stateType === t ? `${slotColor}20` : 'rgba(255,255,255,0.03)',
-                                  border: `1px solid ${setup.stateType === t ? slotColor + '70' : 'rgba(255,255,255,0.08)'}`,
-                                  color: setup.stateType === t ? slotColor : 'rgba(255,255,255,0.35)',
-                                  transition: 'all 0.1s' }}>
-                                {t}
-                              </button>
-                            ))}
+                          {/* State key name */}
+                          <div style={{ width: '100%' }}>
+                            <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)',
+                              textTransform: 'uppercase', marginBottom: 3 }}>State Key Name</div>
+                            <input type="text" value={setup.stateKey}
+                              placeholder="e.g. prompt_text"
+                              onClick={e => e.stopPropagation()}
+                              onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev,
+                                [slot.id]: { ...prev[slot.id], stateKey: e.target.value } })); }}
+                              style={{ width: '100%', padding: '5px 8px', fontSize: 11,
+                                fontFamily: 'var(--font-mono)', color: slotColor, fontWeight: 700,
+                                background: 'rgba(0,0,0,0.4)', border: `1px solid ${slotColor}40`,
+                                outline: 'none', boxSizing: 'border-box' }} />
                           </div>
 
-                          {/* Description (optional) */}
-                          <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', marginBottom: 2, marginTop: 4 }}>Description <span style={{ opacity: 0.4 }}>(optional)</span></div>
-                          <input type="text" value={setup.stateDesc || ''}
-                            placeholder="e.g. current prompt sent to StreamDiffusion"
-                            onClick={e => e.stopPropagation()}
-                            onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateDesc: e.target.value } })); }}
-                            style={{ width: '100%', boxSizing: 'border-box', padding: '4px 8px', fontSize: 9,
-                              color: 'rgba(255,255,255,0.5)', background: 'rgba(0,0,0,0.3)',
-                              border: '1px solid rgba(255,255,255,0.07)', outline: 'none' }}
-                          />
+                          {/* Type chips */}
+                          <div style={{ width: '100%' }}>
+                            <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)',
+                              textTransform: 'uppercase', marginBottom: 4 }}>Type</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                              {(['string','number','boolean','color','vector2','vector3','range','enum','array','object'] as const).map(t => (
+                                <button key={t} onClick={e => { e.stopPropagation();
+                                  setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateType: t } })); }}
+                                  style={{ fontSize: 8, padding: '2px 6px', cursor: 'pointer',
+                                    fontFamily: 'var(--font-mono)',
+                                    background: setup.stateType === t ? `${slotColor}25` : 'rgba(255,255,255,0.03)',
+                                    border: `1px solid ${setup.stateType === t ? slotColor+'70' : 'rgba(255,255,255,0.08)'}`,
+                                    color: setup.stateType === t ? slotColor : 'rgba(255,255,255,0.3)',
+                                    transition: 'all 0.1s' }}>{t}</button>
+                              ))}
+                            </div>
+                          </div>
 
-                          <div style={{ display: 'flex', gap: 6, width: '100%', marginTop: 4 }}>
-                            <button className="slot-wizard-btn slot-wizard-btn-ghost" onClick={e => handleBack(slot.id, e)}>← Back</button>
-                            {/* + Add State — adds chip and stays on this step */}
-                            <button className="slot-wizard-btn slot-wizard-btn-primary"
-                              disabled={!setup.stateKey}
+                          {/* Description — optional */}
+                          <div style={{ width: '100%' }}>
+                            <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.2)',
+                              textTransform: 'uppercase', marginBottom: 3 }}>
+                              Description <span style={{ opacity: 0.5 }}>(optional)</span>
+                            </div>
+                            <input type="text" value={setup.stateDesc}
+                              placeholder="e.g. Current prompt sent to StreamDiffusion"
+                              onClick={e => e.stopPropagation()}
+                              onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev,
+                                [slot.id]: { ...prev[slot.id], stateDesc: e.target.value } })); }}
+                              style={{ width: '100%', padding: '5px 8px', fontSize: 9,
+                                background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.07)',
+                                color: 'rgba(255,255,255,0.5)', outline: 'none', boxSizing: 'border-box' }} />
+                          </div>
+
+                          {/* Action buttons */}
+                          <div style={{ display: 'flex', gap: 6, width: '100%' }}>
+                            <button className="slot-wizard-btn slot-wizard-btn-ghost"
+                              onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev,
+                                [slot.id]: { ...prev[slot.id], stage: 'slug' } })); }}>
+                              ← Back
+                            </button>
+                            <button
+                              className="slot-wizard-btn slot-wizard-btn-primary"
+                              style={{ flex: 1 }}
+                              disabled={!setup.stateKey.trim()}
                               onClick={e => {
                                 e.stopPropagation();
-                                if (!setup.stateKey) return;
+                                if (!setup.stateKey.trim()) return;
+                                // Immutable update — this is why chips appear
                                 setSetupState(prev => ({
                                   ...prev,
                                   [slot.id]: {
                                     ...prev[slot.id],
-                                    outputSignals: [...(prev[slot.id].outputSignals || []), { key: prev[slot.id].stateKey, type: prev[slot.id].stateType, desc: prev[slot.id].stateDesc || '' }],
-                                    stateKey: '',
-                                    stateDesc: '',
+                                    outputSignals: [
+                                      ...prev[slot.id].outputSignals,
+                                      { key: setup.stateKey.trim(), type: setup.stateType,
+                                        desc: setup.stateDesc, top: setup.selectedTop }
+                                    ],
+                                    stateKey: '', stateDesc: '', selectedTop: '',
                                   }
                                 }));
-                              }}
-                              style={{ flex: 1 }}>
+                              }}>
                               + Add State
                             </button>
-                            {/* Done — finishes wizard */}
-                            {setup.outputSignals && setup.outputSignals.length > 0 && (
-                              <button className="slot-wizard-btn slot-wizard-btn-primary"
-                                style={{ background: `${slotColor}20`, borderColor: slotColor, color: slotColor }}
+                            {setup.outputSignals.length > 0 && (
+                              <button
+                                className="slot-wizard-btn slot-wizard-btn-primary"
+                                style={{ background: `${slotColor}25`, borderColor: slotColor, color: slotColor }}
                                 onClick={e => handleReferenceComplete(slot.id, e)}>
-                                Done ✓
+                                Connect ✓
                               </button>
                             )}
                           </div>
                         </div>
                       )}
-
                     </div>
                   ) : (
                     /* ════ AVAILABLE — click to connect ════ */
