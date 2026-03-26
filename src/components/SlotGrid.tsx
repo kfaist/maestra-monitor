@@ -363,7 +363,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   }}>
                     <span style={{
                       fontSize: 7, fontFamily: 'var(--font-display)', letterSpacing: '0.1em',
-                      color: 'rgba(255,255,255,0.2)', marginRight: 3, whiteSpace: 'nowrap',
+                      color: 'rgba(255,255,255,0.18)', marginRight: 3, whiteSpace: 'nowrap',
                       textTransform: 'uppercase',
                     }}>Server Mode: //</span>
                     {modes.map(({ key, label, color }) => {
@@ -375,9 +375,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             fontSize: 7, fontFamily: 'var(--font-display)', fontWeight: 700,
                             letterSpacing: '0.08em', textTransform: 'uppercase',
                             padding: '1px 5px', cursor: 'pointer',
-                            background: active ? `${color}20` : 'none',
-                            border: `1px solid ${active ? color + '55' : 'rgba(255,255,255,0.15)'}`,
-                            color: active ? color : 'rgba(255,255,255,0.5)',
+                            background: active ? `${color}18` : 'none',
+                            border: `1px solid ${active ? color + '55' : 'rgba(255,255,255,0.06)'}`,
+                            color: active ? color : 'rgba(255,255,255,0.18)',
                             transition: 'all 0.12s',
                           }}
                         >{label}</button>
@@ -910,7 +910,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         <div style={{ fontSize: 28, opacity: 0.25, lineHeight: 1 }}>↓</div>
                         <div style={{ fontSize: 11, color: slotColor, fontWeight: 700, letterSpacing: '0.08em' }}>
                           <a
-                            href='https://github.com/jordansnyder/maestra-core/releases/latest'
+                            href='/maestra.tox'
                             target='_blank'
                             rel='noopener noreferrer'
                             onClick={e => e.stopPropagation()}
@@ -924,7 +924,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       </div>
                       {/* Download link — secondary, dim */}
                       <a
-                        href='https://github.com/jordansnyder/maestra-core/releases/latest'
+                        href='/maestra.tox'
                         target='_blank' rel='noreferrer'
                         onClick={(e) => e.stopPropagation()}
                         style={{
