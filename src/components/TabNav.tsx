@@ -7,7 +7,6 @@ interface TabNavProps {
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
-  { id: 'scope', label: 'Cloud Nodes' },
   { id: 'tox', label: 'TOX Reference' },
 ];
 
@@ -26,3 +25,4 @@ export default function TabNav({ activeTab, onTabChange }: TabNavProps) {
     </nav>
   );
 }
+
