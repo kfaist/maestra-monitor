@@ -827,8 +827,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                       style={{ width:'100%', padding:'5px 8px', fontSize:10,
                                         fontFamily:'var(--font-mono)', background:'rgba(0,0,0,0.6)',
                                         border:`1px solid ${slotColor}40`, color:slotColor, outline:'none' }}>
-                                      <option value="">— select node —</option>
-                                      {nodes.map(n => <option key={n} value={n} style={{background:'#0a0a14'}}>{n}</option>)}
+                                      <option value="">— select component —</option>
+                                      {nodes.map(n => <option key={n} value={n} style={{background:'#0a0a14'}}>{n.split('/').pop()}</option>)}
                                     </select>
                                   ) : (
                                     <div style={{ fontSize:9, color:'rgba(255,255,255,0.2)', fontFamily:'var(--font-mono)', padding:'4px 0' }}>
@@ -841,7 +841,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 {selNode && (
                                   <div style={{ width: '100%' }}>
                                     <div style={{ fontSize:7, letterSpacing:'0.1em', color:'rgba(255,255,255,0.25)', textTransform:'uppercase', marginBottom:3 }}>
-                                      Parameter / TOP
+                                      Output TOP
                                     </div>
                                     {nodeParams.length > 0 ? (
                                       <select value={selParam} onClick={e => e.stopPropagation()}
@@ -857,10 +857,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                         style={{ width:'100%', padding:'5px 8px', fontSize:10,
                                           fontFamily:'var(--font-mono)', background:'rgba(0,0,0,0.6)',
                                           border:`1px solid ${slotColor}40`, color:slotColor, outline:'none' }}>
-                                        <option value="">— select TOP —</option>
-                                        {nodeParams.map(p => <option key={p} value={p} style={{background:'#0a0a14'}}>
-                                          {p.split('/').slice(2).join('/')}
-                                        </option>)}
+                                        <option value="">— select output TOP —</option>
+                                        {nodeParams.map(p => <option key={p} value={p} style={{background:'#0a0a14'}}>{p.split('/').pop()}</option>)}
                                       </select>
                                     ) : (
                                       <input type="text" value={selParam} placeholder="e.g. promptdict5concept"
