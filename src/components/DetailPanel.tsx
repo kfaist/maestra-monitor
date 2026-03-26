@@ -160,7 +160,34 @@ export default function DetailPanel({
         )}
       </div>
 
-      {/* Webcam Capture — controls only, no duplicate preview */}
+      {/* Stream FPS display — replaces START CAMERA button */}
+      <div style={{
+        padding: '10px 14px',
+        background: 'var(--surface)',
+        borderBottom: '1px solid var(--border)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+            background: slot?.active ? 'var(--active)' : 'var(--text-dim)',
+            boxShadow: slot?.active ? '0 0 6px var(--active)' : 'none',
+          }} />
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', color: slot?.active ? 'var(--active)' : 'var(--text-dim)' }}>
+            {slot?.active ? 'STREAMING' : 'NO SIGNAL'}
+          </span>
+          {slot?.fps ? (
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: 'var(--text-bright)', letterSpacing: '0.04em' }}>
+              {slot.fps} <span style={{ fontSize: 9, color: 'var(--text-dim)', fontWeight: 400 }}>FPS</span>
+            </span>
+          ) : null}
+        </div>
+        {slot?.entity_id && (
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-dim)', opacity: 0.6 }}>{slot.entity_id}</span>
+        )}
+      </div>
+
+      {/* Webcam Capture — hidden controls only */}
       <WebcamCapture
         active={webcamActive}
         onActiveChange={onWebcamToggle}
