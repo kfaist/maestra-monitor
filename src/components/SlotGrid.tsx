@@ -682,12 +682,17 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         <div className="slot-wizard-content">
                           <div className="slot-wizard-title">Assign State</div>
                           <div className="slot-wizard-hint">
-                            {setup.role === 'send' ? 'This node publishes a state key:' : setup.role === 'receive' ? 'This node listens for a state key:' : 'State key this node reads and writes:'}
+                            {setup.role === 'send'
+                              ? <>↑ <strong>output</strong> — this node writes this key to the network</>
+                              : setup.role === 'receive'
+                              ? <>↓ <strong>input</strong> — this node reads this key when another entity writes it</>
+                              : <>↕ <strong>bidirectional</strong> — reads and writes this key</>
+                            }
                           </div>
                           <input
                             type="text"
                             value={setup.stateKey}
-                            placeholder={setup.role === 'send' ? 'e.g. prompt_text' : setup.role === 'receive' ? 'e.g. lighting.scene' : 'e.g. audio.rms'}
+                            placeholder={setup.role === 'send' ? 'e.g. prompt_text, audio_amplitude' : setup.role === 'receive' ? 'e.g. active_cue_id, lighting.scene' : 'e.g. audio.rms'}
                             onClick={(e) => e.stopPropagation()}
                             onChange={(e) => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateKey: e.target.value } })); }}
                             style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#e5f9ff', outline: 'none' }}
@@ -701,6 +706,35 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               <>↕ <strong style={{ color: '#f59e0b' }}>reads & writes</strong> <span style={{ fontFamily: 'var(--font-mono)', color: '#e5f9ff' }}>{setup.stateKey || 'key'}</span> <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span> <span style={{ fontFamily: 'var(--font-mono)', color: '#a78bfa' }}>{setup.stateType}</span></>
                             )}
                           </div>
+                          {/* Quick-fill from known entities */}
+                          {(setup.role === 'receive' || setup.role === 'two_way') && (
+                            <div style={{ width: '100%' }}>
+                              <div style={{ fontSize: 7, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 4 }}>Quick-fill from known entities</div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                                {[
+                                  { slug: 'krista1_visual', key: 'prompt_text', type: 'string', color: '#00d4ff' },
+                                  { slug: 'krista1_visual', key: 'audio_amplitude', type: 'float', color: '#a78bfa' },
+                                  { slug: 'krista1_visual', key: 'visitor_present', type: 'boolean', color: '#34d399' },
+                                  { slug: 'dmx-lighting', key: 'active_cue_id', type: 'string', color: '#f59e0b' },
+                                  { slug: 'dmx-lighting', key: 'active_sequence_id', type: 'string', color: '#f472b6' },
+                                  { slug: 'audio', key: 'audio.rms', type: 'float', color: '#059669' },
+                                  { slug: 'audio', key: 'audio.bass', type: 'float', color: '#db2777' },
+                                  { slug: 'audio', key: 'audio.bpm', type: 'float', color: '#f59e0b' },
+                                ].map(item => (
+                                  <button
+                                    key={item.key}
+                                    onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateKey: item.key, stateType: item.type } })); }}
+                                    style={{
+                                      fontSize: 8, padding: '2px 6px', cursor: 'pointer',
+                                      background: `${item.color}12`, border: `1px solid ${item.color}40`,
+                                      color: item.color, fontFamily: 'var(--font-mono)',
+                                    }}
+                                  >{item.key}</button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
                           {/* Type picker */}
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, width: '100%' }}>
                             {['string','number','boolean','color','vector2','vector3','range','enum','array','object'].map(t => (
