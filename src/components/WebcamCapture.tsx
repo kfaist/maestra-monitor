@@ -276,8 +276,8 @@ export default function WebcamCapture({
 
   return (
     <div className="webcam-capture">
-      {/* ═══ NOT ACTIVE — big prominent Start button ═══ */}
-      {!active && status !== 'requesting' && (
+      {/* ═══ NOT ACTIVE — big prominent Start button (hidden when hidePreview) ═══ */}
+      {!hidePreview && !active && status !== 'requesting' && (
         <button
           onClick={() => onActiveChange(true)}
           style={{
