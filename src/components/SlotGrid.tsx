@@ -525,6 +525,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         {(() => {
                           const s = (entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.server as string | undefined;
                           if (!s) return '—';
+                          if (s.includes('192.168')) return '⚡ Local · ' + s.replace('http://','').replace('https://','');
+                          if (s.includes('railway')) return '☁ Railway';
                           return s.replace('https://','').replace('http://','').slice(0,28);
                         })()}
                       </span>
