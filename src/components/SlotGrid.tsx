@@ -4,7 +4,7 @@ import { SLOT_COLORS } from './SignalPanel';
 import { useState, useEffect, useCallback } from 'react';
 import { FleetSlot, slotStatusLabel, slotStatusClass, formatAge, EventEntry } from '@/types';
 
-type InlineStage = 'idle' | 'connect' | 'direction' | 'addState';
+type InlineStage = 'idle' | 'connect' | 'slug' | 'addState';
 type NodeRole = 'receive' | 'send' | 'two_way';
 type SignalSource = 'touchdesigner' | 'json_stream' | 'osc' | 'audio_reactive' | 'text' | 'test_signal';
 
@@ -461,7 +461,10 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     setSetupState(prev => {
       const current = prev[slot.id];
       if (current && current.stage !== 'idle') return prev; // DON'T RESET
-      return { ...prev, [slot.id]: { stage: 'connect', slug: '', refFile: null, direction: null, selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [], streamType: '', selectedNode: '' , nodeSearch: '', opSearch: '' } };
+      // Prefill slug from entity data if available
+      const existingSlug = slot.entity_id || slot.slug || '';
+      const startStage: InlineStage = existingSlug ? 'addState' : 'connect';
+      return { ...prev, [slot.id]: { stage: startStage, slug: existingSlug, refFile: null, direction: 'send' as NodeRole, selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [], streamType: '', selectedNode: '' , nodeSearch: '', opSearch: '' } };
     });
   }, [onSelectSlot]); // NO setupState in deps
 
@@ -469,7 +472,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     e.stopPropagation();
     setSetupState(prev => ({
       ...prev,
-      [slotId]: { ...prev[slotId], stage: 'direction' },
+      [slotId]: { ...prev[slotId], stage: 'slug' },
     }));
   }, []);
 
@@ -518,8 +521,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     e.stopPropagation();
     setSetupState(prev => {
       const s = prev[slotId]?.stage;
-      if (s === 'addState')  return { ...prev, [slotId]: { ...prev[slotId], stage: 'direction' } };
-      if (s === 'direction') return { ...prev, [slotId]: { ...prev[slotId], stage: 'connect' } };
+      if (s === 'addState')  return { ...prev, [slotId]: { ...prev[slotId], stage: 'slug' } };
+      if (s === 'slug') return { ...prev, [slotId]: { ...prev[slotId], stage: 'connect' } };
       return prev;
     });
   }, []);
@@ -980,7 +983,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       <div style={{ display: 'flex', gap: 5, marginTop: 6, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                         <button
                           onClick={e => { e.stopPropagation();
-                            setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'addState' } }));
+                            setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], direction: 'send' as NodeRole, stage: 'addState' } }));
                           }}
                           style={{ fontSize: 8, padding: '2px 8px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
                             background: `${slotColor}12`, border: `1px solid ${slotColor}40`, color: slotColor,
@@ -1538,7 +1541,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <div className="slot-inline-wizard">
                       {/* Step dots: 4 stages */}
                       <div className="slot-wizard-steps">
-                        {(['connect','direction','addState'] as InlineStage[]).map((s, i, arr) => (
+                        {(['connect','slug','addState'] as InlineStage[]).map((s, i, arr) => (
                           <span key={s} style={{ display: 'flex', alignItems: 'center' }}>
                             <span className={`slot-wizard-dot ${
                               setup.stage === s ? 'active' :
@@ -1590,19 +1593,19 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 const f = e.target.files?.[0];
                                 if (f) {
                                   const derived = f.name.replace(/\.(toe|tox)$/i,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-                                  setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], refFile: f.name, slug: derived, stage: 'direction' } }));
+                                  setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], refFile: f.name, slug: derived, stage: 'slug' } }));
                                 }
                               }} />
                           </label>
                         </div>
                       )}
 
-                      {/* ══ STAGE: direction ══ */}
-                       {setup.stage === 'direction' && (
+                      {/* ══ STAGE: slug ══ */}
+                       {setup.stage === 'slug' && (
                         <div className="slot-wizard-content">
-                          <div className="slot-wizard-title" style={{ color: slotColor }}>Select Your Node</div>
+                          <div className="slot-wizard-title" style={{ color: slotColor }}>Name Your Slot</div>
                           <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginBottom: 6, textAlign: 'center' }}>
-                            Pick the TD project you want to connect to this slot
+                            {setup.slug ? 'Confirm or edit the slug for this slot' : 'Pick an existing entity or type a new slug'}
                           </div>
                           <EntityPicker
                             slotColor={slotColor}
@@ -1623,7 +1626,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'addState' } }));
                                 onSlotSetupComplete?.(slot.id, 'send' as NodeRole, 'touchdesigner' as SignalSource);
                               }}>
-                              {setup.slug.trim() ? `Connect "${setup.slug}" →` : 'Select a node first'}
+                              {setup.slug.trim() ? `Continue as "${setup.slug}" →` : 'Enter a slug first'}
                             </button>
                           </div>
                         </div>
@@ -1949,7 +1952,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           <div style={{ display: 'flex', gap: 6, width: '100%' }}>
                             <button className="slot-wizard-btn slot-wizard-btn-ghost"
                               onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev,
-                                [slot.id]: { ...prev[slot.id], stage: 'direction' } })); }}>
+                                [slot.id]: { ...prev[slot.id], stage: 'slug' } })); }}>
                               ← Back
                             </button>
                             <button
@@ -1968,7 +1971,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                       ...(prev[slot.id].outputSignals || []),
                                       { key: setup.stateKey.trim(), type: setup.stateType,
                                         desc: setup.stateDesc, top: setup.selectedTop, streamType: setup.streamType || '',
-                                        signalDir: prev[slot.id].direction === 'send' ? 'output' : 'input' }
+                                        signalDir: 'output' }
                                     ],
                                     stateKey: '', stateDesc: '', selectedTop: '',
                                   }
@@ -2150,7 +2153,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <span className={`slot-state-badge ${stateBadge.cls}`}>{stateBadge.text}</span>
                   ) : inSetup ? (
                     <span className="slot-tag setup-tag">
-                      {setup.stage === 'connect' ? 'Setting up…' : setup.stage === 'direction' ? 'Direction' : 'Add State'}
+                      {setup.stage === 'connect' ? 'Setting up…' : setup.stage === 'slug' ? 'Naming…' : 'Add State'}
                     </span>
                   ) : (
                     <span className="slot-tag available-tag">
