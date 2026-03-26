@@ -28,6 +28,7 @@ import { WSSimulator } from '@/mock/ws-simulator';
 import { API_BASE } from '@/mock/gpu-nodes';
 import { GALLERY_URL, RAILWAY_URL } from '@/components/Header';
 import GlobalOutBar from '@/components/GlobalOutBar';
+import EntityPatchBay from '@/components/EntityPatchBay';
 import { formatTimestamp } from '@/lib/audio-utils';
 import { FRAME_FETCH_INTERVAL } from '@/lib/constants';
 import {
@@ -1560,11 +1561,14 @@ export default function Home() {
               onP6Flush={p6Flush}
             />
 
-                        {/* Global OUT bar — drag chips to slot IN zones */}
-            <GlobalOutBar
+                        {/* Entity Patch Bay — signal routing, drag OUT chips to slot IN zones */}
+            <EntityPatchBay
               slots={slots}
-              sendTarget={sendTarget}
-              onSendTargetChange={setSendTarget}
+              entityStates={entityStates}
+              liveValues={{}}
+              onApplyGlobal={(sigId, val) => {
+                broadcastPrompt(String(val));
+              }}
             />
 
             <AudioAnalysis audioData={audioData} onSendAudio={sendToTarget} />
