@@ -1531,8 +1531,27 @@ export default function Home() {
         serverMode={serverMode}
         onServerModeChange={handleServerModeChange}
       />
+      <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
-                        {/* Entity Patch Bay — signal routing, drag OUT chips to slot IN zones */}
+      {/* DASHBOARD TAB */}
+      <div className={`tab-content ${activeTab === 'dashboard' ? 'active' : ''}`}>
+        <div className="fleet-layout">
+
+          {/* Left: Slot Grid + Patch Bay + Audio + Scenes + DMX + Palette + Modulation */}
+          <div className="fleet-panel">
+            <SlotGrid
+              slots={slots}
+              selectedId={selectedId}
+              onSelectSlot={selectSlot}
+              onAddSlot={addSlot}
+              onJoinNode={() => setJoinModalOpen(true)}
+              onSlotSetupComplete={handleSlotSetupComplete}
+              onInjectSignal={handleInjectSignal}
+              eventEntries={eventEntries}
+              entityStates={entityStates}
+            />
+
+            {/* Entity Patch Bay — signal routing */}
             <EntityPatchBay
               slots={slots}
               entityStates={entityStates}
@@ -1543,7 +1562,6 @@ export default function Home() {
             />
 
             <AudioAnalysis audioData={audioData} onSendAudio={sendToTarget} />
-
 
             <ScenePanel
               onActivateScene={handleActivateScene}
@@ -1599,11 +1617,6 @@ export default function Home() {
         </div>
 
         <UseCases />
-      </div>
-
-      {/* CLOUD NODES TAB */}
-      <div className={`tab-content ${activeTab === 'scope' ? 'active' : ''}`}>
-        <CloudNodesTab />
       </div>
 
       {/* TOX REFERENCE TAB */}
