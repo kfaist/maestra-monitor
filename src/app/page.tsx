@@ -455,9 +455,16 @@ export default function Home() {
   const connectWS = useCallback(() => {
     if (wsRef.current && (wsRef.current.readyState === 0 || wsRef.current.readyState === 1)) return;
 
-    const activeBase = serverModeRef.current === 'gallery' ? GALLERY_URL : RAILWAY_URL;
+    // Railway backend has no WebSocket — only connect in gallery mode (on-site)
+    if (serverModeRef.current === 'railway') {
+      setWsStatus('offline');
+      log('Railway mode: WebSocket not available — switch to Gallery on-site', 'warn');
+      return;
+    }
+
+    const activeBase = GALLERY_URL;
     const WS_URL = activeBase.replace('https', 'wss').replace('http', 'ws') + '/ws';
-    log('Connecting to WebSocket...', 'info');
+    log('Connecting to Gallery WebSocket...', 'info');
     setWsStatus('connecting');
 
     try {
