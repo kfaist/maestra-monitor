@@ -45,7 +45,7 @@ export default function Home() {
   const serverModeRef = useRef<ServerMode>('auto');
   const customUrlRef = useRef('');
   const [apiStatus, setApiStatus] = useState<'online' | 'offline'>('offline');
-  const [slots, setSlots] = useState<FleetSlot[]>([]); // populated from GET /entities
+  const [slots, setSlots] = useState<FleetSlot[]>(createInitialSlots); // seeded from mock, hydrated from server
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [eventEntries, setEventEntries] = useState<EventEntry[]>([]);
