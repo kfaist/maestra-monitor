@@ -65,7 +65,7 @@ body::before {
   width: 100%;
   height: 100%;
   background: transparent;
-  overflow: hidden;
+  overflow: auto;
   z-index: -1;
   pointer-events: none;
 }
@@ -363,9 +363,9 @@ header {
   animation: busFadeIn 0.3s ease;
 }
 @keyframes busFadeIn { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: translateX(0); } }
-.entity-bus-key { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.entity-bus-key { color: var(--text); white-space: nowrap; overflow: auto; text-overflow: ellipsis; }
 .entity-bus-arrow { color: var(--text-dim); opacity: 0.4; flex-shrink: 0; }
-.entity-bus-val { color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.entity-bus-val { color: var(--accent); white-space: nowrap; overflow: auto; text-overflow: ellipsis; }
 
 .event-log { border-top: 1px solid var(--border); padding: 10px 16px; flex-shrink: 0; }
 .event-log-title { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
@@ -407,7 +407,7 @@ header {
   font-family: var(--font-display); font-weight: 700; letter-spacing: 0.08em;
 }
 .inject-progress {
-  flex: 1; height: 2px; background: rgba(0,255,136,0.1); border-radius: 1px; overflow: hidden;
+  flex: 1; height: 2px; background: rgba(0,255,136,0.1); border-radius: 1px; overflow: auto;
 }
 .inject-progress-fill {
   height: 100%; background: var(--active); border-radius: 1px;
@@ -459,12 +459,12 @@ header {
 .entity-count { font-size: 10px; color: var(--text-dim); background: var(--surface2); border: 1px solid var(--border); padding: 3px 8px; border-radius: 2px; letter-spacing: 0.05em; }
 
 /* SLOT GRID */
-.slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px; }
+.slot-grid { overflow-y: auto !important; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px; }
 .slot {
   background: color-mix(in srgb, var(--slot-color, var(--accent)) 5%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--slot-color, var(--border)) 50%, transparent);
   border-radius: 4px;
-  overflow: hidden;
+  overflow: auto;
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
   position: relative;
@@ -480,7 +480,7 @@ header {
 .slot.locked-slot { cursor: default; }
 .slot.locked-slot::after { content: ''; position: absolute; inset: 0; border: 2px solid var(--slot-color, var(--active)); border-radius: 4px; pointer-events: none; opacity: 0.6; animation: lockPulse 2s ease-in-out infinite; }
 @keyframes lockPulse { 0%,100% { opacity: 0.4; } 50% { opacity: 0.9; } }
-.slot-video-area { width: 100%; aspect-ratio: 16/9; background: var(--slot-empty); position: relative; overflow: hidden; }
+.slot-video-area { width: 100%; aspect-ratio: 16/9; background: var(--slot-empty); position: relative; overflow: auto; }
 .slot-video-area img { width: 100%; height: 100%; object-fit: cover; display: block; will-change: contents; image-rendering: auto; }
 
 .slot-suggestion { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: 14px 16px; gap: 4px; }
@@ -550,7 +550,7 @@ header {
 /* Entity ID tag under slot label */
 .slot-entity-tag { display: flex; align-items: center; gap: 4px; }
 .slot-entity-label { font-family: var(--font-display); font-size: 7px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--text-dim); opacity: 0.5; }
-.slot-entity-id { font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--accent); opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slot-entity-id { font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--accent); opacity: 0.7; overflow: auto; text-overflow: ellipsis; white-space: nowrap; }
 
 /* State badge for active slots */
 .slot-state-badge {
@@ -609,7 +609,7 @@ header {
   background: var(--surface); overflow-y: auto; max-height: 420px;
 }
 .live-node-thumb {
-  position: relative; width: 100%; aspect-ratio: 16/7; background: var(--slot-empty); overflow: hidden; flex-shrink: 0;
+  position: relative; width: 100%; aspect-ratio: 16/7; background: var(--slot-empty); overflow: auto; flex-shrink: 0;
 }
 .live-node-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .live-node-thumb-placeholder {
@@ -639,7 +639,7 @@ header {
   font-size: 9px; line-height: 1.5;
 }
 .live-kv-key { color: var(--text-dim); font-weight: 600; letter-spacing: .04em; white-space: nowrap; }
-.live-kv-val { color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-kv-val { color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 9px; overflow: auto; text-overflow: ellipsis; white-space: nowrap; }
 .live-kv-val.val-ok { color: var(--active); }
 .live-kv-val.val-warn { color: var(--amber); }
 
@@ -670,11 +670,11 @@ header {
 .live-state-row:nth-child(odd) { background: rgba(255,255,255,0.02); }
 .live-state-key {
   color: var(--text-dim); flex-shrink: 0; white-space: nowrap;
-  max-width: 50%; overflow: hidden; text-overflow: ellipsis;
+  max-width: 50%; overflow: auto; text-overflow: ellipsis;
 }
 .live-state-val {
   color: #a78bfa; text-align: right; white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis; font-weight: 500;
+  overflow: auto; text-overflow: ellipsis; font-weight: 500;
 }
 .live-state-more { color: var(--text-dim); opacity: 0.5; font-style: italic; font-size: 9px; }
 
@@ -699,7 +699,7 @@ header {
 .live-activity-log { display: flex; flex-direction: column; gap: 2px; max-height: 64px; overflow-y: auto; }
 .live-activity-row { display: flex; gap: 6px; font-size: 8px; line-height: 1.4; }
 .live-activity-time { color: var(--text-dim); font-family: 'JetBrains Mono', monospace; white-space: nowrap; flex-shrink: 0; }
-.live-activity-msg { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-activity-msg { color: var(--text); overflow: auto; text-overflow: ellipsis; white-space: nowrap; }
 
 .live-source-form { display: flex; flex-direction: column; gap: 6px; }
 .live-source-upload {
@@ -710,7 +710,7 @@ header {
 }
 .live-source-upload:hover { border-color: rgba(0,212,255,0.4); background: rgba(0,212,255,0.05); }
 .live-source-upload-icon { font-size: 20px; color: var(--accent); }
-.live-source-upload-text { font-size: 13px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-source-upload-text { font-size: 13px; color: var(--text-dim); overflow: auto; text-overflow: ellipsis; white-space: nowrap; }
 
 .live-empty { font-size: 8px; color: var(--text-dim); opacity: 0.5; font-style: italic; }
 
@@ -730,7 +730,7 @@ header {
   letter-spacing: .06em; text-transform: uppercase; padding: 8px 16px;
   border-radius: 3px; border: 1px solid rgba(255,255,255,0.08);
   background: rgba(255,255,255,0.03); color: var(--text-dim);
-  cursor: pointer; transition: all 0.2s ease; position: relative; overflow: hidden;
+  cursor: pointer; transition: all 0.2s ease; position: relative; overflow: auto;
 }
 .scene-btn::before {
   content: ''; position: absolute; inset: 0; opacity: 0;
@@ -804,8 +804,8 @@ header {
   padding: 4px 0; border-top: 1px solid rgba(255,255,255,0.04);
 }
 .scene-bar-sending-label { color: var(--active); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; flex-shrink: 0; }
-.scene-bar-sending-text { color: var(--text); opacity: 0.7; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'JetBrains Mono', monospace; font-size: 9px; }
-.scene-bar-progress { width: 40px; height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+.scene-bar-sending-text { color: var(--text); opacity: 0.7; flex: 1; overflow: auto; text-overflow: ellipsis; white-space: nowrap; font-family: 'JetBrains Mono', monospace; font-size: 9px; }
+.scene-bar-progress { width: 40px; height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: auto; flex-shrink: 0; }
 .scene-bar-progress-fill { height: 100%; background: var(--accent); transition: width 1s linear; border-radius: 2px; }
 .scene-bar-countdown { font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--text-dim); flex-shrink: 0; }
 .scene-bar-p6 {
@@ -829,7 +829,7 @@ header {
   color: var(--accent); background: rgba(0,212,255,0.08);
   border: 1px solid rgba(0,212,255,0.25); padding: 2px 8px; border-radius: 3px;
 }
-.detail-video-container { width: 100%; aspect-ratio: 16/9; background: #000; position: relative; overflow: hidden; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.detail-video-container { width: 100%; aspect-ratio: 16/9; background: #000; position: relative; overflow: auto; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .detail-video-container img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .detail-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; }
 .detail-placeholder svg { opacity: 0.15; }
@@ -982,7 +982,7 @@ header {
 }
 .sp-auto-progress {
   flex: 1; height: 3px; background: rgba(255, 159, 67, 0.12);
-  border-radius: 2px; overflow: hidden;
+  border-radius: 2px; overflow: auto;
 }
 .sp-auto-fill {
   height: 100%; background: #ff9f43; border-radius: 2px;
@@ -1025,7 +1025,7 @@ header {
   margin-top: 1.5rem;
   margin-bottom: 1.5rem;
   position: relative;
-  overflow: hidden;
+  overflow: auto;
 }
 .audio-analysis-section::before {
   content: '';
@@ -1042,7 +1042,7 @@ header {
 .aa-toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: rgb(80,220,220); transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); box-shadow: 0 0 8px rgba(80,220,220,0.8); }
 .aa-toggle.on::after { transform: translateX(16px); }
 
-.aa-tabs { display: flex; gap: 0; margin-bottom: 1.25rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; width: fit-content; }
+.aa-tabs { display: flex; gap: 0; margin-bottom: 1.25rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; overflow: auto; width: fit-content; }
 .aa-tab { padding: 0.35rem 1rem; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; background: transparent; color: rgba(255,255,255,0.4); border: none; font-family: 'JetBrains Mono', monospace; transition: all 0.2s; border-right: 1px solid rgba(255,255,255,0.1); }
 .aa-tab:last-child { border-right: none; }
 .aa-tab.active { background: rgba(80,220,220,0.12); color: rgb(80,220,220); box-shadow: inset 0 0 12px rgba(80,220,220,0.08); }
@@ -1051,7 +1051,7 @@ header {
 .aa-band { display: flex; align-items: center; gap: 0.6rem; }
 .aa-band-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 6px currentColor; }
 .aa-band-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.55; min-width: 45px; }
-.aa-band-track { flex: 1; height: 4px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; position: relative; }
+.aa-band-track { flex: 1; height: 4px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: auto; position: relative; }
 .aa-band-fill { height: 100%; border-radius: 2px; transition: width 0.08s ease-out; position: relative; }
 .aa-band-fill::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 3px; background: rgba(255,255,255,0.6); border-radius: 1px; filter: blur(1px); }
 .aa-band-val { font-size: 0.7rem; min-width: 24px; text-align: right; opacity: 0.7; }
@@ -1301,7 +1301,7 @@ header {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
-  overflow: hidden;
+  overflow: auto;
   transition: border-color 0.2s;
 }
 .td-section.expanded {
@@ -1382,7 +1382,7 @@ header {
 }
 .td-connect-value {
   flex: 1; font-family: var(--font-mono); font-size: 10px;
-  color: #ccd; overflow: hidden; text-overflow: ellipsis;
+  color: #ccd; overflow: auto; text-overflow: ellipsis;
   white-space: nowrap;
 }
 .td-connect-entity { color: #5cc8ff; }
@@ -1818,7 +1818,7 @@ header {
 .td-live-panel {
   border: 1px solid rgba(34,197,94,0.2);
   border-radius: 8px;
-  overflow: hidden;
+  overflow: auto;
   margin-top: 6px;
 }
 .td-live-section {
@@ -2121,10 +2121,10 @@ header {
 .tox-param-list { font-size: 10px; color: var(--text-dim); line-height: 1.85; }
 
 /* GPU NODE CARDS */
-.gpu-node-card { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s; }
+.gpu-node-card { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; overflow: auto; transition: border-color 0.2s, box-shadow 0.2s; }
 .gpu-node-card.active-node { border-color: var(--active); box-shadow: 0 0 0 1px var(--active), 0 0 20px rgba(0,255,136,0.12); }
 .gpu-node-card.previewing { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-.gpu-node-video { width: 100%; aspect-ratio: 16/9; background: #000; position: relative; overflow: hidden; }
+.gpu-node-video { width: 100%; aspect-ratio: 16/9; background: #000; position: relative; overflow: auto; }
 .gpu-node-video img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .gpu-node-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
 .gpu-node-placeholder p { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); opacity: 0.4; }
@@ -2207,7 +2207,7 @@ footer a:hover { text-decoration: underline; }
   color: var(--accent);
   margin-left: auto;
   max-width: 120px;
-  overflow: hidden;
+  overflow: auto;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2342,7 +2342,7 @@ footer a:hover { text-decoration: underline; }
 .webcam-preview {
   margin-top: 8px;
   border-radius: 6px;
-  overflow: hidden;
+  overflow: auto;
   background: #000;
   aspect-ratio: 16/9;
   position: relative;
@@ -2495,7 +2495,7 @@ footer a:hover { text-decoration: underline; }
 }
 .node-id {
   white-space: nowrap;
-  overflow: hidden;
+  overflow: auto;
   text-overflow: ellipsis;
   max-width: 150px;
 }
@@ -2561,7 +2561,7 @@ footer a:hover { text-decoration: underline; }
   display: inline-block; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
 }
 .lp-progress-bar {
-  width: 100%; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden;
+  width: 100%; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: auto;
 }
 .lp-progress-fill {
   height: 100%; background: linear-gradient(90deg, #f59e0b, #fbbf24);
@@ -2672,3 +2672,8 @@ footer a:hover { text-decoration: underline; }
 .slot-footer select:focus { outline: none; }
 .slot-footer select option { background: #0a0a14; }
 
+
+/* Fix slot overflow — allow content to show */
+.slot { overflow: visible !important; }
+.slot-grid { overflow-y: auto !important; max-height: none !important; }
+.panel-body { overflow-y: auto !important; }
