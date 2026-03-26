@@ -108,6 +108,94 @@ function getListeningSignals(slot: FleetSlot): string[] {
   return ['prompt.keyword', 'lighting.scene'];
 }
 
+
+// ── EntityPicker: shows connected entities + lets you type a slug ─────────
+function EntityPicker({ slotColor, current, onSelect }: {
+  slotColor: string;
+  current: string;
+  onSelect: (slug: string) => void;
+}) {
+  const [entities, setEntities] = useState<{slug:string; name:string; status:string}[]>([]);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('https://maestra-backend-v2-production.up.railway.app/entities')
+      .then(r => r.json())
+      .then((data: unknown[]) => {
+        // Deduplicate by slug, filter to online/recent ones first
+        const seen = new Set<string>();
+        const list = data
+          .filter((e: unknown) => {
+            const en = e as Record<string,unknown>;
+            if (!en.slug || seen.has(String(en.slug))) return false;
+            seen.add(String(en.slug));
+            return true;
+          })
+          .map((e: unknown) => {
+            const en = e as Record<string,unknown>;
+            return { slug: String(en.slug), name: String(en.name||en.slug), status: String(en.status||'offline') };
+          })
+          .sort((a,b) => {
+            // Online first, then alphabetical
+            if (a.status === 'online' && b.status !== 'online') return -1;
+            if (b.status === 'online' && a.status !== 'online') return 1;
+            return a.slug.localeCompare(b.slug);
+          })
+          .slice(0, 200);
+        setEntities(list);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const filtered = search
+    ? entities.filter(e => e.slug.toLowerCase().includes(search.toLowerCase()) || e.name.toLowerCase().includes(search.toLowerCase()))
+    : entities;
+
+  return (
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <input
+        type="text"
+        value={search || current}
+        placeholder="search or type slug…"
+        autoFocus
+        onClick={e => e.stopPropagation()}
+        onChange={e => {
+          e.stopPropagation();
+          setSearch(e.target.value);
+          onSelect(e.target.value);
+        }}
+        style={{ width: '100%', padding: '6px 10px', fontSize: 12,
+          fontFamily: 'var(--font-mono)', color: slotColor, fontWeight: 700,
+          background: 'rgba(0,0,0,0.5)', border: `1px solid ${slotColor}50`,
+          outline: 'none', boxSizing: 'border-box' }}
+      />
+      {loading && <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-mono)' }}>loading nodes…</div>}
+      {!loading && filtered.length > 0 && (
+        <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.6)' }}>
+          {filtered.map(e => (
+            <div key={e.slug}
+              onClick={ev => { ev.stopPropagation(); onSelect(e.slug); setSearch(''); }}
+              style={{ padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+                background: current === e.slug ? `${slotColor}18` : 'transparent',
+                borderLeft: current === e.slug ? `2px solid ${slotColor}` : '2px solid transparent' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                background: e.status === 'online' ? '#4ade80' : 'rgba(255,255,255,0.2)' }} />
+              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: current === e.slug ? slotColor : 'rgba(255,255,255,0.7)', fontWeight: current === e.slug ? 700 : 400 }}>
+                {e.slug}
+              </span>
+              {e.name !== e.slug && (
+                <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', marginLeft: 'auto' }}>{e.name}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, onJoinNode, onSlotSetupComplete, onInjectSignal, onSourceUpdate, eventEntries = [], entityStates = {} }: SlotGridProps) {
   const activeCount = slots.filter(s => s.active).length;
   const hasActiveNodes = activeCount > 0;
