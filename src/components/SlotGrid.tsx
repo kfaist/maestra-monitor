@@ -518,7 +518,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <div className="live-section-head">Signals</div>
                     {publishing.length > 0 && (
                       <div className="live-signal-group">
-                        <span className="live-signal-dir">Publishing State</span>
+                        <span className="live-signal-dir">↑ Publishing</span>
                         <div className="live-signal-list">
                           {publishing.map(s => <span key={s} className="live-signal-tag pub">{s}</span>)}
                         </div>
@@ -526,7 +526,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     )}
                     {listening.length > 0 && (
                       <div className="live-signal-group">
-                        <span className="live-signal-dir">Listening State</span>
+                        <span className="live-signal-dir">↓ Listening</span>
                         <div className="live-signal-list">
                           {listening.map(s => <span key={s} className="live-signal-tag sub">{s}</span>)}
                         </div>
