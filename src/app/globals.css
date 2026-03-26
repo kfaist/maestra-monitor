@@ -2699,3 +2699,72 @@ footer a:hover { text-decoration: underline; }
 .slot { overflow: visible !important; }
 .slot-grid { overflow-y: auto !important; max-height: none !important; }
 .panel-body { overflow-y: auto !important; }
+
+
+/* ═══════════════════════════════════════════
+   SCALE FIX — slot card internals were huge
+═══════════════════════════════════════════ */
+
+/* Inject form inside slot cards */
+.live-inject-label { font-size: 10px !important; width: 36px !important; }
+.live-inject-input {
+  font-size: 11px !important;
+  padding: 5px 8px !important;
+}
+.live-inject-send {
+  font-size: 10px !important;
+  letter-spacing: 0.06em !important;
+  padding: 5px 14px !important;
+}
+
+/* Source upload row */
+.live-source-upload {
+  padding: 7px 10px !important;
+}
+.live-source-upload-icon { font-size: 14px !important; }
+.live-source-upload-text { font-size: 10px !important; }
+
+/* Slot wizard buttons */
+.slot-wizard-btn {
+  font-size: 11px !important;
+  padding: 8px 18px !important;
+}
+.slot-wizard-option {
+  font-size: 11px !important;
+  padding: 7px 10px !important;
+}
+.slot-wizard-option-icon { font-size: 13px !important; }
+
+/* Live node panel — cap height tighter */
+.live-node-panel { max-height: 360px !important; }
+.live-node-thumb { aspect-ratio: 16 / 6 !important; }
+
+/* Slot grid min size — don't let cards get too wide */
+.slot-grid {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+}
+
+/* Palette buttons — reduce min-height */
+.palette-btn { min-height: 36px !important; }
+
+/* Audio analysis live val */
+.aa-live-val { font-size: 0.85rem !important; }
+
+/* Slot wizard title */
+.slot-wizard-title { font-size: 9px !important; }
+
+/* Live section head — tighten */
+.live-section { padding: 6px 10px !important; }
+.live-section-head { font-size: 8px !important; margin-bottom: 4px !important; }
+
+/* Live KV grid */
+.live-kv-key, .live-kv-val { font-size: 9px !important; }
+
+/* Live state table rows */
+.live-state-table { font-size: 9px !important; }
+
+/* Live activity */
+.live-activity-row { font-size: 8px !important; }
+
+/* Slot footer select */
+.slot-footer select { font-size: 10px !important; }
