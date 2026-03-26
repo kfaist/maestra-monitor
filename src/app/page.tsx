@@ -785,6 +785,21 @@ export default function Home() {
 
       // Also update remoteEntityList
       setRemoteEntityList(entities.map(e => (e.slug as string) || String(e.id)));
+
+      // Fan-out: for each entity with state, trigger route-based forwarding
+      // (runs server-side via /api/fanout — lightweight, no client-side CORS issues)
+      entities.forEach(e => {
+        const slug = (e.slug as string) || String(e.id);
+        const state = (e.state as Record<string, unknown>) || {};
+        if (Object.keys(state).length > 0) {
+          fetch('/api/fanout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sourceSlug: slug, state, serverUrl: base }),
+          }).catch(() => {}); // fire and forget
+        }
+      });
+
       log(`[Server] ${entities.length} entities from ${base.replace('https://','').replace('http://','')}`, 'ok');
     } catch (err) {
       setServerConnected(false);

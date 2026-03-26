@@ -4,7 +4,7 @@ import { SLOT_COLORS } from './SignalPanel';
 import { useState, useEffect, useCallback } from 'react';
 import { FleetSlot, slotStatusLabel, slotStatusClass, formatAge, EventEntry } from '@/types';
 
-type InlineStage = 'idle' | 'connect' | 'slug' | 'addState';
+type InlineStage = 'idle' | 'connect' | 'slug' | 'direction' | 'addState';
 type NodeRole = 'receive' | 'send' | 'two_way';
 type SignalSource = 'touchdesigner' | 'json_stream' | 'osc' | 'audio_reactive' | 'text' | 'test_signal';
 
@@ -12,11 +12,12 @@ interface SlotSetup {
   stage: InlineStage;
   slug: string;
   refFile: string | null;
+  direction: NodeRole | null;
   selectedTop: string;
   stateKey: string;
   stateType: string;
   stateDesc: string;
-  outputSignals: Array<{ key: string; type: string; desc: string; top: string }>;
+  outputSignals: Array<{ key: string; type: string; desc: string; top: string; streamType?: string; signalDir?: 'output' | 'input' }>;
   streamType: string;
   selectedNode: string;
   nodeSearch: string;
@@ -245,14 +246,13 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
       onSelectSlot(slot.id);
       return;
     }
-    const current = setupState[slot.id];
-    if (current && current.stage !== 'idle') {
-      onSelectSlot(slot.id);
-      return;
-    }
     onSelectSlot(slot.id);
-    setSetupState(prev => ({ ...prev, [slot.id]: { stage: 'connect', slug: '', refFile: null, selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [], streamType: '', selectedNode: '' , nodeSearch: '', opSearch: '' } }));
-  }, [setupState, onSelectSlot]);
+    setSetupState(prev => {
+      const current = prev[slot.id];
+      if (current && current.stage !== 'idle') return prev; // DON'T RESET
+      return { ...prev, [slot.id]: { stage: 'connect', slug: '', refFile: null, direction: null, selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [], streamType: '', selectedNode: '' , nodeSearch: '', opSearch: '' } };
+    });
+  }, [onSelectSlot]); // NO setupState in deps
 
   const handleConnect = useCallback((slotId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -307,8 +307,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     e.stopPropagation();
     setSetupState(prev => {
       const s = prev[slotId]?.stage;
-      if (s === 'addState') return { ...prev, [slotId]: { ...prev[slotId], stage: 'slug' } };
-      if (s === 'slug')     return { ...prev, [slotId]: { ...prev[slotId], stage: 'connect' } };
+      if (s === 'addState')  return { ...prev, [slotId]: { ...prev[slotId], stage: 'direction' } };
+      if (s === 'direction') return { ...prev, [slotId]: { ...prev[slotId], stage: 'slug' } };
+      if (s === 'slug')      return { ...prev, [slotId]: { ...prev[slotId], stage: 'connect' } };
       return prev;
     });
   }, []);
@@ -342,6 +343,32 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     onSourceUpdate?.(slotId, sourceState[slotId]?.path || '', file.name);
   }, [sourceState, onSourceUpdate]);
 
+  // ═══ Origin-based color grouping: slots sharing the same .toe / source path get same color ═══
+  const originColorMap: Record<string, string> = (() => {
+    const seen: Record<string, string> = {};
+    let colorIdx = 0;
+    slots.forEach(slot => {
+      const src = (sourceState[slot.id]?.path || setupState[slot.id]?.refFile || '').trim().toLowerCase();
+      if (src && !(src in seen)) {
+        seen[src] = SLOT_COLORS[colorIdx % SLOT_COLORS.length];
+        colorIdx++;
+      }
+    });
+    return seen;
+  })();
+
+  /** Get origin color for a slot — falls back to index-based color */
+  const getSlotColor = (slot: FleetSlot, idx: number): string => {
+    const src = (sourceState[slot.id]?.path || setupState[slot.id]?.refFile || '').trim().toLowerCase();
+    if (src && originColorMap[src]) return originColorMap[src];
+    return SLOT_COLORS[idx % SLOT_COLORS.length];
+  };
+
+  /** Get origin key for a slot */
+  const getOriginKey = (slot: FleetSlot): string => {
+    return (sourceState[slot.id]?.path || setupState[slot.id]?.refFile || '').trim().toLowerCase();
+  };
+
   return (
     <>
       <div className="panel-header">
@@ -352,7 +379,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
         </div>
       </div>
       <div className="slot-grid">
-        {slots.map(slot => {
+        {slots.map((slot, slotIdx) => {
           const mStatus = slot.maestraStatus;
           const statusText = mStatus ? slotStatusLabel(mStatus) : (
             slot.active ? (slot.connection_status === 'connected' ? 'Active' : 'Connecting') : ''
@@ -407,7 +434,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
             return { text: 'ACTIVE', cls: 'badge-active' };
           })();
 
-          const slotColor = SLOT_COLORS[slots.indexOf(slot) % SLOT_COLORS.length];
+          const slotColor = getSlotColor(slot, slotIdx);
+          const originKey = getOriginKey(slot);
+          const directionForSlot = setupState[slot.id]?.direction || (slot.nodeRole === 'receive' ? 'receive' : slot.nodeRole === 'send' ? 'send' : null);
+          const polarityIcon = directionForSlot === 'send' ? '+' : directionForSlot === 'receive' ? '−' : null;
+          const polarityColor = directionForSlot === 'send' ? '#22c55e' : directionForSlot === 'receive' ? '#5cc8ff' : slotColor;
           return (
             <div
               key={slot.id}
@@ -605,7 +636,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <div className="live-section-head">Signals</div>
                     {publishing.length > 0 && (
                       <div className="live-signal-group">
-                        <span className="live-signal-dir">↑ Publishing</span>
+                        <span className="live-signal-dir" style={{ color: '#22c55e' }}>+ Publishing</span>
                         <div className="live-signal-list">
                           {publishing.map(s => {
                             const eid = slot.entity_id || slot.id;
@@ -616,7 +647,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             const isBool = sigDef?.type === 'boolean' || typeof liveVal === 'boolean';
                             return (
                               <span key={s} className="live-signal-tag pub" style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
-                                {s}
+                                <span style={{ color: '#22c55e', fontWeight: 700, fontSize: 9 }}>+</span>{s}
                                 {liveVal !== undefined && liveVal !== null && (
                                   <span style={{
                                     fontSize: 8, fontFamily: 'var(--font-mono)',
@@ -642,14 +673,14 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     )}
                     {listening.length > 0 && (
                       <div className="live-signal-group">
-                        <span className="live-signal-dir">↓ Listening</span>
+                        <span className="live-signal-dir" style={{ color: '#5cc8ff' }}>− Listening</span>
                         <div className="live-signal-list">
                           {listening.map(s => {
                             const eid = slot.entity_id || slot.id;
                             const liveVal = (entityStates[eid] as Record<string,unknown>|undefined)?.[s];
                             return (
                               <span key={s} className="live-signal-tag sub" style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
-                                {s}
+                                <span style={{ color: '#5cc8ff', fontWeight: 700, fontSize: 9 }}>−</span>{s}
                                 {liveVal !== undefined && liveVal !== null && (
                                   <span style={{ fontSize:8, fontFamily:'var(--font-mono)', color:'rgba(255,255,255,0.5)', fontWeight:700 }}>
                                     {typeof liveVal === 'boolean' ? (liveVal ? '● ON' : '○ off') : String(liveVal).slice(0,24)}
@@ -753,7 +784,63 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     </div>
                   </div>
 
-                  {/* ── Section 5: Recent Activity ── */}
+                  {/* ── Section 5: Origin Aggregate — all slots from the same file ── */}
+                  {(() => {
+                    if (!originKey) return null;
+                    // Find all sibling slots sharing the same origin
+                    const siblings = slots.filter(s => {
+                      const sk = (sourceState[s.id]?.path || setupState[s.id]?.refFile || '').trim().toLowerCase();
+                      return sk === originKey && s.id !== slot.id;
+                    });
+                    if (siblings.length === 0) return null;
+                    // Collect all signals from siblings
+                    const allSibSignals: Array<{ slotLabel: string; key: string; type: string; dir: string; desc: string }> = [];
+                    siblings.forEach(sib => {
+                      const sibSetup = setupState[sib.id];
+                      (sibSetup?.outputSignals || []).forEach(sig => {
+                        allSibSignals.push({
+                          slotLabel: sibSetup?.slug || sib.label,
+                          key: sig.key, type: sig.type,
+                          dir: sig.signalDir || 'output',
+                          desc: sig.desc || '',
+                        });
+                      });
+                    });
+                    return (
+                      <div className="live-section">
+                        <div className="live-section-head" style={{ color: slotColor }}>
+                          Origin: {originKey.split('/').pop() || originKey}
+                          <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.25)', marginLeft: 6 }}>
+                            {siblings.length + 1} slots from this file
+                          </span>
+                        </div>
+                        {allSibSignals.length > 0 ? (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                            {allSibSignals.map((sig, i) => {
+                              const dirColor = sig.dir === 'output' ? '#22c55e' : '#5cc8ff';
+                              const dirIcon = sig.dir === 'output' ? '+' : '−';
+                              return (
+                                <div key={i} title={`${sig.slotLabel}: ${sig.desc || sig.key}`}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: 3,
+                                    padding: '2px 6px', fontSize: 8, fontFamily: 'var(--font-mono)',
+                                    background: `${dirColor}08`, border: `1px solid ${dirColor}30`, color: dirColor }}>
+                                  <span style={{ fontWeight: 700 }}>{dirIcon}</span>
+                                  <span style={{ opacity: 0.5, fontSize: 7 }}>{sig.slotLabel}/</span>{sig.key}
+                                  <span style={{ opacity: 0.4, fontSize: 7 }}>· {sig.type}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <span className="live-empty" style={{ fontSize: 8 }}>
+                            Sibling slots have no signals yet
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* ── Section 6: Recent Activity ── */}
                   <div className="live-section">
                     <div className="live-section-head">Recent Activity</div>
                     <div className="live-activity-log">
@@ -774,9 +861,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   {inSetup ? (
                     /* ════ INLINE SETUP WIZARD: connect → slug → addState ════ */
                     <div className="slot-inline-wizard">
-                      {/* Step dots: 3 only */}
+                      {/* Step dots: 4 stages */}
                       <div className="slot-wizard-steps">
-                        {(['connect','slug','addState'] as InlineStage[]).map((s, i, arr) => (
+                        {(['connect','slug','direction','addState'] as InlineStage[]).map((s, i, arr) => (
                           <span key={s} style={{ display: 'flex', alignItems: 'center' }}>
                             <span className={`slot-wizard-dot ${
                               setup.stage === s ? 'active' :
@@ -847,7 +934,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             placeholder="e.g. mirrors-echo"
                             onClick={e => e.stopPropagation()}
                             onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], slug: e.target.value } })); }}
-                            onKeyDown={e => { if (e.key === 'Enter' && setup.slug.trim()) setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'addState' } })); }}
+                            onKeyDown={e => { if (e.key === 'Enter' && setup.slug.trim()) setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'direction' } })); }}
                             style={{ width: '100%', padding: '6px 10px', fontSize: 13,
                               fontFamily: 'var(--font-mono)', color: slotColor, fontWeight: 700,
                               background: 'rgba(0,0,0,0.5)', border: `1px solid ${slotColor}50`,
@@ -861,8 +948,56 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             </button>
                             <button className="slot-wizard-btn slot-wizard-btn-primary" style={{ flex: 1 }}
                               disabled={!setup.slug.trim()}
-                              onClick={e => { e.stopPropagation(); if (setup.slug.trim()) setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'addState' } })); }}>
-                              {setup.slug.trim() ? 'Enter →' : 'Enter a slug first'}
+                              onClick={e => { e.stopPropagation(); if (setup.slug.trim()) setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'direction' } })); }}>
+                              {setup.slug.trim() ? 'Next →' : 'Enter a slug first'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ══ STAGE: direction ══ */}
+                      {setup.stage === 'direction' && (
+                        <div className="slot-wizard-content">
+                          <div className="slot-wizard-title" style={{ color: slotColor }}>Direction</div>
+                          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginBottom: 4, textAlign: 'center' }}>
+                            How does this node participate?
+                          </div>
+                          <div style={{ display: 'flex', gap: 10, width: '100%' }}>
+                            {([
+                              { role: 'send' as NodeRole, icon: '+', label: 'Send', color: '#22c55e', desc: 'Publishes state to the bus — other nodes can subscribe' },
+                              { role: 'receive' as NodeRole, icon: '−', label: 'Receive', color: '#5cc8ff', desc: 'Subscribes to state from other nodes on the bus' },
+                            ]).map(({ role, icon, label, color, desc }) => {
+                              const active = setup.direction === role;
+                              return (
+                                <button key={role}
+                                  onClick={e => { e.stopPropagation();
+                                    setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], direction: role } }));
+                                  }}
+                                  style={{
+                                    flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+                                    padding: '12px 6px', cursor: 'pointer',
+                                    background: active ? `${color}12` : 'rgba(255,255,255,0.02)',
+                                    border: `1.5px solid ${active ? color + '70' : 'rgba(255,255,255,0.08)'}`,
+                                    transition: 'all 0.15s',
+                                  }}>
+                                  <span style={{ fontSize: 22, fontWeight: 700, color, lineHeight: 1 }}>{icon}</span>
+                                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' as const, color }}>{label}</span>
+                                  <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.3)', textAlign: 'center' as const, lineHeight: 1.4 }}>{desc}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, width: '100%' }}>
+                            <button className="slot-wizard-btn slot-wizard-btn-ghost"
+                              onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'slug' } })); }}>
+                              ← Back
+                            </button>
+                            <button className="slot-wizard-btn slot-wizard-btn-primary" style={{ flex: 1 }}
+                              disabled={!setup.direction}
+                              onClick={e => { e.stopPropagation();
+                                if (setup.direction) setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'addState' } }));
+                              }}>
+                              {setup.direction ? 'Next →' : 'Pick a direction'}
                             </button>
                           </div>
                         </div>
@@ -871,31 +1006,77 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       {/* ══ STAGE: addState ══ */}
                       {setup.stage === 'addState' && (
                         <div className="slot-wizard-content">
-                          <div className="slot-wizard-title" style={{ color: slotColor }}>Add State</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <div className="slot-wizard-title" style={{ color: slotColor }}>Add State</div>
+                            {setup.direction && (
+                              <span style={{
+                                fontSize: 14, fontWeight: 700, lineHeight: 1,
+                                color: setup.direction === 'send' ? '#22c55e' : '#5cc8ff',
+                              }}>
+                                {setup.direction === 'send' ? '+' : '−'}
+                              </span>
+                            )}
+                          </div>
 
-                          {/* Accumulated output chips */}
-                          {(setup.outputSignals || []).length > 0 && (
-                            <div style={{ width: '100%', marginBottom: 6 }}>
-                              <div style={{ fontSize: 7, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.25)',
-                                textTransform: 'uppercase', marginBottom: 4 }}>↑ Outputs</div>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                                {(setup.outputSignals || []).map((sig, i) => (
-                                  <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4,
-                                    padding: '2px 7px', fontSize: 9, fontFamily: 'var(--font-mono)',
-                                    background: `${slotColor}18`, border: `1px solid ${slotColor}50`, color: slotColor }}>
-                                    <span style={{ opacity: 0.6, fontSize: 8 }}>↑</span>
-                                    {sig.key}
-                                    <span style={{ opacity: 0.4, fontSize: 8 }}>· {sig.type}</span>
-                                    <button onClick={e => { e.stopPropagation();
-                                      setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id],
-                                        outputSignals: prev[slot.id].outputSignals.filter((_,j) => j !== i) } })); }}
-                                      style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)',
-                                        cursor: 'pointer', padding: '0 0 0 2px', fontSize: 10, lineHeight: 1 }}>×</button>
-                                  </div>
-                                ))}
+                          {/* Accumulated signal chips — grouped by direction with +/- prefix */}
+                          {(setup.outputSignals || []).length > 0 && (() => {
+                            const outputs = (setup.outputSignals || []).filter(s => (s.signalDir || 'output') === 'output');
+                            const inputs = (setup.outputSignals || []).filter(s => s.signalDir === 'input');
+                            return (
+                              <div style={{ width: '100%', marginBottom: 6 }}>
+                                {outputs.length > 0 && (
+                                  <>
+                                    <div style={{ fontSize: 7, letterSpacing: '0.12em', color: '#22c55e',
+                                      textTransform: 'uppercase', marginBottom: 4 }}>+ Outputs</div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: inputs.length > 0 ? 6 : 0 }}>
+                                      {outputs.map((sig, i) => {
+                                        const globalIdx = (setup.outputSignals || []).indexOf(sig);
+                                        return (
+                                          <div key={globalIdx} style={{ display: 'inline-flex', alignItems: 'center', gap: 4,
+                                            padding: '2px 7px', fontSize: 9, fontFamily: 'var(--font-mono)',
+                                            background: '#22c55e12', border: '1px solid #22c55e50', color: '#22c55e' }}>
+                                            <span style={{ fontWeight: 700, fontSize: 9 }}>+</span>
+                                            {sig.key}
+                                            <span style={{ opacity: 0.5, fontSize: 8 }}>· {sig.type}</span>
+                                            <button onClick={e => { e.stopPropagation();
+                                              setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id],
+                                                outputSignals: prev[slot.id].outputSignals.filter((_,j) => j !== globalIdx) } })); }}
+                                              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)',
+                                                cursor: 'pointer', padding: '0 0 0 2px', fontSize: 10, lineHeight: 1 }}>×</button>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </>
+                                )}
+                                {inputs.length > 0 && (
+                                  <>
+                                    <div style={{ fontSize: 7, letterSpacing: '0.12em', color: '#5cc8ff',
+                                      textTransform: 'uppercase', marginBottom: 4 }}>− Inputs</div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                                      {inputs.map((sig, i) => {
+                                        const globalIdx = (setup.outputSignals || []).indexOf(sig);
+                                        return (
+                                          <div key={globalIdx} style={{ display: 'inline-flex', alignItems: 'center', gap: 4,
+                                            padding: '2px 7px', fontSize: 9, fontFamily: 'var(--font-mono)',
+                                            background: '#5cc8ff12', border: '1px solid #5cc8ff50', color: '#5cc8ff' }}>
+                                            <span style={{ fontWeight: 700, fontSize: 9 }}>−</span>
+                                            {sig.key}
+                                            <span style={{ opacity: 0.5, fontSize: 8 }}>· {sig.type}</span>
+                                            <button onClick={e => { e.stopPropagation();
+                                              setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id],
+                                                outputSignals: prev[slot.id].outputSignals.filter((_,j) => j !== globalIdx) } })); }}
+                                              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)',
+                                                cursor: 'pointer', padding: '0 0 0 2px', fontSize: 10, lineHeight: 1 }}>×</button>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </>
+                                )}
                               </div>
-                            </div>
-                          )}
+                            );
+                          })()}
 
                                                                               {/* Step 1: Stream Type filter */}
                           {(() => {
@@ -1141,7 +1322,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           <div style={{ display: 'flex', gap: 6, width: '100%' }}>
                             <button className="slot-wizard-btn slot-wizard-btn-ghost"
                               onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev,
-                                [slot.id]: { ...prev[slot.id], stage: 'slug' } })); }}>
+                                [slot.id]: { ...prev[slot.id], stage: 'direction' } })); }}>
                               ← Back
                             </button>
                             <button
@@ -1159,7 +1340,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                     outputSignals: [
                                       ...(prev[slot.id].outputSignals || []),
                                       { key: setup.stateKey.trim(), type: setup.stateType,
-                                        desc: setup.stateDesc, top: setup.selectedTop, streamType: setup.streamType || '' }
+                                        desc: setup.stateDesc, top: setup.selectedTop, streamType: setup.streamType || '',
+                                        signalDir: prev[slot.id].direction === 'send' ? 'output' : 'input' }
                                     ],
                                     stateKey: '', stateDesc: '', selectedTop: '',
                                   }
@@ -1341,7 +1523,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <span className={`slot-state-badge ${stateBadge.cls}`}>{stateBadge.text}</span>
                   ) : inSetup ? (
                     <span className="slot-tag setup-tag">
-                      {setup.stage === 'connect' ? 'Setting up…' : setup.stage === 'slug' ? 'Name node' : 'Add State'}
+                      {setup.stage === 'connect' ? 'Setting up…' : setup.stage === 'slug' ? 'Name node' : setup.stage === 'direction' ? 'Direction' : 'Add State'}
                     </span>
                   ) : (
                     <span className="slot-tag available-tag">
@@ -1351,22 +1533,23 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   )}
                 </div>
               </div>
-              {/* Top-right: + / - behavior indicator, lock/unlock, pin */}
+              {/* Top-right: + / - polarity badge, lock/unlock, pin */}
               <div className="slot-top-controls" style={{
                 position: 'absolute', top: 6, right: 6,
                 display: 'flex', alignItems: 'center', gap: 3,
                 zIndex: 10,
               }}>
-                {/* ↑↓↕ send/receive/both indicator — always visible on active slots */}
-                {slot.active && (
+                {/* +/− polarity badge — always visible when direction is known */}
+                {polarityIcon && (
                   <span
-                    title={slot.nodeRole === 'receive' ? 'Receiving only' : slot.nodeRole === 'send' ? 'Sending only' : 'Sending + Receiving'}
+                    title={directionForSlot === 'receive' ? 'Receiver (−)' : 'Sender (+)'}
                     style={{
-                      fontSize: 10, fontWeight: 700, lineHeight: 1,
-                      color: slot.nodeRole === 'receive' ? '#34d399' : slot.nodeRole === 'two_way' ? '#f59e0b' : slotColor,
-                      opacity: 0.8, cursor: 'default', padding: '1px 3px',
+                      fontSize: 16, fontWeight: 800, lineHeight: 1,
+                      color: polarityColor,
+                      opacity: 0.9, cursor: 'default', padding: '0 3px',
+                      textShadow: `0 0 8px ${polarityColor}40`,
                     }}>
-                    {slot.nodeRole === 'receive' ? '↓' : slot.nodeRole === 'two_way' ? '↕' : '↑'}
+                    {polarityIcon}
                   </span>
                 )}
                 {/* Lock / Unlock */}
