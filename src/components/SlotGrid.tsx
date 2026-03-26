@@ -785,21 +785,24 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               if (Array.isArray(_t)) (_t as string[]).forEach((t:string) => { if (!_all.includes(t)) _all.push(t); });
                             });
 
-                            // Group by parent: /project1/StreamDiffusionTD → [out1, in1, ...]
+                            // Group by TOP-LEVEL container (depth 2: /project1/NodeName)
+                            // All TOPs under that subtree become options, showing their full relative path
                             const nodeMap: Record<string,string[]> = {};
                             _all.forEach(t => {
                               const parts = t.split('/').filter(Boolean);
-                              const param = parts.pop() || '';
-                              const node  = '/' + parts.join('/');
+                              if (parts.length < 2) return;
+                              // Node = /project1/ContainerName (always depth 2)
+                              const node = '/' + parts[0] + '/' + parts[1];
+                              // Param = full path for uniqueness, display as relative
                               if (!nodeMap[node]) nodeMap[node] = [];
-                              if (!nodeMap[node].includes(param)) nodeMap[node].push(param);
+                              if (!nodeMap[node].includes(t)) nodeMap[node].push(t);
                             });
                             const nodes = Object.keys(nodeMap).sort();
 
-                            // Derive current node/param from selectedTop
-                            const stParts  = (setup.selectedTop || '').split('/').filter(Boolean);
-                            const selParam = stParts.length > 1 ? stParts.pop()! : '';
-                            const selNode  = stParts.length ? '/' + stParts.join('/') : '';
+                            // Derive selected node from selectedTop
+                            const stParts = (setup.selectedTop || '').split('/').filter(Boolean);
+                            const selNode = stParts.length >= 2 ? '/' + stParts[0] + '/' + stParts[1] : '';
+                            const selParam = setup.selectedTop || '';
                             const nodeParams = selNode ? (nodeMap[selNode] || []) : [];
 
                             return (
@@ -815,9 +818,10 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                         e.stopPropagation();
                                         const n = e.target.value;
                                         const first = nodeMap[n]?.[0] || '';
+                                        const key = first.split('/').pop() || '';
                                         setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id],
-                                          selectedTop: first ? n+'/'+first : n,
-                                          stateKey: first,
+                                          selectedTop: first,
+                                          stateKey: key,
                                         }}));
                                       }}
                                       style={{ width:'100%', padding:'5px 8px', fontSize:10,
@@ -843,17 +847,20 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                       <select value={selParam} onClick={e => e.stopPropagation()}
                                         onChange={e => {
                                           e.stopPropagation();
-                                          const p = e.target.value;
+                                          const fullPath = e.target.value;
+                                          const key = fullPath.split('/').pop() || '';
                                           setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id],
-                                            selectedTop: selNode+'/'+p,
-                                            stateKey: p,
+                                            selectedTop: fullPath,
+                                            stateKey: key,
                                           }}));
                                         }}
                                         style={{ width:'100%', padding:'5px 8px', fontSize:10,
                                           fontFamily:'var(--font-mono)', background:'rgba(0,0,0,0.6)',
                                           border:`1px solid ${slotColor}40`, color:slotColor, outline:'none' }}>
-                                        <option value="">— select parameter —</option>
-                                        {nodeParams.map(p => <option key={p} value={p} style={{background:'#0a0a14'}}>{p}</option>)}
+                                        <option value="">— select TOP —</option>
+                                        {nodeParams.map(p => <option key={p} value={p} style={{background:'#0a0a14'}}>
+                                          {p.split('/').slice(2).join('/')}
+                                        </option>)}
                                       </select>
                                     ) : (
                                       <input type="text" value={selParam} placeholder="e.g. promptdict5concept"
