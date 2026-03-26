@@ -562,25 +562,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
 {/* ── Section 2: Signals ── */}
                   <div className="live-section">
                     <div className="live-section-head">Signals</div>
-                    {publishing.length > 0 && (
-                      <div className="live-signal-group">
-                        <span className="live-signal-dir">↑ Publishing</span>
-                        <div className="live-signal-list">
-                          {publishing.map(s => <span key={s} className="live-signal-tag pub">{s}</span>)}
-                        </div>
-                      </div>
-                    )}
-                    {listening.length > 0 && (
-                      <div className="live-signal-group">
-                        <span className="live-signal-dir">↓ Listening</span>
-                        <div className="live-signal-list">
-                          {listening.map(s => <span key={s} className="live-signal-tag sub">{s}</span>)}
-                        </div>
-                      </div>
-                    )}
-                    {publishing.length === 0 && listening.length === 0 && (
-                      <span className="live-empty">No signals configured</span>
-                    )}
+
                   </div>
 
                   {/* ── Section 3: Entity State ── */}
