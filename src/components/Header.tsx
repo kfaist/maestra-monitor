@@ -14,12 +14,17 @@ interface HeaderProps {
   frameRelayCount?: number;
   onJoinMaestra?: () => void;
   /** Current server mode */
-  serverMode?: 'railway' | 'gallery';
-  onServerModeChange?: (mode: 'railway' | 'gallery') => void;
+  serverMode?: ServerMode;
+  customUrl?: string;
+  onCustomUrlChange?: (url: string) => void;
+  onServerModeChange?: (mode: ServerMode) => void;
 }
 
-export const RAILWAY_URL = 'https://maestra-backend-v2-production.up.railway.app';
-export const GALLERY_URL = 'http://192.168.128.115:8080';
+export const RAILWAY_URL  = 'https://maestra-backend-v2-production.up.railway.app';
+export const GALLERY_URL  = 'http://192.168.128.115:8080';
+export const AUTO_DETECT  = 'auto';
+
+export type ServerMode = 'railway' | 'gallery' | 'auto' | 'custom';
 
 export default function Header({
   wsStatus,
@@ -28,7 +33,9 @@ export default function Header({
   totalSlots,
   audioActive,
   frameRelayCount,
-  serverMode = 'railway',
+  serverMode = 'auto',
+  customUrl = '',
+  onCustomUrlChange,
   onServerModeChange,
 }: HeaderProps) {
   const [clock, setClock] = useState('--:--:--');
@@ -39,8 +46,6 @@ export default function Header({
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
   }, []);
-
-  const isGallery = serverMode === 'gallery';
 
   return (
     <>
