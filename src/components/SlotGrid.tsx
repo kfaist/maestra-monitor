@@ -4,7 +4,7 @@ import { SLOT_COLORS } from './SignalPanel';
 import { useState, useEffect, useCallback } from 'react';
 import { FleetSlot, slotStatusLabel, slotStatusClass, formatAge, EventEntry } from '@/types';
 
-type InlineStage = 'idle' | 'connect' | 'slug' | 'addState';
+type InlineStage = 'idle' | 'connect' | 'setup' | 'slug' | 'addState';
 type NodeRole = 'receive' | 'send' | 'two_way';
 type SignalSource = 'touchdesigner' | 'json_stream' | 'osc' | 'audio_reactive' | 'text' | 'test_signal';
 
@@ -452,6 +452,21 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     });
   }, [slots]);
 
+  // Auto-advance: setup stage auto-advances to slug when entity_id appears
+  useEffect(() => {
+    slots.forEach(slot => {
+      const setup = setupState[slot.id];
+      if (setup && setup.stage === 'setup' && slot.entity_id) {
+        setSetupState(prev => {
+          const cur = prev[slot.id];
+          if (!cur || cur.stage !== 'setup') return prev;
+          return { ...prev, [slot.id]: { ...cur, slug: slot.entity_id || cur.slug, stage: 'slug' } };
+        });
+      }
+    });
+  }, [slots, setupState]);
+
+
   const handleSlotClick = useCallback((slot: FleetSlot) => {
     if (slot.active) {
       onSelectSlot(slot.id);
@@ -462,7 +477,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
       const current = prev[slot.id];
       if (current && current.stage !== 'idle') return prev; // DON'T RESET
       const existingSlug = slot.entity_id || slot.slug || '';
-      const startStage: InlineStage = existingSlug ? 'addState' : 'connect';
+      const startStage: InlineStage = existingSlug ? 'addState' : (slot.entity_id ? 'setup' : 'connect');
       return { ...prev, [slot.id]: { stage: startStage, slug: existingSlug, refFile: null, direction: 'send' as NodeRole, selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [], streamType: '', selectedNode: '' , nodeSearch: '', opSearch: '' } };
     });
   }, [onSelectSlot]); // NO setupState in deps
@@ -521,7 +536,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     setSetupState(prev => {
       const s = prev[slotId]?.stage;
       if (s === 'addState')  return { ...prev, [slotId]: { ...prev[slotId], stage: 'slug' } };
-      if (s === 'slug') return { ...prev, [slotId]: { ...prev[slotId], stage: 'connect' } };
+      if (s === 'slug') return { ...prev, [slotId]: { ...prev[slotId], stage: 'setup' } };
+      if (s === 'setup') return { ...prev, [slotId]: { ...prev[slotId], stage: 'connect' } };
       return prev;
     });
   }, []);
@@ -1540,7 +1556,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <div className="slot-inline-wizard">
                       {/* Step dots: 4 stages */}
                       <div className="slot-wizard-steps">
-                        {(['connect','slug','addState'] as InlineStage[]).map((s, i, arr) => (
+                        {(['connect','setup','slug','addState'] as InlineStage[]).map((s, i, arr) => (
                           <span key={s} style={{ display: 'flex', alignItems: 'center' }}>
                             <span className={`slot-wizard-dot ${
                               setup.stage === s ? 'active' :
@@ -1592,7 +1608,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 const f = e.target.files?.[0];
                                 if (f) {
                                   const derived = f.name.replace(/\.(toe|tox)$/i,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-                                  setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], refFile: f.name, slug: derived, stage: 'slug' } }));
+                                  setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], refFile: f.name, slug: derived, stage: 'setup' } }));
                                 }
                               }} />
                           </label>
@@ -1600,7 +1616,39 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       )}
 
                       {/* ══ STAGE: slug ══ */}
-                       {setup.stage === 'slug' && (
+                       {setup.stage === 'setup' && (
+                  <div className="slot-wizard-content">
+                    <div className="slot-wizard-title" style={{ color: slotColor, letterSpacing: '0.15em' }}>
+                      {slot.entity_id ? 'TOX DETECTED' : 'WAITING FOR TOX'}
+                    </div>
+                    <div style={{ color: '#8892b0', fontSize: 11, textAlign: 'center', padding: '8px 0', lineHeight: 1.5 }}>
+                      {slot.entity_id ? (
+                        <>Entity <span style={{ color: slotColor, fontWeight: 600 }}>{slot.entity_id}</span> registered.<br/>Confirm slug to continue.</>
+                      ) : (
+                        <>Open your <span style={{ color: slotColor }}>.toe</span> project with the maestra.tox installed.<br/>The TOX auto-registers when the project opens.</>
+                      )}
+                    </div>
+                    {!slot.entity_id && (
+                      <a href="/maestra.tox" download="maestra.tox" onClick={e => e.stopPropagation()} style={{ display: 'block', textAlign: 'center', color: slotColor, fontSize: 10, textDecoration: 'underline', marginBottom: 4, cursor: 'pointer' }}>
+                        \u2193 Download maestra.tox
+                      </a>
+                    )}
+                    <div style={{ display: 'flex', gap: 6, width: '100%', marginTop: 4 }}>
+                      <button className="slot-wizard-btn" onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'connect' } })); }} style={{ flex: '0 0 auto', fontSize: 10, padding: '4px 8px', background: 'transparent', border: '1px solid #334155', color: '#8892b0', cursor: 'pointer' }}>
+                        \u2190 Back
+                      </button>
+                      <button className="slot-wizard-btn slot-wizard-btn-primary" style={{ flex: 1, fontSize: 10, padding: '4px 8px', background: slot.entity_id ? slotColor + '20' : '#1e293b', border: '1px solid ' + (slot.entity_id ? slotColor : '#334155'), color: slot.entity_id ? slotColor : '#8892b0', cursor: 'pointer' }}
+                        onClick={e => {
+                          e.stopPropagation();
+                          const toxSlug = slot.entity_id || setup.slug || '';
+                          setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], slug: toxSlug || prev[slot.id].slug, stage: 'slug' } }));
+                        }}>
+                        {slot.entity_id ? `Continue with "\${slot.entity_id}" \u2192` : 'Skip \u2014 enter slug manually \u2192'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {setup.stage === 'slug' && (
                         <div className="slot-wizard-content">
                           <div className="slot-wizard-title" style={{ color: slotColor }}>Name Your Slot</div>
                           <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginBottom: 6, textAlign: 'center' }}>
@@ -1613,7 +1661,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           />
                           <div style={{ display: 'flex', gap: 6, width: '100%', marginTop: 4 }}>
                             <button className="slot-wizard-btn slot-wizard-btn-ghost"
-                              onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'connect' } })); }}>
+                              onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'setup' } })); }}>
                               ← Back
                             </button>
                             <button className="slot-wizard-btn slot-wizard-btn-primary" style={{ flex: 1 }}
@@ -2152,7 +2200,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <span className={`slot-state-badge ${stateBadge.cls}`}>{stateBadge.text}</span>
                   ) : inSetup ? (
                     <span className="slot-tag setup-tag">
-                      {setup.stage === 'connect' ? 'Setting up…' : setup.stage === 'slug' ? 'Naming…' : 'Add State'}
+                      {setup.stage === 'connect' ? 'Setting up…' : setup.stage === 'setup' ? 'Bootstrap…' : setup.stage === 'slug' ? 'Naming…' : 'Add State'}
                     </span>
                   ) : (
                     <span className="slot-tag available-tag">
