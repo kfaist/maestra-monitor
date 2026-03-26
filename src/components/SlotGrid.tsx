@@ -863,13 +863,12 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               'sensor':  ['lfoCHOP','noiseCHOP','slopeCHOP','triggerCHOP','thresholdCHOP','sensor'],
                               'data':    ['datexecuteDAT','tableDAT','textDAT','DAT','CHOP'],
                             };
-                            const filteredTops = streamFilter
-                              ? nodeTops.filter(t => {
-                                  const low = t.toLowerCase();
-                                  const prefixes = STREAM_TO_TYPES[streamFilter] || [streamFilter];
-                                  return prefixes.some(p => low.includes(p.toLowerCase()));
-                                })
-                              : nodeTops;
+                            const filteredTops = !streamFilter ? nodeTops : nodeTops.filter(t => {
+                              // t format: "opTypeCOMP:name:/path" or "triggerCHOP:trigger1:/project1/trigger1"
+                              const opType = t.split(':')[0] || '';
+                              const prefixes = STREAM_TO_TYPES[streamFilter] || [streamFilter];
+                              return prefixes.some(p => opType.toLowerCase().includes(p.toLowerCase()));
+                            });
 
                             return (
                               <>
