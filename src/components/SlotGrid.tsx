@@ -819,13 +819,25 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             const streamFilter = (setup.stateType === 'string' || !setup.stateType) ? '' : setup.stateType;
 
                             // Filter nodeTops by stream type hint in path
+                            // Map stream type → op type prefixes in tree format
+                            const STREAM_TO_TYPES: Record<string,string[]> = {
+                              'ndi':     ['ndiinTOP','ndioutTOP','ndiin'],
+                              'syphon':  ['syphonspoutinTOP','syphonspoutoutTOP','syphon'],
+                              'spout':   ['syphonspoutinTOP','syphonspoutoutTOP','spout'],
+                              'srt':     ['srtinTOP','srtoutTOP','srt'],
+                              'video':   ['moviefileinTOP','videodeviceinTOP','compositeTOP','renderTOP','TOP'],
+                              'audio':   ['audiofileinCHOP','audiodevinCHOP','audiospectrumCHOP','audio'],
+                              'texture': ['TOP','nullTOP','outTOP','selectTOP'],
+                              'midi':    ['midiinCHOP','midioutCHOP','midi'],
+                              'osc':     ['oscinCHOP','oscoutCHOP','osc'],
+                              'sensor':  ['lfoCHOP','noiseCHOP','slopeCHOP','triggerCHOP','thresholdCHOP','sensor'],
+                              'data':    ['datexecuteDAT','tableDAT','textDAT','DAT','CHOP'],
+                            };
                             const filteredTops = streamFilter
                               ? nodeTops.filter(t => {
                                   const low = t.toLowerCase();
-                                  // Match stream type against type prefix or path
-                                  const typeMatch = low.startsWith(streamFilter + ':');
-                                  const pathMatch = low.includes(streamFilter);
-                                  return typeMatch || pathMatch;
+                                  const prefixes = STREAM_TO_TYPES[streamFilter] || [streamFilter];
+                                  return prefixes.some(p => low.includes(p.toLowerCase()));
                                 })
                               : nodeTops;
 
@@ -904,8 +916,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                           let label = t, val = t;
                                           if (t.includes(':') && t.split(':').length >= 3) {
                                             const pts = t.split(':');
-                                            label = '[' + pts[0] + '] ' + pts[1];
-                                            val   = pts.slice(2).join(':'); // the path
+                                            // Clean type: lfoCHOP → CHOP, compositeTOP → TOP, textDAT → DAT
+                                            const raw = pts[0];
+                                            const kind = raw.endsWith('CHOP') ? 'CHOP' : raw.endsWith('TOP') ? 'TOP' : raw.endsWith('DAT') ? 'DAT' : raw.endsWith('COMP') ? 'COMP' : raw.replace(/[a-z]/g,'').slice(0,4);
+                                            label = kind + ' · ' + pts[1];
+                                            val   = t; // keep full entry as value
                                           } else {
                                             label = t.split('/').pop() || t;
                                           }
