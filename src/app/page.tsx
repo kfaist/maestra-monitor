@@ -799,7 +799,7 @@ export default function Home() {
     );
     logEvent('state', 'fleet', `Prompt injected: ${prompt.slice(0, 40)}`);
     pushBusEntry('fleet.prompt', prompt.slice(0, 50));
-  }, [sendViaAll, logEvent, getAllTargetEntityIds, pushBusEntry]);
+  }, [sendViaAll, logEvent, pushBusEntry]);
 
   // P6 flush — sends the prompt to TD's p6 field directly
   const p6Flush = useCallback((prompt: string) => {
@@ -812,7 +812,7 @@ export default function Home() {
     );
     logEvent('state', 'fleet', `P6 flush → ${prompt.slice(0, 40)}`);
     pushBusEntry('fleet.p6', prompt.slice(0, 50));
-  }, [sendViaAll, logEvent, getAllTargetEntityIds, pushBusEntry]);
+  }, [sendViaAll, logEvent, pushBusEntry]);
 
   // Send a state_update to the current target (single entity or global)
   const sendToTarget = useCallback((data: Record<string, unknown>) => {
@@ -832,7 +832,7 @@ export default function Home() {
       // Single entity
       ws.send(JSON.stringify({ type: 'state_update', entity_id: sendTarget, data, timestamp: ts }));
     }
-  }, [sendTarget, getAllTargetEntityIds]);
+  }, [sendTarget]);
 
   // Color palette change — sends hue/saturation/value to TD via Maestra
   const handleColorChange = useCallback((color: { hue: number; saturation: number; value: number }) => {
