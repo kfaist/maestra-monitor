@@ -715,17 +715,17 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
               <div className="slot-footer">
                 <div className="slot-footer-left">
                   <div className="slot-label">
-                    <span className="slot-label-id">Slot {slots.indexOf(slot) + 1}</span>
-                    <span className="slot-label-sep"> — </span>
-                    <span className="slot-label-name">
-                      {lockedSlots.has(slot.id) && lockedLabels[slot.id]
-                        ? lockedLabels[slot.id]
-                        : (() => {
-                            const eid = slot.entity_id || slot.id;
-                            const toeName = (entityStates[eid] as Record<string,unknown>|undefined)?.toe_name;
-                            return toeName ? String(toeName) : slot.label;
-                          })()
-                      }
+                    {/* Primary: entity name — what TD reports */}
+                    <span className="slot-label-name" style={{ color: slotColor, fontWeight: 700 }}>
+                      {(() => {
+                        const eid = slot.entity_id || slot.id;
+                        const toeName = (entityStates[eid] as Record<string,unknown>|undefined)?.toe_name;
+                        return toeName ? String(toeName) : (slot.entity_id || slot.label);
+                      })()}
+                    </span>
+                    {/* Secondary: slot index, tiny */}
+                    <span style={{ fontSize: 8, letterSpacing: '0.1em', color: 'var(--text-dim)', opacity: 0.35, marginLeft: 4, textTransform: 'uppercase' }}>
+                      slot {slots.indexOf(slot) + 1}
                     </span>
                   </div>
                   {/* Entity ID tag */}
