@@ -945,18 +945,20 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                         style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)',
                                           background: 'rgba(0,0,0,0.6)', border: `1px solid ${slotColor}40`, color: slotColor, outline: 'none' }}>
                                         <option value="">— select operator —</option>
-                                        {[...(nodeMap[setup.selectedNode]||[])].sort((a,b)=>(a.split(':')[1]||a).localeCompare(b.split(':')[1]||b)).filter(entry=>{if(!(setup.opSearch||'')) return true; return (entry.split(':')[1]||entry).toLowerCase().includes((setup.opSearch||'').toLowerCase());}).map(entry => {
+                                        {[...(nodeMap[setup.selectedNode]||[])].sort((a,b)=>(a.split(':')[1]||a).localeCompare(b.split(':')[1]||b)).filter(entry=>{if(!(setup.opSearch||'')) return true; const nm=(entry.split(':')[1]||entry).toLowerCase(); return nm.includes((setup.opSearch||'').toLowerCase());}).map(entry => {
                                           const pts = entry.split(':');
                                           if (pts.length < 3) return null;
                                           const raw  = pts[0];
                                           const name = pts[1];
+                                          // PAR = custom parameter, show with label
+                                          if (raw === 'PAR') return <option key={entry} value={entry} style={{ background: '#0a0a14' }}>⚙ {name}</option>;
                                           const kind = raw.endsWith('CHOP') ? 'CHOP' : raw.endsWith('TOP') ? 'TOP' : raw.endsWith('DAT') ? 'DAT' : raw.endsWith('COMP') ? 'COMP' : raw.endsWith('SOP') ? 'SOP' : raw.slice(0,5);
                                           const sf = setup.streamType || '';
                                           if (sf) {
                                             const STREAM_TO_KIND: Record<string,string[]> = {
                                               'video':['TOP'], 'texture':['TOP'], 'spout':['TOP'], 'ndi':['TOP'], 'syphon':['TOP'], 'srt':['TOP'],
                                               'audio':['CHOP'], 'midi':['CHOP'], 'osc':['CHOP'], 'sensor':['CHOP'],
-                                              'data':['DAT','CHOP'],
+                                              'data':['DAT','CHOP','PAR'],
                                             };
                                             const allowed = STREAM_TO_KIND[sf] || [];
                                             if (allowed.length && !allowed.includes(kind)) return null;
