@@ -21,3 +21,5 @@ export { default as ScenePanel } from './ScenePanel';
 export { default as LightingPanel } from './LightingPanel';
 
 export { default as EntityPatchBay } from './EntityPatchBay';
+
+export { default as SlotEntityPanel } from './SlotEntityPanel';
