@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -459,7 +459,7 @@ header {
 .entity-count { font-size: 10px; color: var(--text-dim); background: var(--surface2); border: 1px solid var(--border); padding: 3px 8px; border-radius: 2px; letter-spacing: 0.05em; }
 
 /* SLOT GRID */
-.slot-grid { overflow-y: auto !important; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px; }
+.slot-grid { overflow-y: auto !important; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; }
 .slot {
   display: flex;
   flex-direction: column;
@@ -2697,142 +2697,20 @@ footer a:hover { text-decoration: underline; }
 .slot-footer select option { background: #0a0a14; }
 
 
-/* Fix slot overflow — allow content to show */
-.slot { overflow: visible !important; }
-.slot-grid { overflow-y: auto !important; max-height: none !important; }
-.panel-body { overflow-y: auto !important; }
 
-
-/* ═══════════════════════════════════════════
-   SCALE FIX — slot card internals were huge
-═══════════════════════════════════════════ */
-
-/* Inject form inside slot cards */
-.live-inject-label { font-size: 10px !important; width: 36px !important; }
-.live-inject-input {
-  font-size: 11px !important;
-  padding: 5px 8px !important;
-}
-.live-inject-send {
-  font-size: 10px !important;
-  letter-spacing: 0.06em !important;
-  padding: 5px 14px !important;
-}
-
-/* Source upload row */
-.live-source-upload {
-  padding: 7px 10px !important;
-}
-.live-source-upload-icon { font-size: 14px !important; }
-.live-source-upload-text { font-size: 10px !important; }
-
-/* Slot wizard buttons */
-.slot-wizard-btn {
-  font-size: 11px !important;
-  padding: 8px 18px !important;
-}
-.slot-wizard-option {
-  font-size: 11px !important;
-  padding: 7px 10px !important;
-}
-.slot-wizard-option-icon { font-size: 13px !important; }
-
-/* Live node panel — cap height tighter */
-.live-node-panel { max-height: 360px !important; }
-.live-node-thumb { aspect-ratio: 16 / 6 !important; }
-
-/* Slot grid min size — don't let cards get too wide */
-.slot-grid {
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
-}
-
-/* Palette buttons — reduce min-height */
-.palette-btn { min-height: 36px !important; }
-
-/* Audio analysis live val */
-.aa-live-val { font-size: 0.85rem !important; }
-
-/* Slot wizard title */
-.slot-wizard-title { font-size: 9px !important; }
-
-/* Live section head — tighten */
-.live-section { padding: 6px 10px !important; }
-.live-section-head { font-size: 8px !important; margin-bottom: 4px !important; }
-
-/* Live KV grid */
-.live-kv-key, .live-kv-val { font-size: 9px !important; }
-
-/* Live state table rows */
-.live-state-table { font-size: 9px !important; }
-
-/* Live activity */
-.live-activity-row { font-size: 8px !important; }
-
-/* Slot footer select */
-.slot-footer select { font-size: 10px !important; }
-
-
-/* ═══════════════════════════════════════════════════════════
-   PROPORTION FIX — palette buttons & slot grid layout
-═══════════════════════════════════════════════════════════ */
-
-/* Palette: fixed small size, not aspect-ratio driven */
-.palette {
-  grid-template-columns: repeat(8, 52px) !important;
-  gap: 6px !important;
-}
-.palette-btn {
-  width: 52px !important;
-  height: 52px !important;
-  min-height: 0 !important;
-  aspect-ratio: unset !important;
-}
-
-/* Slot grid: wrap into rows, max 3 columns, sensible card height */
-.slot-grid {
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
-  max-height: none !important;
-  overflow-y: visible !important;
-}
-
-/* Slot: reasonable max-height so it doesn't balloon */
-.slot {
-  max-height: 300px !important;
-  overflow-y: auto !important;
-  overflow: auto !important;
-}
-
-/* Live node thumb: shorter */
-.live-node-thumb {
-  aspect-ratio: 16 / 5 !important;
-}
-.live-node-panel {
-  max-height: 280px !important;
-}
-
-/* Fleet panel padding */
-.fleet-panel {
-  padding: 16px !important;
-}
-
-/* Modulation grid: 2 col keeps it compact */
-.modulation-grid {
-  grid-template-columns: repeat(2, 1fr) !important;
-}
-
-/* Audio analysis canvas: shorter */
-#aaCanvas {
-  height: 56px !important;
-}
-
-/* Palette section */
-.palette-section {
-  padding: 0.75rem 1rem !important;
-  margin-top: 0.75rem !important;
-  margin-bottom: 0.75rem !important;
-}
-
-/* HSV sliders row tighter */
-.hsv-sliders {
-  margin-top: 0.4rem !important;
-}
+/* PROPORTION + TEXT-SLOT FIX */
+.palette { grid-template-columns: repeat(8, 56px) !important; gap: 6px !important; }
+.palette-btn { width: 56px !important; height: 56px !important; min-height: 0 !important; aspect-ratio: unset !important; }
+.slot-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important; overflow-y: auto !important; }
+.slot { max-height: 310px !important; overflow-y: auto !important; overflow-x: hidden !important; }
+.live-node-panel { max-height: 240px !important; }
+.live-node-thumb { aspect-ratio: 16 / 5 !important; }
+.slot[data-signal="text"] { max-height: 155px !important; }
+.slot[data-signal="text"] .slot-video-area { display: none !important; }
+.slot[data-signal="text"] .live-node-thumb { height: 32px !important; aspect-ratio: unset !important; }
+.slot[data-signal="text"] .live-node-panel { max-height: 130px !important; }
+.slot[data-signal="osc"] { max-height: 155px !important; }
+.slot[data-signal="osc"] .slot-video-area { display: none !important; }
+.live-inject-input { font-size: 11px !important; padding: 5px 8px !important; }
+.live-inject-send { font-size: 10px !important; padding: 5px 14px !important; }
+.slot-wizard-btn { font-size: 11px !important; padding: 8px 18px !important; }
