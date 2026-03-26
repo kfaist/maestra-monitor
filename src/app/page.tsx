@@ -1531,6 +1531,17 @@ export default function Home() {
         serverMode={serverMode}
         onServerModeChange={handleServerModeChange}
       />
+
+
+            <ScenePanel
+              onActivateScene={handleActivateScene}
+              injectActive={injectActive}
+              onInjectToggle={setInjectActive}
+              promptText={promptText}
+              onPromptChange={setPromptText}
+              onBroadcast={broadcastPrompt}
+              onP6Flush={p6Flush}
+            />
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* DASHBOARD TAB */}
@@ -1549,16 +1560,6 @@ export default function Home() {
               onInjectSignal={handleInjectSignal}
               eventEntries={eventEntries}
               entityStates={entityStates}
-            />
-
-            <ScenePanel
-              onActivateScene={handleActivateScene}
-              injectActive={injectActive}
-              onInjectToggle={setInjectActive}
-              promptText={promptText}
-              onPromptChange={setPromptText}
-              onBroadcast={broadcastPrompt}
-              onP6Flush={p6Flush}
             />
 
                         {/* Entity Patch Bay — signal routing, drag OUT chips to slot IN zones */}
