@@ -108,6 +108,34 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   // Per-slot server mode: which Maestra server this slot is targeting
   const [slotServerModes, setSlotServerModes] = useState<Record<string, 'auto' | 'gallery' | 'railway' | 'custom'>>({});
   // Cached tops from /api/tops — populated by build_maestra_tox.py
+  // slotPins: { [slotId]: pinHash } — locked slots
+  const [slotPins, setSlotPins] = useState<Record<string,string>>(() => {
+    try { return JSON.parse(localStorage.getItem('maestra_slot_pins')||'{}'); } catch { return {}; }
+  });
+  const OVERRIDE_PIN = '1177'; // global override — always unlocks any slot
+
+  const hashPin = (p: string) => btoa(p).slice(0,12); // simple obfuscation
+
+  const lockSlot = (slotId: string, pin: string) => {
+    const h = hashPin(pin);
+    const next = { ...slotPins, [slotId]: h };
+    setSlotPins(next);
+    try { localStorage.setItem('maestra_slot_pins', JSON.stringify(next)); } catch {}
+  };
+
+  const unlockSlot = (slotId: string, pin: string) => {
+    if (pin === OVERRIDE_PIN || hashPin(pin) === slotPins[slotId]) {
+      const next = { ...slotPins };
+      delete next[slotId];
+      setSlotPins(next);
+      try { localStorage.setItem('maestra_slot_pins', JSON.stringify(next)); } catch {}
+      return true;
+    }
+    return false;
+  };
+
+  const isLocked = (slotId: string) => !!slotPins[slotId];
+
   const [cachedTops, setCachedTops] = useState<string[]>(() => { try { const v = localStorage.getItem('maestra_cached_tops'); return v ? JSON.parse(v) : []; } catch { return []; } });
   const [cachedTree, setCachedTree] = useState<Record<string, string[]>>(() => { try { const v = localStorage.getItem('maestra_cached_tree'); return v ? JSON.parse(v) : {}; } catch { return {}; } });
   useEffect(() => {
@@ -1266,23 +1294,37 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     </svg>
                   )}
                 </button>
-                {/* PIN button — set a short code to identify this slot */}
+                {/* Lock/Unlock button */}
                 <button
-                  title="Set PIN to identify this slot"
+                  title={isLocked(slot.id) ? 'Unlock slot' : 'Lock slot'}
                   onClick={e => {
                     e.stopPropagation();
-                    const pin = prompt('Set a PIN for this slot (short label, e.g. "CAM1"):');
-                    if (pin) {
-                      const label = pin.slice(0,6).toUpperCase();
-                      setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateKey: label } }));
+                    if (isLocked(slot.id)) {
+                      const pin = prompt('Enter PIN to unlock (or use override):');
+                      if (!pin) return;
+                      if (!unlockSlot(slot.id, pin)) alert('Incorrect PIN');
+                    } else {
+                      const pin = prompt('Set a PIN to lock this slot:');
+                      if (pin && pin.length >= 1) lockSlot(slot.id, pin);
                     }
                   }}
                   style={{
-                    background: 'none', border: 'none', padding: '1px 2px',
-                    cursor: 'pointer', color: 'rgba(255,255,255,0.25)',
-                    fontSize: 7, fontFamily: 'var(--font-display)', letterSpacing: '0.08em',
+                    background: 'none', border: 'none', padding: '1px 3px',
+                    cursor: 'pointer',
+                    color: isLocked(slot.id) ? slotColor : 'rgba(255,255,255,0.25)',
+                    fontSize: 9, lineHeight: 1,
                   }}>
-                  PIN
+                  {isLocked(slot.id) ? (
+                    <svg width="10" height="11" viewBox="0 0 10 11" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect x="1" y="5" width="8" height="6" rx="1" fill="currentColor" opacity="0.9"/>
+                      <path d="M3 5V3.5C3 2.4 3.9 1.5 5 1.5C6.1 1.5 7 2.4 7 3.5V5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+                    </svg>
+                  ) : (
+                    <svg width="10" height="11" viewBox="0 0 10 11" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect x="1" y="5" width="8" height="6" rx="1" fill="currentColor" opacity="0.3"/>
+                      <path d="M3 5V3.5C3 2.4 3.9 1.5 5 1.5C6.1 1.5 7 2.4 7 3.5V5" stroke="currentColor" strokeWidth="1.2" fill="none" opacity="0.4"/>
+                    </svg>
+                  )}
                 </button>
               </div>
               <style>{'.slot:hover .slot-top-controls { opacity: 1 !important; }'}</style>
