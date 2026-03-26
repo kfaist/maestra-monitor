@@ -376,8 +376,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             letterSpacing: '0.08em', textTransform: 'uppercase',
                             padding: '1px 5px', cursor: 'pointer',
                             background: active ? `${color}20` : 'none',
-                            border: `1px solid ${active ? color + '60' : 'rgba(255,255,255,0.06)'}`,
-                            color: active ? color : 'rgba(255,255,255,0.38)',
+                            border: `1px solid ${active ? color + '55' : 'rgba(255,255,255,0.15)'}`,
+                            color: active ? color : 'rgba(255,255,255,0.5)',
                             transition: 'all 0.12s',
                           }}
                         >{label}</button>
