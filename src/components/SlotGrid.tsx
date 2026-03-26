@@ -1360,6 +1360,18 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     </svg>
                   )}
                 </button>
+                {/* Edit button — re-open wizard to add/remove signals when unlocked */}
+                {!isLocked(slot.id) && slot.active && (
+                  <button
+                    title="Edit outputs / inputs"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'addState' } }));
+                    }}
+                    style={{ background:'none', border:'none', padding:'1px 3px', cursor:'pointer', color:'rgba(255,255,255,0.3)', fontSize:8, fontFamily:'var(--font-display)', letterSpacing:'0.06em' }}>
+                    EDIT
+                  </button>
+                )}
                 {/* Lock/Unlock button */}
                 <button
                   title={isLocked(slot.id) ? 'Unlock slot' : 'Lock slot'}
