@@ -376,7 +376,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             letterSpacing: '0.08em', textTransform: 'uppercase',
                             padding: '1px 5px', cursor: 'pointer',
                             background: active ? `${color}18` : 'none',
-                            border: `1px solid ${active ? color + '55' : 'rgba(255,255,255,0.06)'}`,
+                            border: `1px solid ${active ? color + '55' : 'rgba(255,255,255,0.07)'}`,
                             color: active ? color : 'rgba(255,255,255,0.18)',
                             transition: 'all 0.12s',
                           }}
@@ -910,7 +910,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         <div style={{ fontSize: 28, opacity: 0.25, lineHeight: 1 }}>↓</div>
                         <div style={{ fontSize: 11, color: slotColor, fontWeight: 700, letterSpacing: '0.08em' }}>
                           <a
-                            href='/maestra.tox'
+                            href='https://github.com/jordansnyder/maestra-core/releases/latest'
                             target='_blank'
                             rel='noopener noreferrer'
                             onClick={e => e.stopPropagation()}
@@ -924,7 +924,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       </div>
                       {/* Download link — secondary, dim */}
                       <a
-                        href='/maestra.tox'
+                        href='https://github.com/jordansnyder/maestra-core/releases/latest'
                         target='_blank' rel='noreferrer'
                         onClick={(e) => e.stopPropagation()}
                         style={{
@@ -935,7 +935,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           fontFamily: 'var(--font-display)',
                           letterSpacing: '0.06em',
                         }}
-                      >↓ download build_maestra_tox.py</a>
+                      >↓ download maestra.tox</a>
                     </div>
                   )}
                 </div>
