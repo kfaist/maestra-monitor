@@ -776,15 +776,22 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               if (Array.isArray(_t)) (_t as string[]).forEach((t:string) => { if (!_all.includes(t)) _all.push(t); });
                             });
 
-                            // Group by node (depth-2: /project1/NodeName)
-                            const nodeMap: Record<string,string[]> = {};
-                            _all.forEach(t => {
-                              const parts = t.split('/').filter(Boolean);
-                              if (parts.length < 2) return;
-                              const node = parts[1]; // NodeName
-                              if (!nodeMap[node]) nodeMap[node] = [];
-                              if (!nodeMap[node].includes(t)) nodeMap[node].push(t);
-                            });
+                            // Use cachedTree if available (from /api/tops — built by build_maestra_tox.py)
+                            // cachedTree format: { nodeName: ["TYPE:name:path", ...] }
+                            const nodeMap: Record<string,string[]> = Object.keys(cachedTree).length > 0
+                              ? { ...cachedTree }
+                              : (() => {
+                                  // Fallback: group flat tops list by depth-2 component
+                                  const m: Record<string,string[]> = {};
+                                  _all.forEach(t => {
+                                    const parts = t.split('/').filter(Boolean);
+                                    if (parts.length < 2) return;
+                                    const node = parts[1];
+                                    if (!m[node]) m[node] = [];
+                                    if (!m[node].includes(t)) m[node].push(t);
+                                  });
+                                  return m;
+                                })();
                             const nodes = Object.keys(nodeMap).sort();
 
                             // Selected node + TOP derived from selectedTop
