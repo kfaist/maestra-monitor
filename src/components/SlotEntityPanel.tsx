@@ -14,7 +14,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { FleetSlot } from '@/types';
-import { getSlotColor, ALL_OUTS, OutSignal } from './GlobalOutBar';
+import { getSlotColor, ALL_OUTS } from './GlobalOutBar';
 
 interface SlotEntityPanelProps {
   slots: FleetSlot[];
