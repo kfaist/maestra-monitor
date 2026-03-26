@@ -682,21 +682,24 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         <div className="slot-wizard-content">
                           <div className="slot-wizard-title">Assign State</div>
                           <div className="slot-wizard-hint">
-                            {setup.role === 'send' ? 'This node publishes:' : setup.role === 'receive' ? 'This node listens for:' : 'State key this node uses:'}
+                            {setup.role === 'send' ? 'This node publishes a state key:' : setup.role === 'receive' ? 'This node listens for a state key:' : 'State key this node reads and writes:'}
                           </div>
                           <input
                             type="text"
                             value={setup.stateKey}
-                            placeholder={setup.role === 'send' ? 'e.g. prompt_text' : 'e.g. lighting.scene'}
+                            placeholder={setup.role === 'send' ? 'e.g. prompt_text' : setup.role === 'receive' ? 'e.g. lighting.scene' : 'e.g. audio.rms'}
                             onClick={(e) => e.stopPropagation()}
                             onChange={(e) => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateKey: e.target.value } })); }}
                             style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', color: '#e5f9ff', outline: 'none' }}
                           />
-                          <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', alignSelf: 'flex-start' }}>
-                            {setup.role === 'send' ? 'This node publishes' : 'This node receives'} &nbsp;
-                            <span style={{ fontFamily: 'var(--font-mono)', color: setup.stateKey ? '#e5f9ff' : 'rgba(255,255,255,0.25)' }}>
-                              {setup.stateKey || 'key'}
-                            </span>
+                          <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)', alignSelf: 'flex-start', lineHeight: 1.6 }}>
+                            {setup.role === 'send' ? (
+                              <>↑ <span style={{ color: 'rgba(255,255,255,0.25)' }}>this node</span> <strong style={{ color: '#00d4ff' }}>publishes</strong> <span style={{ fontFamily: 'var(--font-mono)', color: '#e5f9ff' }}>{setup.stateKey || 'key'}</span> <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span> <span style={{ fontFamily: 'var(--font-mono)', color: '#a78bfa' }}>{setup.stateType}</span></>
+                            ) : setup.role === 'receive' ? (
+                              <>↓ <span style={{ color: 'rgba(255,255,255,0.25)' }}>this node</span> <strong style={{ color: '#34d399' }}>receives</strong> <span style={{ fontFamily: 'var(--font-mono)', color: '#e5f9ff' }}>{setup.stateKey || 'key'}</span> <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span> <span style={{ fontFamily: 'var(--font-mono)', color: '#a78bfa' }}>{setup.stateType}</span></>
+                            ) : (
+                              <>↕ <strong style={{ color: '#f59e0b' }}>reads & writes</strong> <span style={{ fontFamily: 'var(--font-mono)', color: '#e5f9ff' }}>{setup.stateKey || 'key'}</span> <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span> <span style={{ fontFamily: 'var(--font-mono)', color: '#a78bfa' }}>{setup.stateType}</span></>
+                            )}
                           </div>
                           {/* Type picker */}
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, width: '100%' }}>
