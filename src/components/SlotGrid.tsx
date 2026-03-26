@@ -451,13 +451,13 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   <div className="live-section">
                         {outs.length > 0 && (
                           <>
-                            <div className="live-section-head" style={{color:slotColor,letterSpacing:'0.12em'}}>↑ OUTPUT</div>
+                            <div className="live-section-head" style={{color:slotColor,letterSpacing:'0.12em'}}>{'↑ OUTPUT'}</div>
                             <div style={{display:'flex',flexWrap:'wrap',gap:3,marginBottom:4}}>
                               {outs.map(([key,v])=>{
                                 const lv = eState?.[key]!=null ? String(eState[key]).slice(0,14) : null;
                                 return (
                                   <div key={key} style={{display:'inline-flex',alignItems:'center',gap:3,background:`${slotColor}12`,border:`1px solid ${slotColor}40`,padding:'2px 5px',fontSize:8}}>
-                                    <span style={{color:slotColor,fontSize:7}}>↑</span>
+                                    <span style={{color:slotColor,fontSize:7}}>{'↑'}</span>
                                     <span style={{fontFamily:'var(--font-mono)',color:slotColor}}>{key}</span>
                                     <span style={{color:'rgba(255,255,255,0.2)',fontSize:7}}>{v.type}</span>
                                     {lv&&<span style={{color:'var(--text-dim)',borderLeft:'1px solid rgba(255,255,255,0.1)',paddingLeft:3}}>{lv}</span>}
@@ -469,11 +469,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         )}
                         {ins.length > 0 && (
                           <>
-                            <div className="live-section-head" style={{color:'rgba(255,255,255,0.3)',letterSpacing:'0.12em',marginTop:outs.length?6:0}}>↓ INPUT</div>
+                            <div className="live-section-head" style={{color:'rgba(255,255,255,0.3)',letterSpacing:'0.12em',marginTop:outs.length?6:0}}>{'↓ INPUT'}</div>
                             <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
                               {ins.map(([key,v])=>(
                                 <div key={key} style={{display:'inline-flex',alignItems:'center',gap:3,background:'rgba(255,255,255,0.03)',border:`1px solid ${slotColor}20`,padding:'2px 5px',fontSize:8}}>
-                                  <span style={{color:'rgba(255,255,255,0.3)',fontSize:7}}>↓</span>
+                                  <span style={{color:'rgba(255,255,255,0.3)',fontSize:7}}>{'↓'}</span>
                                   <span style={{fontFamily:'var(--font-mono)',color:'rgba(255,255,255,0.45)'}}>{key}</span>
                                   <span style={{color:'rgba(255,255,255,0.15)',fontSize:7}}>{v.type}</span>
                                 </div>
@@ -587,7 +587,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <div className="live-source-form">
                       {/* Upload */}
                       <label className="live-source-upload" onClick={e => e.stopPropagation()}>
-                        <span className="live-source-upload-icon">↑</span>
+                        <span className="live-source-upload-icon">{'↑'}</span>
                         <span className="live-source-upload-text">{source.fileName || 'Upload .tox .toe .wav ...'}</span>
                         <input
                           type="file"
@@ -855,8 +855,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           {setup.stateKey && (
                             <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', width: '100%', lineHeight: 1.6 }}>
                               {setup.role === 'send'
-                                ? <><span style={{ color: slotColor }}>↑</span> <strong style={{ color: '#00d4ff' }}>publishes</strong> <span style={{ fontFamily: 'var(--font-mono)', color: '#e5f9ff' }}>{setup.stateKey}</span> · <span style={{ fontFamily: 'var(--font-mono)', color: '#a78bfa' }}>{setup.stateType}</span></>
-                                : <><span style={{ color: '#34d399' }}>↓</span> <strong style={{ color: '#34d399' }}>receives</strong> <span style={{ fontFamily: 'var(--font-mono)', color: '#e5f9ff' }}>{setup.stateKey}</span> · <span style={{ fontFamily: 'var(--font-mono)', color: '#a78bfa' }}>{setup.stateType}</span></>
+                                ? <><span style={{ color: slotColor }}>{'↑'}</span> <strong style={{ color: '#00d4ff' }}>publishes</strong> <span style={{ fontFamily: 'var(--font-mono)', color: '#e5f9ff' }}>{setup.stateKey}</span> · <span style={{ fontFamily: 'var(--font-mono)', color: '#a78bfa' }}>{setup.stateType}</span></>
+                                : <><span style={{ color: '#34d399' }}>{'↓'}</span> <strong style={{ color: '#34d399' }}>receives</strong> <span style={{ fontFamily: 'var(--font-mono)', color: '#e5f9ff' }}>{setup.stateKey}</span> · <span style={{ fontFamily: 'var(--font-mono)', color: '#a78bfa' }}>{setup.stateType}</span></>
                               }
                             </div>
                           )}
