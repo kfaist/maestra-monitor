@@ -1607,6 +1607,7 @@ export default function Home() {
             onNodeRoleChange={handleNodeRoleChange}
             entityBus={entityBus}
             slots={slots}
+            entityStates={entityStates as Record<string, Record<string, unknown>>}
           />
         </div>
 
