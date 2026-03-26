@@ -349,8 +349,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                 const modes: { key: 'auto' | 'gallery' | 'railway' | 'custom'; label: string; color: string }[] = [
                   { key: 'auto',    label: 'Auto',   color: '#fbbf24' },
                   { key: 'gallery', label: '⚡ Local', color: '#00ff88' },
-                  { key: 'railway', label: '☁ Cloud', color: '#00d4ff' },
-                  { key: 'custom',  label: '…',       color: '#a78bfa' },
+                  { key: 'railway', label: '☁ Railway', color: '#00d4ff' },
+                  { key: 'custom',  label: '⚙ Advanced', color: '#a78bfa' },
                 ];
                 const activeMode = modes.find(m => m.key === slotMode)!;
                 return (
@@ -1083,7 +1083,19 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     color: lockedSlots.has(slot.id) ? '#000' : 'rgba(255,255,255,0.35)',
                     transition: 'all 0.15s', flexShrink: 0, fontWeight: 700,
                   }}
-                >{lockedSlots.has(slot.id) ? '🔒' : '🔓'}</button>
+                >
+                      {lockedSlots.has(slot.id) ? (
+                        <svg width="10" height="11" viewBox="0 0 10 11" fill="none">
+                          <rect x="1.5" y="5" width="7" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+                          <path d="M3 5V3.5a2 2 0 0 1 4 0V5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                        </svg>
+                      ) : (
+                        <svg width="10" height="11" viewBox="0 0 10 11" fill="none" style={{opacity:0.45}}>
+                          <rect x="1.5" y="5" width="7" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+                          <path d="M3 5V3.5a2 2 0 0 1 4 0" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                        </svg>
+                      )}
+                    </button>
                 {/* Pin — sets slot to view-only default */}
                 <button
                   onClick={e => { e.stopPropagation(); togglePin(slot.id); }}
