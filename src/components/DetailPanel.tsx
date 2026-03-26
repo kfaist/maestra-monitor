@@ -24,6 +24,7 @@ interface DetailPanelProps {
   onPromptChange: (text: string) => void;
   onBroadcast: (prompt: string) => void;
   onP6Flush: (prompt: string) => void;
+  slots?: import('@/types').FleetSlot[];
   webcamActive: boolean;
   onWebcamToggle: (active: boolean) => void;
   onWebcamFrame: (blobUrl: string, fps: number) => void;
@@ -48,6 +49,7 @@ export default function DetailPanel({
   onPromptChange,
   onBroadcast,
   onP6Flush,
+  slots = [],
   webcamActive,
   onWebcamToggle,
   onWebcamFrame,
@@ -175,6 +177,7 @@ export default function DetailPanel({
         onPromptChange={onPromptChange}
         onBroadcast={onBroadcast}
         onP6Flush={onP6Flush}
+        slots={slots}
       />
 
       {/* Maestra Status + Connection */}
