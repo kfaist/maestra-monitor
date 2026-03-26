@@ -2270,3 +2270,4 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     </>
   );
 }
+
