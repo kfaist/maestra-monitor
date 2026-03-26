@@ -23,7 +23,7 @@ import { FleetSlot, LogEntry, EventEntry, AudioAnalysisData, SlotConnectionInfo,
 import { createInitialSlots, SUGGESTIONS } from '@/mock';
 import { WSSimulator } from '@/mock/ws-simulator';
 import { API_BASE } from '@/mock/gpu-nodes';
-import { GALLERY_URL, RAILWAY_URL } from '@/components/Header';
+import { GALLERY_URL, RAILWAY_URL } from '@/lib/maestra-client';
 import { formatTimestamp } from '@/lib/audio-utils';
 import { FRAME_FETCH_INTERVAL } from '@/lib/constants';
 import {
