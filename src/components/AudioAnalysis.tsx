@@ -221,7 +221,9 @@ export default function AudioAnalysis({ audioData, onSendAudio }: AudioAnalysisP
                       className="aa-band-fill"
                       style={{
                         width: `${pct}%`,
-                        background: `linear-gradient(90deg, hsl(${band.hue},80%,40%), hsl(${band.hue},90%,65%))`,
+                        background: band.color
+                          ? `linear-gradient(90deg, ${band.color}80, ${band.color})`
+                          : `linear-gradient(90deg, hsl(${band.hue},80%,40%), hsl(${band.hue},90%,65%))`,
                       }}
                     />
                   </div>
