@@ -670,38 +670,68 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             CONNECT YOUR NODE
                           </div>
 
-                          {/* Option A: Already have the TOX — browse to .toe */}
-                          <button
-                            className="slot-wizard-btn slot-wizard-btn-primary"
-                            style={{ width: '100%', textAlign: 'left', padding: '8px 12px', position: 'relative' }}
-                            onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'role' } })); }}
+                          {/* OPTION A — already have TOX in .toe, browse to it */}
+                          <label
+                            style={{
+                              width: '100%', boxSizing: 'border-box',
+                              display: 'block', padding: '10px 12px',
+                              border: `1px solid ${slotColor}50`,
+                              background: `${slotColor}08`,
+                              cursor: 'pointer', position: 'relative',
+                            }}
+                            onClick={e => e.stopPropagation()}
                           >
-                            <div style={{ fontSize: 10, fontWeight: 700, color: slotColor, marginBottom: 2 }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: slotColor, marginBottom: 3, pointerEvents: 'none' }}>
                               ✓ I already have maestra.tox in my .toe
                             </div>
-                            <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', fontFamily: 'var(--font-mono)' }}>
-                              maestra.tox is dropped into my project → continue setup
+                            <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-mono)', pointerEvents: 'none' }}>
+                              {setup.refFile
+                                ? `📁 ${setup.refFile} — `
+                                : 'Browse to your .toe file — '}
+                              <span style={{ color: slotColor, textDecoration: 'underline' }}>
+                                {setup.refFile ? 'change file' : 'click to browse'}
+                              </span>
                             </div>
-                          </button>
+                            <input
+                              type="file"
+                              accept=".toe,.tox"
+                              style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
+                              onChange={e => {
+                                const f = e.target.files?.[0];
+                                if (f) {
+                                  handleFileUpload(slot.id, f);
+                                  setTimeout(() => setSetupState(prev => ({
+                                    ...prev, [slot.id]: { ...prev[slot.id], stage: 'role' }
+                                  })), 300);
+                                }
+                              }}
+                            />
+                          </label>
 
-                          {/* Option B: Download the TOX first */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+                            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+                            <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em' }}>OR</span>
+                            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+                          </div>
+
+                          {/* OPTION B — download TOX first */}
                           <a
                             href="/maestra.tox"
                             download="maestra.tox"
                             onClick={e => e.stopPropagation()}
                             style={{
                               width: '100%', boxSizing: 'border-box',
-                              display: 'block', padding: '8px 12px',
-                              border: '1px solid rgba(255,255,255,0.08)',
-                              background: 'rgba(255,255,255,0.03)',
+                              display: 'block', padding: '10px 12px',
+                              border: '1px solid rgba(255,255,255,0.07)',
+                              background: 'rgba(255,255,255,0.02)',
                               textDecoration: 'none', cursor: 'pointer',
                             }}
                           >
-                            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginBottom: 2 }}>
+                            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', marginBottom: 3 }}>
                               ↓ Download maestra.tox
                             </div>
-                            <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-mono)' }}>
-                              Drag into your .toe file → it registers automatically
+                            <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.25)', fontFamily: 'var(--font-mono)' }}>
+                              Drag into your .toe → registers automatically
                             </div>
                           </a>
                         </div>
