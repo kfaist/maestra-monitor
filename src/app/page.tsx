@@ -11,7 +11,8 @@ import {
   ToxReferenceTab,
   ConnectionPanel,
   JoinModal,
-  LightingPanel
+  LightingPanel,
+  ScenePanel,
 } from '@/components';
 import { JoinMaestraResult } from '@/components/JoinModal';
 import { SceneDefinition } from '@/components/ScenePanel';
