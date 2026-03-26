@@ -804,16 +804,18 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
 
                             // Stream type filter
                             const STREAM_TYPES = [
-                              { key: '', label: 'All' },
-                              { key: 'texture', label: 'Texture' },
-                              { key: 'video',   label: 'Video' },
-                              { key: 'spout',   label: 'Spout' },
-                              { key: 'ndi',     label: 'NDI' },
-                              { key: 'syphon',  label: 'Syphon' },
-                              { key: 'audio',   label: 'Audio' },
-                              { key: 'data',    label: 'Data' },
-                              { key: 'osc',     label: 'OSC' },
-                              { key: 'midi',    label: 'MIDI' },
+                              { key: '',        label: 'All',     desc: '' },
+                              { key: 'ndi',     label: 'NDI',     desc: 'NDI video/audio' },
+                              { key: 'syphon',  label: 'Syphon',  desc: 'Texture (macOS)' },
+                              { key: 'spout',   label: 'Spout',   desc: 'Texture (Windows)' },
+                              { key: 'srt',     label: 'SRT',     desc: 'SRT video stream' },
+                              { key: 'video',   label: 'Video',   desc: 'Generic video' },
+                              { key: 'audio',   label: 'Audio',   desc: 'Audio feeds' },
+                              { key: 'texture', label: 'Texture', desc: 'GPU textures' },
+                              { key: 'midi',    label: 'MIDI',    desc: 'MIDI data' },
+                              { key: 'osc',     label: 'OSC',     desc: 'OSC messages' },
+                              { key: 'sensor',  label: 'Sensor',  desc: 'Sensor data' },
+                              { key: 'data',    label: 'Data',    desc: 'Generic data' },
                             ];
                             const streamFilter = (setup.stateType === 'string' || !setup.stateType) ? '' : setup.stateType;
 
