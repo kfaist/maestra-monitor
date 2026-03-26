@@ -114,6 +114,25 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     const t = setInterval(load, 15000);
     return () => clearInterval(t);
   }, []);
+
+  // Restore saved outputSignals from localStorage on mount
+  useEffect(() => {
+    slots.forEach(slot => {
+      const slug = slot.entity_id || slot.id;
+      try {
+        const saved = localStorage.getItem('maestra_slot_' + slug);
+        if (saved) {
+          const sigs = JSON.parse(saved);
+          if (Array.isArray(sigs) && sigs.length > 0) {
+            setSetupState(prev => ({
+              ...prev,
+              [slot.id]: { ...prev[slot.id], outputSignals: sigs }
+            }));
+          }
+        }
+      } catch {}
+    });
+  }, [slots.length]);
   const setSlotServer = (slotId: string, mode: 'auto' | 'gallery' | 'railway' | 'custom') =>
     setSlotServerModes(prev => ({ ...prev, [slotId]: mode }));
   const [lockedLabels, setLockedLabels] = useState<Record<string, string>>({});
