@@ -788,7 +788,19 @@ export default function Home() {
     }
   }, [log]);
 
-  // Broadcast prompt — sends via WS broadcast + targeted state_update
+  // Send a message via WS to all connected entities
+  const sendViaAll = useCallback((payload: Record<string, unknown>, target?: string) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const ts = Date.now();
+    if (target && target !== 'global') {
+      ws.send(JSON.stringify({ ...payload, entity_id: target, timestamp: ts }));
+    } else {
+      ws.send(JSON.stringify({ ...payload, timestamp: ts }));
+    }
+  }, []);
+
+    // Broadcast prompt — sends via WS broadcast + targeted state_update
   const broadcastPrompt = useCallback((prompt: string) => {
     const targets = slotsRef.current.map(s => s.entity_id || s.id).filter(Boolean);
     // Send as prompt_inject (fleet-wide) AND as state_update with { prompt } key
