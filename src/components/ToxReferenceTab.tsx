@@ -9,7 +9,7 @@ export default function ToxReferenceTab() {
       <div className="tox-section" style={{ background: 'rgba(0,212,255,0.03)', border: '1px solid rgba(0,212,255,0.18)', marginBottom: 0 }}>
         <div className="tox-title" style={{ color: 'var(--active)', display: 'flex', alignItems: 'center', gap: 10 }}>
           <span>Quick Start — Auto-Setup Script</span>
-          <span style={{ fontSize: 9, color: 'var(--text-dim)', fontWeight: 400 }}>v0.5 · Jordan Snyder</span>
+          <span style={{ fontSize: 9, color: 'var(--text-dim)', fontWeight: 400 }}>v2 · Jordan Snyder</span>
         </div>
         <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.8, marginBottom: 14 }}>
           Drop <code style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>build_maestra_tox.py</code> into your project
@@ -31,6 +31,7 @@ export default function ToxReferenceTab() {
               { key: 'tops', desc: 'array of TOP paths → wizard dropdown' },
               { key: 'server', desc: 'which server connected' },
               { key: 'active', desc: 'true when alive' },
+              { key: 'chops', desc: 'array of CHOP paths available' },
             ].map(({ key, desc }) => (
               <div key={key} style={{ display: 'flex', alignItems: 'baseline', gap: 6, background: 'var(--surface2)', border: '1px solid var(--border)', padding: '4px 8px', fontSize: 9 }}>
                 <code style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{key}</code>
@@ -53,6 +54,19 @@ export default function ToxReferenceTab() {
             </svg>
             Download build_maestra_tox.py
           </a>
+        </div>
+
+        <div style={{ marginTop: 14, padding: '10px 12px', background: 'rgba(167,139,250,0.05)', border: '1px solid rgba(167,139,250,0.2)' }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#a78bfa', marginBottom: 8 }}>Manual Filepath Mode</div>
+          <div style={{ fontSize: 10, color: 'var(--text)', lineHeight: 1.8 }}>
+            No script? In the Monitor wizard reference step, type any TD operator path directly:<br />
+            <code style={{ color: '#a78bfa', fontFamily: 'var(--font-mono)', fontSize: 10 }}>project1/out1</code>
+            <span style={{ color: 'var(--text-dim)', margin: '0 6px' }}>or</span>
+            <code style={{ color: '#a78bfa', fontFamily: 'var(--font-mono)', fontSize: 10 }}>project1/audio/rms</code>
+          </div>
+          <div style={{ fontSize: 9, color: 'var(--text-dim)', marginTop: 6 }}>
+            The path is stored on the slot and shown in the routing panel. Works across machines as long as your TD project uses the same internal structure.
+          </div>
         </div>
       </div>
 
