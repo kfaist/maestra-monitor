@@ -890,7 +890,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       style={{
                         display: 'flex', flexDirection: 'column',
                         alignItems: 'center', justifyContent: 'center',
-                        height: '100%', minHeight: 260, gap: 14,
+                        gap: 14,
                         cursor: 'pointer', padding: '24px 20px',
                       }}
                       onClick={(e) => { e.stopPropagation(); handleSlotClick(slot); }}
