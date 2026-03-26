@@ -588,6 +588,17 @@ export default function Home() {
           });
           log(`State update from ${msg.entity_id}: ${JSON.stringify(msg.data).slice(0, 60)}`, 'info');
 
+          // Always store full state into entityStates keyed by entity_id AND slug
+          if (msg.data && typeof msg.data === 'object') {
+            const _d = msg.data as Record<string, unknown>;
+            const _eid = msg.entity_id as string;
+            // Store under entity_id
+            setEntityStates(prev => ({ ...prev, [_eid]: { ...prev[_eid], ..._d as Record<string,string> } }));
+            // Also store under slug if we have it
+            const _slug = _d.toe_name ? String(_d.toe_name).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') : null;
+            if (_slug) setEntityStates(prev => ({ ...prev, [_slug]: { ...prev[_slug], ..._d as Record<string,string> } }));
+          }
+
           // Auto-claim: if entity pushed toe_name, claim first available slot
           if (msg.data && typeof msg.data === 'object') {
             const d = msg.data as Record<string, unknown>;
@@ -762,9 +773,13 @@ export default function Home() {
       // Update entityStates from server state
       entities.forEach(e => {
         const slug = (e.slug as string) || String(e.id);
+        const eid = String(e.id);
         const state = (e.state as Record<string, unknown>) || {};
-        if (Object.keys(state).length > 0) {
-          setEntityStates(prev => ({ ...prev, [slug]: state as Record<string, string> }));
+        const meta = (e.metadata as Record<string, unknown>) || {};
+        // Merge state + metadata — tops may be in either
+        const merged = { ...meta, ...state };
+        if (Object.keys(merged).length > 0) {
+          setEntityStates(prev => ({ ...prev, [slug]: merged as Record<string,string>, [eid]: merged as Record<string,string> }));
         }
       });
 
