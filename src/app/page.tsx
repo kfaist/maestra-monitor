@@ -12,6 +12,8 @@ import {
   ConnectionPanel,
   JoinModal,
   LightingPanel,
+  ColorPalette,
+  ModulationGrid,
 } from '@/components';
 import { JoinMaestraResult } from '@/components/JoinModal';
 import { EntityBusEntry } from '@/components/DetailPanel';
@@ -1557,6 +1559,9 @@ export default function Home() {
               audioReactiveEnabled={audioReactiveEnabled}
               onAudioReactiveToggle={setAudioReactiveEnabled}
             />
+
+            <ColorPalette onColorChange={handleColorChange} />
+            <ModulationGrid onModulationChange={handleModulationChange} />
           </div>
 
           {/* Right: Detail Panel */}
