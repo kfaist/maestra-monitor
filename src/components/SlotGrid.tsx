@@ -701,13 +701,23 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         <span className="slot-available-flicker">AVAILABLE</span>
                       </div>
                       {slot.suggestion && (
-                        <span style={{
-                          fontSize: 8, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.3)',
-                          border: '1px solid rgba(255,255,255,0.1)', padding: '2px 7px',
-                          display: 'flex', alignItems: 'center', gap: 4, cursor: 'default',
-                        }}>
-                          ◂ {slot.suggestion.tagLabel}
-                        </span>
+                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                          <span
+                            style={{
+                              fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase',
+                              color: slotColor, border: `1px solid ${slotColor}40`,
+                              background: `${slotColor}0a`,
+                              padding: '2px 7px 2px 8px',
+                              display: 'flex', alignItems: 'center', gap: 5, cursor: 'default',
+                              userSelect: 'none',
+                            }}
+                          >
+                            TOOL
+                            <svg width="7" height="5" viewBox="0 0 7 5" fill="none" style={{ flexShrink: 0 }}>
+                              <path d="M1 1L3.5 4L6 1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                            </svg>
+                          </span>
+                        </div>
                       )}
                       <div className="slot-available-hover-btn">
                         <span className="slot-available-hover-icon">+</span>
@@ -738,7 +748,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
                       <button
                         onClick={e => { e.stopPropagation(); toggleLock(slot.id, slot, entityStates[slot.entity_id || slot.id] as Record<string, unknown> || {}); }}
-                        title={lockedSlots.has(slot.id) ? 'Locked — click to unlock' : 'Unlocked — click to lock'}
+                        title={lockedSlots.has(slot.id) ? '🔒 Locked — click to unlock and modify' : '🔓 Click to lock and protect this slot'}
                         style={{
                           background: 'none', border: 'none', padding: '0 2px',
                           color: lockedSlots.has(slot.id) ? slotColor : 'rgba(255,255,255,0.18)',
