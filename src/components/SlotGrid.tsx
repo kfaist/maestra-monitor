@@ -461,7 +461,6 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     setSetupState(prev => {
       const current = prev[slot.id];
       if (current && current.stage !== 'idle') return prev; // DON'T RESET
-      // Prefill slug from entity data if available
       const existingSlug = slot.entity_id || slot.slug || '';
       const startStage: InlineStage = existingSlug ? 'addState' : 'connect';
       return { ...prev, [slot.id]: { stage: startStage, slug: existingSlug, refFile: null, direction: 'send' as NodeRole, selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [], streamType: '', selectedNode: '' , nodeSearch: '', opSearch: '' } };
