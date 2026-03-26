@@ -107,22 +107,11 @@ export default function EntityPatchBay({ slots, entityStates, liveValues, onAppl
       borderTop: '1px solid var(--border)',
       padding: '16px 20px',
     }}>
-      {/* ── HEADER ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-dim)' }}>
-          // Entity Signal Patch Bay
-        </div>
-        <div style={{ fontSize: 9, color: 'var(--text-dim)', opacity: 0.45 }}>drag → slot IN &nbsp;·&nbsp; click → apply global</div>
-      </div>
-
       {/* ── GLOBAL OUT CHIPS ── */}
       <div style={{ marginBottom: 16 }}>
         {SIGNAL_GROUPS.map(group => (
           <div key={group.label} style={{ marginBottom: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
-              <span style={{ fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-dim)', opacity: 0.45 }}>{group.label}</span>
-              {group.dot && <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--active)', opacity: 0.6 }} />}
-            </div>
+
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
               {group.signals.map(sig => {
                 const lv = getLive(sig.id);
@@ -165,9 +154,7 @@ export default function EntityPatchBay({ slots, entityStates, liveValues, onAppl
 
       {/* ── SLOT PATCH ROWS ── */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: 8, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-dim)', opacity: 0.5, marginBottom: 10 }}>
-          Slot Routing
-        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
           {slots.map((slot, idx) => {
             const color = getSlotColor(slot.id, idx);
@@ -279,7 +266,7 @@ export default function EntityPatchBay({ slots, entityStates, liveValues, onAppl
                 )}
 
                 {!isLive && ins.length === 0 && outKeys.length === 0 && (
-                  <div style={{ fontSize: 8, color: 'var(--text-dim)', opacity: 0.22, fontStyle: 'italic' }}>connect node to configure</div>
+                  <div style={{ fontSize: 8, color: 'var(--text-dim)', opacity: 0.22, fontStyle: 'italic' }}>wire state_in CHOP → channels appear here</div>
                 )}
               </div>
             );
