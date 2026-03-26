@@ -805,10 +805,9 @@ export default function Home() {
     const targets = slotsRef.current.map(s => s.entity_id || s.id).filter(Boolean);
     // Send as prompt_inject (fleet-wide) AND as state_update with { prompt } key
     sendViaAll(
-      { type: 'prompt_inject', prompt, data: { prompt } },
-      targets,
-      'Inject',
+      { type: 'prompt_inject', prompt, data: { prompt } }
     );
+    targets.forEach(t => sendViaAll({ type: 'prompt_inject', prompt, data: { prompt } }, t));
     logEvent('state', 'fleet', `Prompt injected: ${prompt.slice(0, 40)}`);
     pushBusEntry('fleet.prompt', prompt.slice(0, 50));
   }, [sendViaAll, logEvent, pushBusEntry]);
@@ -818,10 +817,9 @@ export default function Home() {
     const targets = slotsRef.current.map(s => s.entity_id || s.id).filter(Boolean);
     // TD expects data.p6 = "the prompt text", NOT data.prompt with a field tag
     sendViaAll(
-      { type: 'p6_flush', prompt, data: { p6: prompt, prompt } },
-      targets,
-      'P6 Flush',
+      { type: 'p6_flush', prompt, data: { p6: prompt, prompt } }
     );
+    targets.forEach(t => sendViaAll({ type: 'p6_flush', prompt, data: { p6: prompt, prompt } }, t));
     logEvent('state', 'fleet', `P6 flush → ${prompt.slice(0, 40)}`);
     pushBusEntry('fleet.p6', prompt.slice(0, 50));
   }, [sendViaAll, logEvent, pushBusEntry]);
@@ -1377,7 +1375,6 @@ export default function Home() {
     // Other slots stay available — users connect them explicitly via the setup wizard.
     setTimeout(() => {
       autoConnectSlot('krista1');
-      selectSlot('krista1');
     }, 100);
 
     // SD feed watchdog — keep krista1 alive 24/7. If it drops, reconnect after 10s.
@@ -1402,7 +1399,7 @@ export default function Home() {
       connectionsRef.current.forEach(conn => conn.destroy());
       connectionsRef.current.clear();
     };
-  }, [connectWS, fetchEntities, fetchFrame, selectSlot, autoConnectSlot, log]);
+  }, [connectWS, fetchEntities, fetchFrame, autoConnectSlot, log]);
 
   // Derived values
   const selectedSlot = slots.find(s => s.id === selectedId) || null;
@@ -1423,18 +1420,22 @@ export default function Home() {
     return 'disconnected' as const;
   })();
 
+    const handleJoinMaestra = useCallback((result: JoinMaestraResult) => {
+    setJoinModalOpen(false);
+    if (result?.entityId) {
+      log('[Join] Entity registered: ' + result.entityId, 'ok');
+    }
+  }, [log]);
+
   return (
     <>
       <Header
         wsStatus={wsStatus}
-        apiStatus={apiStatus}
-        maestraStatus={maestraHeaderStatus}
         streamFps={streamFps}
         activeSlots={activeSlots}
         totalSlots={slots.length}
         audioActive={audioActive}
         frameRelayCount={frameRelayCount}
-        onJoinMaestra={() => setJoinModalOpen(true)}
         serverMode={serverMode}
         onServerModeChange={handleServerModeChange}
         customUrl={customUrl}
@@ -1453,8 +1454,8 @@ export default function Home() {
             <SlotGrid
               slots={slots}
               selectedId={selectedId}
-              onSelectSlot={selectSlot}
-              onAddSlot={addSlot}
+              onSelectSlot={setSelectedId}
+              onAddSlot={() => setSlots(prev => [...prev, { id: `slot-${Date.now()}`, slug: '', entityId: null, label: 'New Slot', entity_id: null, endpoint: null, cloudNode: false, connection_status: 'disconnected' as const, last_heartbeat: null, active_stream: null, state_summary: {}, _frameTimes: [], _fpsSmooth: null, fps: null, frameUrl: null, active: false }])}
               onJoinNode={() => setJoinModalOpen(true)}
               onSlotSetupComplete={handleSlotSetupComplete}
               onInjectSignal={handleInjectSignal}

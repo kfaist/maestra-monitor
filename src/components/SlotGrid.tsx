@@ -14,6 +14,9 @@ interface SlotSetup {
   signal: SignalSource | null;
   refPath: string;
   refFile: string | null;
+  selectedTop: string | null;
+  stateKey: string;
+  stateType: string;
 }
 
 interface InjectState {
@@ -207,7 +210,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
       ...prev,
       [slotId]: { ...prev[slotId], stage: 'idle' },
     }));
-    onSlotSetupComplete?.(slotId, setup.role, (setup.signal || 'touchdesigner') as import('@/types').SignalType);
+    onSlotSetupComplete?.(slotId, setup.role as NodeRole, (setup.signal || 'touchdesigner') as SignalSource);
   }, [setupState, onSlotSetupComplete]);
 
   const handleBack = useCallback((slotId: string, e: React.MouseEvent) => {
@@ -641,11 +644,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <div className="slot-inline-wizard">
                       {/* Step indicator — 4 steps */}
                       <div className="slot-wizard-steps">
-                        {(['connect','role','path','top','states'] as const).map((s, i, arr) => (
+                        {(['connect','role','path','top','states'] as string[]).map((s, i, arr) => (
                           <span key={s} style={{ display: 'flex', alignItems: 'center' }}>
                             <span className={`slot-wizard-dot ${
                               setup.stage === s ? 'active' :
-                              arr.indexOf(setup.stage) > i ? 'done' : ''
+                              (arr as string[]).indexOf(setup.stage) > i ? 'done' : ''
                             }`} />
                             {i < arr.length - 1 && <span className="slot-wizard-line" />}
                           </span>
