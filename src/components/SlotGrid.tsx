@@ -95,6 +95,10 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   const [sourceState, setSourceState] = useState<Record<string, SourceState>>({});
   // Lock state — active slots are auto-locked, can be manually unlocked
   const [lockedSlots, setLockedSlots] = useState<Set<string>>(new Set());
+  // Per-slot server mode: which Maestra server this slot is targeting
+  const [slotServerModes, setSlotServerModes] = useState<Record<string, 'auto' | 'gallery' | 'railway' | 'custom'>>({});
+  const setSlotServer = (slotId: string, mode: 'auto' | 'gallery' | 'railway' | 'custom') =>
+    setSlotServerModes(prev => ({ ...prev, [slotId]: mode }));
   const [lockedLabels, setLockedLabels] = useState<Record<string, string>>({});
 
   const toggleLock = (slotId: string, slot: FleetSlot, entityState: Record<string, unknown>) => {
@@ -332,6 +336,58 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
               data-signal={slot.signalType || undefined}
               onClick={() => handleSlotClick(slot)}
             >
+              {/* ── Per-slot server toggle ── */}
+              {(() => {
+                const slotMode = slotServerModes[slot.id] || 'auto';
+                const slotServerStr = (entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.server as string | undefined;
+                const modes: { key: 'auto' | 'gallery' | 'railway' | 'custom'; label: string; color: string }[] = [
+                  { key: 'auto',    label: 'Auto',   color: '#fbbf24' },
+                  { key: 'gallery', label: '⚡ Local', color: '#00ff88' },
+                  { key: 'railway', label: '☁ Cloud', color: '#00d4ff' },
+                  { key: 'custom',  label: '…',       color: '#a78bfa' },
+                ];
+                const activeMode = modes.find(m => m.key === slotMode)!;
+                return (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 3,
+                    padding: '4px 8px',
+                    background: 'rgba(0,0,0,0.3)',
+                    borderBottom: `1px solid ${slotColor}18`,
+                    flexWrap: 'wrap',
+                  }}>
+                    {modes.map(({ key, label, color }) => {
+                      const active = slotMode === key;
+                      return (
+                        <button key={key}
+                          onClick={e => { e.stopPropagation(); setSlotServer(slot.id, key); }}
+                          style={{
+                            fontSize: 7, fontFamily: 'var(--font-display)', fontWeight: 700,
+                            letterSpacing: '0.08em', textTransform: 'uppercase',
+                            padding: '1px 5px', cursor: 'pointer',
+                            background: active ? `${color}20` : 'none',
+                            border: `1px solid ${active ? color + '60' : 'rgba(255,255,255,0.06)'}`,
+                            color: active ? color : 'rgba(255,255,255,0.2)',
+                            transition: 'all 0.12s',
+                          }}
+                        >{label}</button>
+                      );
+                    })}
+                    {/* Active server URL — shows what TD actually reported */}
+                    {slotServerStr && (
+                      <span style={{
+                        fontSize: 7, fontFamily: 'var(--font-mono)',
+                        color: `${activeMode.color}80`,
+                        marginLeft: 'auto',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        maxWidth: 120,
+                      }}>
+                        {slotServerStr.replace('https://','').replace('http://','').slice(0, 22)}
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* ═══════ ACTIVE SLOT: LIVE NODE PANEL ═══════ */}
               {slot.active ? (
                 <div className="live-node-panel">
