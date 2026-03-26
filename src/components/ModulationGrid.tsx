@@ -47,10 +47,22 @@ export default function ModulationGrid({ onModulationChange }: ModulationGridPro
                 className="mod-select source-select"
                 value={param.source}
                 onChange={(e) => updateParam(index, 'source', e.target.value as AudioSource)}
+                style={{ color: ({ none: '#6B7280', rms: '#E5F9FF', bpm: '#FFD84D', sub: '#7C3AED', bass: '#FF2FA3', mid: '#FF8A3D', high: '#3DD6FF' })[param.source] || '#6B7280', background: 'rgba(0,0,0,0.4)', border: `1px solid ${({ none: '#6B7280', rms: '#E5F9FF', bpm: '#FFD84D', sub: '#7C3AED', bass: '#FF2FA3', mid: '#FF8A3D', high: '#3DD6FF' })[param.source] || '#6B7280'}40` }}
               >
-                {SOURCES.map(s => (
-                  <option key={s} value={s}>{s === 'none' ? 'None' : s.toUpperCase()}</option>
-                ))}
+                {SOURCES.map(s => {
+                  const colors: Record<string, string> = {
+                    none: '#6B7280', rms: '#E5F9FF', bpm: '#FFD84D',
+                    sub: '#7C3AED', bass: '#FF2FA3', mid: '#FF8A3D', high: '#3DD6FF',
+                  };
+                  const icons: Record<string, string> = {
+                    none: '·', rms: '◈', bpm: '♩', sub: '▋', bass: '▋', mid: '▋', high: '▋',
+                  };
+                  return (
+                    <option key={s} value={s} style={{ color: colors[s], background: '#0a0a14' }}>
+                      {icons[s]} {s === 'none' ? 'None' : s.toUpperCase()}
+                    </option>
+                  );
+                })}
               </select>
               <div
                 className="source-indicator"
