@@ -1,221 +1,255 @@
 """
-build_maestra_tox.py  v2 — Maestra COMP builder for TouchDesigner
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+build_maestra_tox.py  v2.0
+Run from TD Textport:  exec(open(r'C:\path\to\build_maestra_tox.py').read())
+Or from a Text DAT:    right-click → Run Script
 
-Run once from Textport (Alt+T / Option+T):
-    exec(open('/path/to/build_maestra_tox.py').read())
-
-What this does
-──────────────
-1. Auto-detects server (Gallery LAN → Railway fallback)
-2. Creates /project1/maestra Base COMP
-3. Registers this .toe as a Maestra entity
-4. Pushes  { toe_name, tops, server }  every heartbeat
-   → Dashboard auto-names your slot + shows TOP dropdown
-5. Sets up state_in CHOP, state_table DAT, heartbeat timer
-
-Connecting from the Monitor
-────────────────────────────
-• Visit  https://maestra-monitor-production.up.railway.app/
-• Your slot appears automatically once this script runs
-• Click the slot → wizard → reference stage shows your TOPs
-• Wire a CHOP into  /project1/maestra/state_in
-  Channel names become published signals automatically
-
-Filepath OUT (manual path mode)
-────────────────────────────────
-• In the Monitor wizard reference stage, type a TD operator path
-  e.g.  project1/my_out_top   or   project1/audio_analysis
-• That path is stored on the slot and shown in routing panel
+What happens:
+  1. Scans ALL TOPs in your project (up to depth 5)
+  2. Derives entity slug from your .toe filename
+  3. Tries gallery server first (192.168.128.115:8080), falls back to Railway
+  4. Creates /project1/maestra Base COMP with:
+       - Custom pars: Entityslug, Serverurl, Connected
+       - state_table DAT (live key/value display)
+       - heartbeat_timer CHOP (5s pulse)
+       - state_push Text DAT (call push_state() from anywhere)
+  5. Registers entity on the server with:
+       { toe_name, tops, server, active: true }
+     → Dashboard slot auto-names + shows TOP dropdown in wizard
+  6. Starts heartbeat loop
 """
 
-import urllib.request, urllib.parse, json, os, time, re, sys
+import urllib.request, json, os, re, time
 
-# ── Config ──────────────────────────────────────────────────────────────────
-RAILWAY_URL  = 'https://maestra-backend-v2-production.up.railway.app'
+# ─── Config ────────────────────────────────────────────────────────────────
 GALLERY_URL  = 'http://192.168.128.115:8080'
-HEARTBEAT_S  = 5      # push state every N seconds
-MAX_TOPS     = 40     # max TOPs to list
+RAILWAY_URL  = 'https://maestra-backend-v2-production.up.railway.app'
+MAX_DEPTH    = 5
 
-# ── Helpers ─────────────────────────────────────────────────────────────────
-def make_slug(name):
-    s = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
-    return s or 'td-node'
+# ─── Derive names ──────────────────────────────────────────────────────────
+toe_path = str(project.path) if project.path else ''
+TOE_NAME = os.path.splitext(os.path.basename(toe_path))[0] if toe_path else project.name
+ENTITY_SLUG = re.sub(r'[^a-z0-9]+', '-', TOE_NAME.lower()).strip('-') or 'td-node'
 
-def probe(url):
-    for path in ['/health', '/entities']:
+print(f'[Maestra] TOE: {TOE_NAME}  slug: {ENTITY_SLUG}')
+
+# ─── Scan TOPs ─────────────────────────────────────────────────────────────
+def scan_tops():
+    tops = []
+    seen = set()
+    for t in root.findChildren(type=topCOMP, maxDepth=MAX_DEPTH):
         try:
-            with urllib.request.urlopen(url + path, timeout=2) as r:
-                if r.status < 400: return True
-        except: pass
+            p = t.path
+            if p not in seen:
+                seen.add(p)
+                tops.append(p)
+        except Exception:
+            pass
+    # Sort: prefer output/out/render paths first
+    priority = [t for t in tops if any(k in t.lower() for k in ['out','render','final','display','stream'])]
+    rest     = [t for t in tops if t not in priority]
+    return (priority + rest)[:30]
+
+TOPS = scan_tops()
+print(f'[Maestra] Found {len(TOPS)} TOPs')
+for t in TOPS[:8]:
+    print(f'  {t}')
+if len(TOPS) > 8:
+    print(f'  ... and {len(TOPS)-8} more')
+
+# ─── Probe server ──────────────────────────────────────────────────────────
+def probe(url, timeout=3):
+    for endpoint in ['/health', '/entities']:
+        try:
+            with urllib.request.urlopen(url + endpoint, timeout=timeout) as r:
+                if r.status < 500:
+                    return True
+        except Exception:
+            pass
     return False
 
-def http(url, data=None, method='GET'):
-    req = urllib.request.Request(
-        url, data=json.dumps(data).encode() if data else None,
-        method=method,
-        headers={'Content-Type': 'application/json'} if data else {}
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=6) as r:
-            return json.loads(r.read())
-    except Exception as e:
-        return {'error': str(e)}
+print('[Maestra] Probing gallery server...')
+SERVER_URL = GALLERY_URL if probe(GALLERY_URL) else RAILWAY_URL
+print(f'[Maestra] Using: {SERVER_URL}')
 
-# ── Collect project metadata ─────────────────────────────────────────────────
-TOE_PATH   = project.path or ''
-TOE_NAME   = os.path.splitext(os.path.basename(TOE_PATH))[0] if TOE_PATH else project.name or 'unnamed'
-SLUG       = make_slug(TOE_NAME)
-
-def collect_tops():
-    result = []
-    for t in root.findChildren(type=topCOMP, maxDepth=4):
-        try: result.append(t.path)
-        except: pass
-    return result[:MAX_TOPS]
-
-def collect_chops():
-    result = []
-    for c in root.findChildren(type=chopCOMP, maxDepth=3):
-        try: result.append(c.path)
-        except: pass
-    return result[:20]
-
-# ── Detect server ────────────────────────────────────────────────────────────
-SERVER = GALLERY_URL if probe(GALLERY_URL) else RAILWAY_URL
-print(f'[Maestra] Server: {SERVER}')
-print(f'[Maestra] Entity: {SLUG}  ({TOE_NAME})')
-
-# ── Create /project1/maestra COMP ───────────────────────────────────────────
+# ─── Create/find /project1/maestra COMP ────────────────────────────────────
 parent  = op('/project1')
-maestra = parent.op('maestra') or parent.create(baseCOMP, 'maestra')
-print(f'[Maestra] COMP: {maestra.path}')
+maestra = parent.op('maestra')
+if not maestra:
+    maestra = parent.create(baseCOMP, 'maestra')
+    print('[Maestra] Created /project1/maestra')
+else:
+    print('[Maestra] Found existing /project1/maestra')
 
-def get_or_create(parent_op, op_type, name):
-    return parent_op.op(name) or parent_op.create(op_type, name)
-
-# Internal operators
-state_table = get_or_create(maestra, tableDAT,  'state_table')
-state_chop  = get_or_create(maestra, nullCHOP,  'state_chop')
-state_in    = get_or_create(maestra, nullCHOP,  'state_in')
-hb_timer    = get_or_create(maestra, timerCHOP, 'heartbeat_timer')
-hb_timer.par.period     = HEARTBEAT_S
-hb_timer.par.outseconds = True
-
-# ── Custom parameters ────────────────────────────────────────────────────────
+# ─── Custom parameters ─────────────────────────────────────────────────────
 try:
-    cp = maestra.appendCustomPage('Connection')
-    pars = {
-        'Serverurl':   ('Server URL',  SERVER,  'appendStr'),
-        'Entityslug':  ('Entity Slug', SLUG,    'appendStr'),
-        'Toename':     ('TOE Name',    TOE_NAME,'appendStr'),
-        'Connected':   ('Connected',   False,   'appendToggle'),
-    }
-    for key, (label, default, method) in pars.items():
-        if not hasattr(maestra.par, key):
-            getattr(cp, method)(key, label=label)
-    maestra.par.Serverurl.val  = SERVER
-    maestra.par.Entityslug.val = SLUG
-    maestra.par.Toename.val    = TOE_NAME
+    pg = maestra.appendCustomPage('Maestra')
+    for par_name, par_type, label, default in [
+        ('Entityslug',  'Str',    'Entity Slug',  ENTITY_SLUG),
+        ('Serverurl',   'Str',    'Server URL',   SERVER_URL),
+        ('Connected',   'Toggle', 'Connected',    False),
+        ('Autoconnect', 'Toggle', 'Auto Connect', True),
+    ]:
+        if not hasattr(maestra.par, par_name):
+            getattr(pg, f'append{par_type}')(par_name, label=label)
+        getattr(maestra.par, par_name).val = default
 except Exception as e:
-    print(f'[Maestra] Custom pars warning: {e}')
+    # Pars may already exist
+    try:
+        maestra.par.Entityslug.val  = ENTITY_SLUG
+        maestra.par.Serverurl.val   = SERVER_URL
+        maestra.par.Autoconnect.val = True
+    except Exception:
+        pass
 
-# ── Register entity ──────────────────────────────────────────────────────────
-TOPS  = collect_tops()
-CHOPS = collect_chops()
+# ─── Internal operators ─────────────────────────────────────────────────────
+def ensure(parent_op, op_type, name):
+    o = parent_op.op(name)
+    if not o:
+        o = parent_op.create(op_type, name)
+    return o
 
-reg_payload = {
-    'name':  TOE_NAME,
-    'slug':  SLUG,
-    'state': {
-        'toe_name': TOE_NAME,
-        'tops':     TOPS,
-        'chops':    CHOPS,
-        'server':   SERVER,
-        'active':   True,
-        'registered_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
-    },
-    'tags': ['touchdesigner'],
-}
-
-resp = http(SERVER + '/entities', reg_payload, 'POST')
-entity_id = resp.get('id') or resp.get('entity_id') or SLUG
-print(f'[Maestra] Registered: {entity_id}')
-maestra.par.Connected.val = True
-
-# Seed state_table
+state_table = ensure(maestra, tableDAT, 'state_table')
 state_table.clear()
 state_table.appendRow(['key', 'value'])
-state_table.appendRow(['toe_name', TOE_NAME])
-state_table.appendRow(['entity_id', entity_id])
-state_table.appendRow(['server', SERVER])
-state_table.appendRow(['tops_count', str(len(TOPS))])
 
-# ── Heartbeat DAT — pushes toe_name+tops every tick ─────────────────────────
-hb_dat = get_or_create(maestra, textDAT, 'heartbeat_dat')
-hb_dat.text = '''
-import urllib.request, json, time, os, re
+ensure(maestra, tableDAT, 'log')
+timer = ensure(maestra, timerCHOP, 'heartbeat_timer')
+timer.par.period      = 5
+timer.par.outseconds  = True
+timer.par.active      = True
 
-def make_slug(name):
-    import re
-    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "td-node"
+# ─── Register entity + push tops ───────────────────────────────────────────
+def register():
+    payload = json.dumps({
+        'name':          TOE_NAME,
+        'slug':          ENTITY_SLUG,
+        'entity_type_id': 'default',
+        'state': {
+            'toe_name':  TOE_NAME,
+            'tops':      TOPS,
+            'server':    SERVER_URL,
+            'active':    True,
+        },
+        'metadata': {
+            'toe_name':  TOE_NAME,
+            'tops':      TOPS,
+            'server':    SERVER_URL,
+            'tool':      'build_maestra_tox.py v2.0',
+        },
+        'tags': ['touchdesigner'],
+    }).encode('utf-8')
 
-def http_patch(url, data):
     req = urllib.request.Request(
-        url, data=json.dumps(data).encode(), method="PATCH",
-        headers={"Content-Type": "application/json"}
+        SERVER_URL + '/entities',
+        data=payload, method='POST',
+        headers={'Content-Type': 'application/json'}
     )
     try:
-        with urllib.request.urlopen(req, timeout=4): pass
-    except: pass
+        with urllib.request.urlopen(req, timeout=10) as r:
+            resp = json.loads(r.read().decode('utf-8'))
+            eid  = resp.get('id') or resp.get('entity_id') or 'ok'
+            print(f'[Maestra] Registered → entity_id: {eid}')
+            maestra.par.Connected.val = True
+            # Update state_table
+            state_table.clear()
+            state_table.appendRow(['key', 'value'])
+            state_table.appendRow(['toe_name', TOE_NAME])
+            state_table.appendRow(['entity_id', str(eid)])
+            state_table.appendRow(['server', SERVER_URL])
+            state_table.appendRow(['tops_count', str(len(TOPS))])
+            for i, t in enumerate(TOPS[:10]):
+                state_table.appendRow([f'top_{i}', t])
+            return eid
+    except Exception as e:
+        # Try PATCH if POST fails (entity already exists)
+        try:
+            patch_payload = json.dumps({
+                'state': {
+                    'toe_name': TOE_NAME,
+                    'tops':     TOPS,
+                    'server':   SERVER_URL,
+                    'active':   True,
+                }
+            }).encode('utf-8')
+            req2 = urllib.request.Request(
+                f'{SERVER_URL}/entities/{ENTITY_SLUG}/state',
+                data=patch_payload, method='PATCH',
+                headers={'Content-Type': 'application/json'}
+            )
+            with urllib.request.urlopen(req2, timeout=10) as r2:
+                print(f'[Maestra] State updated for existing entity: {ENTITY_SLUG}')
+                maestra.par.Connected.val = True
+                return ENTITY_SLUG
+        except Exception as e2:
+            print(f'[Maestra] Registration error: {e2}')
+            maestra.par.Connected.val = False
+            return None
 
-def collect_tops():
-    tops = []
-    for t in root.findChildren(type=topCOMP, maxDepth=4):
-        try: tops.append(t.path)
-        except: pass
-    return tops[:40]
+entity_id = register()
+
+# ─── Heartbeat DAT ─────────────────────────────────────────────────────────
+hb = ensure(maestra, textDAT, 'heartbeat_cb')
+hb.text = f'''# Heartbeat — fires every 5s via heartbeat_timer
+import urllib.request, json, time
 
 def onTimerPulse(timerOp):
-    server = op("maestra").par.Serverurl.val
-    slug   = op("maestra").par.Entityslug.val
-    name   = op("maestra").par.Toename.val
-    tops   = collect_tops()
-    # Push state — dashboard reads toe_name+tops to auto-name slot + populate dropdown
-    http_patch(server + "/entities/" + slug + "/state", {
-        "state": {
-            "toe_name": name,
-            "tops":     tops,
-            "active":   True,
-            "ts":       time.time(),
-        }
-    })
+    slug = op('/project1/maestra').par.Entityslug.val
+    url  = op('/project1/maestra').par.Serverurl.val
+    try:
+        data = json.dumps({{'slug': slug, 'ts': time.time()}}).encode()
+        req  = urllib.request.Request(
+            url + '/entities/' + slug + '/heartbeat',
+            data=data, method='POST',
+            headers={{'Content-Type': 'application/json'}}
+        )
+        urllib.request.urlopen(req, timeout=3)
+    except Exception:
+        pass
 '''
 
-print(f'[Maestra] Heartbeat DAT ready — pushing every {HEARTBEAT_S}s')
+# ─── State push helper ──────────────────────────────────────────────────────
+sp = ensure(maestra, textDAT, 'state_push')
+sp.text = f'''# Push state to Maestra — call from anywhere:
+#   op('/project1/maestra').op('state_push').module.push({{'brightness': 75}})
+import urllib.request, json
 
-# ── Done ─────────────────────────────────────────────────────────────────────
-print(f"""
-┌─────────────────────────────────────────────────────┐
-│  Maestra COMP ready at /project1/maestra            │
-│                                                     │
-│  TOE :  {TOE_NAME:<43} │
-│  Slug:  {SLUG:<43} │
-│  TOPs:  {len(TOPS):<43} │
-│  Server:{SERVER[:43]:<43} │
-└─────────────────────────────────────────────────────┘
+def push(state_dict):
+    m    = op('/project1/maestra')
+    slug = m.par.Entityslug.val
+    url  = m.par.Serverurl.val
+    data = json.dumps({{'state': state_dict}}).encode()
+    req  = urllib.request.Request(
+        url + '/entities/' + slug + '/state',
+        data=data, method='PATCH',
+        headers={{'Content-Type': 'application/json'}}
+    )
+    try:
+        urllib.request.urlopen(req, timeout=5)
+    except Exception as e:
+        print(f'[state_push] {{e}}')
 
-Dashboard → slot auto-named "{TOE_NAME}" with TOP dropdown.
+# Wire a CHOP to auto-push — channel names become state keys:
+#   op('/project1/maestra').op('state_push').module.push({{
+#       ch.name: ch[0] for ch in op('my_chop').chans()
+#   }})
+'''
 
-To publish signals:
-  Wire any CHOP → /project1/maestra/state_in
-  Channel names become published signals automatically.
-
-To receive signals (prompt_text, lighting.scene, etc.):
-  Read from /project1/maestra/state_table  (DAT)
-  or  /project1/maestra/state_chop  (CHOP)
-
-Manual path:
-  In Monitor wizard reference step, type any operator path.
-  e.g.  project1/out1   or   project1/audio/rms
-""")
+# ─── Done ───────────────────────────────────────────────────────────────────
+top_preview = ', '.join(TOPS[:3]) + ('...' if len(TOPS) > 3 else '')
+print(f'''
+╔══════════════════════════════════════════════════════╗
+║  /project1/maestra  READY                            ║
+╠══════════════════════════════════════════════════════╣
+║  Slug:    {ENTITY_SLUG:<44}║
+║  Server:  {SERVER_URL[:44]:<44}║
+║  TOPs:    {str(len(TOPS)):<44}║
+╠══════════════════════════════════════════════════════╣
+║  Dashboard will now show:                            ║
+║   • Slot auto-named: {TOE_NAME[:33]:<33}║
+║   • TOP dropdown in wizard step 4                    ║
+╠══════════════════════════════════════════════════════╣
+║  To push state from anywhere:                        ║
+║  op('/project1/maestra').op('state_push')            ║
+║       .module.push({{'brightness': 75}})              ║
+╚══════════════════════════════════════════════════════╝
+''')
