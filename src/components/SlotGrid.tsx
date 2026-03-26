@@ -765,44 +765,39 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             </div>
                           )}
 
-                          {/* TOP dropdown — populated from metadata.tops sent by TOX */}
+                                                    {/* TOP — dropdown if WS has data, text input always editable */}
                           {(() => {
-                            const eid = setup.slug || slot.entity_id || slot.id;
-                            // Check all sources: WS entityStates (by slug), by entity_id, and REST slot.metadata
-                            const eState = (entityStates[eid] || entityStates[slot.entity_id || ''] || {}) as Record<string,unknown>;
-                            const slotMeta = ((slot as unknown as Record<string,unknown>).metadata || {}) as Record<string,unknown>;
-                            const tops: string[] = (
-                              Array.isArray(eState?.tops) ? eState.tops as string[] :
-                              Array.isArray((eState?.metadata as Record<string,unknown>|undefined)?.tops) ? ((eState.metadata as Record<string,unknown>).tops as string[]) :
-                              Array.isArray(slotMeta?.tops) ? slotMeta.tops as string[] :
-                              []
-                            );
+                            const _eid = setup.slug || slot.entity_id || slot.id;
+                            const _es = (entityStates[_eid] || entityStates[slot.entity_id || ''] || {}) as Record<string,unknown>;
+                            const _sm = ((slot as unknown as Record<string,unknown>).metadata || {}) as Record<string,unknown>;
+                            const _tops: string[] = Array.isArray(_es?.tops) ? _es.tops as string[] : Array.isArray(_sm?.tops) ? _sm.tops as string[] : [];
                             return (
                               <div style={{ width: '100%' }}>
-                                <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)',
-                                  textTransform: 'uppercase', marginBottom: 3 }}>Select TOP</div>
-                                {tops.length === 0 ? (
-                                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)',
-                                    fontFamily: 'var(--font-mono)', padding: '6px 0', lineHeight: 1.6 }}>
-                                    No TOPs detected yet.<br/>
-                                    The TOX auto-registers TOPs when your project opens in TD.
-                                  </div>
-                                ) : (
+                                <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
+                                  TOP Path {_tops.length > 0 && <span style={{ color: slotColor }}>· {_tops.length} detected</span>}
+                                </div>
+                                {_tops.length > 0 && (
                                   <select value={setup.selectedTop} onClick={e => e.stopPropagation()}
-                                    onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev,
-                                      [slot.id]: { ...prev[slot.id], selectedTop: e.target.value } })); }}
-                                    style={{ width: '100%', padding: '5px 8px', fontSize: 10,
+                                    onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: e.target.value } })); }}
+                                    style={{ width: '100%', padding: '4px 8px', fontSize: 10, marginBottom: 4,
                                       fontFamily: 'var(--font-mono)', background: 'rgba(0,0,0,0.6)',
                                       border: `1px solid ${slotColor}40`, color: slotColor, outline: 'none' }}>
-                                    <option value="">— select a TOP —</option>
-                                    {tops.map(t => <option key={t} value={t} style={{ background: '#0a0a14' }}>{t}</option>)}
+                                    <option value="">— pick from detected —</option>
+                                    {_tops.map(t => <option key={t} value={t} style={{ background: '#0a0a14' }}>{t}</option>)}
                                   </select>
                                 )}
+                                <input type="text" value={setup.selectedTop}
+                                  placeholder="/project1/out1"
+                                  onClick={e => e.stopPropagation()}
+                                  onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: e.target.value } })); }}
+                                  style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)',
+                                    color: 'rgba(255,255,255,0.7)', background: 'rgba(0,0,0,0.4)',
+                                    border: '1px solid rgba(255,255,255,0.1)', outline: 'none', boxSizing: 'border-box' }} />
                               </div>
                             );
                           })()}
 
-                          {/* State key name */}
+                                                    {/* State key name */}
                           <div style={{ width: '100%' }}>
                             <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)',
                               textTransform: 'uppercase', marginBottom: 3 }}>State Key Name</div>
