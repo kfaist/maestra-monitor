@@ -19,6 +19,8 @@ interface SlotSetup {
   outputSignals: Array<{ key: string; type: string; desc: string; top: string }>;
   streamType: string;
   selectedNode: string;
+  nodeSearch: string;
+  opSearch: string;
 }
 
 interface InjectState {
@@ -212,7 +214,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
       return;
     }
     onSelectSlot(slot.id);
-    setSetupState(prev => ({ ...prev, [slot.id]: { stage: 'connect', slug: '', refFile: null, selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [], streamType: '', selectedNode: '' } }));
+    setSetupState(prev => ({ ...prev, [slot.id]: { stage: 'connect', slug: '', refFile: null, selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [], streamType: '', selectedNode: '', nodeSearch: '', opSearch: '' } }));
   }, [setupState, onSelectSlot]);
 
   const handleConnect = useCallback((slotId: string, e: React.MouseEvent) => {
@@ -904,6 +906,14 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                       {' '}<span style={{ color: slotColor }}>· {(nodeMap[setup.selectedNode]||[]).length}</span>
                                     </div>
                                     {(nodeMap[setup.selectedNode]||[]).length > 0 ? (
+                                      <>
+                                      <input type="text" value={setup.opSearch || ''}
+                                        placeholder="search operators…"
+                                        onClick={e => e.stopPropagation()}
+                                        onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], opSearch: e.target.value } })); }}
+                                        style={{ width: '100%', padding: '4px 8px', fontSize: 9, fontFamily: 'var(--font-mono)',
+                                          background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)',
+                                          color: 'rgba(255,255,255,0.7)', outline: 'none', boxSizing: 'border-box', marginBottom: 3 }} />
                                       <select value={setup.selectedTop || ''} onClick={e => e.stopPropagation()}
                                         onChange={e => {
                                           e.stopPropagation();
@@ -916,7 +926,14 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                         style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)',
                                           background: 'rgba(0,0,0,0.6)', border: `1px solid ${slotColor}40`, color: slotColor, outline: 'none' }}>
                                         <option value="">— select operator —</option>
-                                        {(nodeMap[setup.selectedNode]||[]).map(entry => {
+                                        {[...(nodeMap[setup.selectedNode]||[])].sort((a,b) => {
+                                          const na = a.split(':')[1]||a, nb = b.split(':')[1]||b;
+                                          return na.localeCompare(nb);
+                                        }).filter(entry => {
+                                          if (!setup.opSearch) return true;
+                                          const pts = entry.split(':');
+                                          return (pts[1]||entry).toLowerCase().includes(setup.opSearch.toLowerCase());
+                                        }).map(entry => {
                                           const pts = entry.split(':');
                                           if (pts.length < 3) return null;
                                           const raw  = pts[0];
@@ -936,6 +953,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                           return <option key={entry} value={entry} style={{ background: '#0a0a14' }}>{kind} · {name}</option>;
                                         })}
                                       </select>
+                                      </>
                                     ) : (
                                       <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)', padding: '4px 0' }}>
                                         No operators found in this node
