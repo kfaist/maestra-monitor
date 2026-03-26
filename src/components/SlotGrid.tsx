@@ -4,7 +4,7 @@ import { SLOT_COLORS } from './SignalPanel';
 import { useState, useEffect, useCallback } from 'react';
 import { FleetSlot, slotStatusLabel, slotStatusClass, formatAge, EventEntry } from '@/types';
 
-type InlineStage = 'idle' | 'connect' | 'slug' | 'top' | 'states';
+type InlineStage = 'idle' | 'connect' | 'slug' | 'states';
 type NodeRole = 'receive' | 'send' | 'two_way';
 type SignalSource = 'touchdesigner' | 'json_stream' | 'osc' | 'audio_reactive' | 'text' | 'test_signal';
 
@@ -18,7 +18,7 @@ interface SlotSetup {
   stateKey: string;         // renamed param
   stateType: string;        // string|number|boolean|color|vector2|vector3|range|enum|array|object
   stateDesc: string;
-  stateList: Array<{ key: string; type: string; desc: string }>;
+  outputSignals: Array<{ key: string; type: string; desc: string }>;
 }
 
 interface InjectState {
@@ -165,7 +165,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     onSelectSlot(slot.id);
     setSetupState(prev => ({
       ...prev,
-      [slot.id]: { stage: 'connect', role: null, signal: null, refPath: '', refFile: null, selectedTop: null, stateKey: '', stateType: 'string', stateDesc: '', stateList: [] },
+      [slot.id]: { stage: 'connect', role: null, signal: null, refPath: '', refFile: null, selectedTop: null, stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [] },
     }));
   }, [setupState, onSelectSlot]);
 
@@ -181,7 +181,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     e.stopPropagation();
     setSetupState(prev => ({
       ...prev,
-      [slotId]: { ...prev[slotId], role, stage: 'top' },
+      [slotId]: { ...prev[slotId], role, stage: 'states' },
     }));
   }, []);
 
@@ -189,7 +189,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     e.stopPropagation();
     setSetupState(prev => ({
       ...prev,
-      [slotId]: { ...prev[slotId], signal, stage: 'top' },
+      [slotId]: { ...prev[slotId], signal, stage: 'states' },
     }));
   }, []);
 
@@ -223,8 +223,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     setSetupState(prev => {
       const current = prev[slotId];
       if (!current) return prev;
-      if (current.stage === 'states') return { ...prev, [slotId]: { ...current, stage: 'top' } };
-      if (current.stage === 'top') return { ...prev, [slotId]: { ...current, stage: 'slug' } };
+      if (current.stage === 'states') return { ...prev, [slotId]: { ...current, stage: 'states' } };
+      // removed dead stage check { ...prev, [slotId]: { ...current, stage: 'slug' } };
       if (current.stage === 'slug') return { ...prev, [slotId]: { ...current, stage: 'connect' } };
       const next = { ...prev };
       delete next[slotId];
@@ -735,7 +735,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           <div style={{ display: 'flex', gap: 6, width: '100%' }}>
                             <button className="slot-wizard-btn slot-wizard-btn-ghost" onClick={e => handleBack(slot.id, e)}>← Back</button>
                             <button className="slot-wizard-btn slot-wizard-btn-primary" style={{ flex: 1 }}
-                              onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'top' } })); }}
+                              onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'states' } })); }}
                               disabled={!setup.refPath}>
                               Next →
                             </button>
@@ -744,14 +744,14 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       )}
 
                       {/* ══ STAGE: TOP — dropdown from TOPs detected by the TOX in TD ══ */}
-                      {setup.stage === 'top' && (() => {
+                      {false && (() => {
                         const eid = slot.entity_id || setup.refPath || slot.id;
                         const eState = entityStates[eid] as Record<string,unknown> | undefined;
                         const tops = Array.isArray(eState?.tops) ? (eState!.tops as string[]) : null;
                         return (
                           <div className="slot-wizard-content">
                             <div className="slot-wizard-title" style={{ color: slotColor }}>Select Output TOP</div>
-                            {tops && tops.length > 0 ? (
+                            {(tops ?? []).length > 0 ? (
                               <>
                                 <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', marginBottom: 2 }}>
                                   TOPs detected by the TOX in your open project:
@@ -764,7 +764,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                     background: 'rgba(0,0,0,0.5)', border: `1px solid ${slotColor}50`, color: slotColor, outline: 'none' }}
                                 >
                                   <option value="">— select a TOP —</option>
-                                  {tops.map(t => <option key={t} value={t} style={{ background: '#0a0a14' }}>{t}</option>)}
+                                  {(tops as string[]).map(t => <option key={t} value={t} style={{ background: '#0a0a14' }}>{t}</option>)}
                                 </select>
                               </>
                             ) : (
@@ -799,9 +799,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           <div className="slot-wizard-title" style={{ color: slotColor }}>Add State</div>
 
                           {/* Accumulated chips so far */}
-                          {setup.stateList && setup.stateList.length > 0 && (
+                          {setup.outputSignals && setup.outputSignals.length > 0 && (
                             <div style={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: 4 }}>
-                              {setup.stateList.map((item, i) => (
+                              {setup.outputSignals.map((item, i) => (
                                 <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 3,
                                   background: `${slotColor}15`, border: `1px solid ${slotColor}50`,
                                   padding: '2px 7px', fontSize: 8 }}>
@@ -862,7 +862,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                   ...prev,
                                   [slot.id]: {
                                     ...prev[slot.id],
-                                    stateList: [...(prev[slot.id].stateList || []), { key: prev[slot.id].stateKey, type: prev[slot.id].stateType, desc: prev[slot.id].stateDesc || '' }],
+                                    outputSignals: [...(prev[slot.id].outputSignals || []), { key: prev[slot.id].stateKey, type: prev[slot.id].stateType, desc: prev[slot.id].stateDesc || '' }],
                                     stateKey: '',
                                     stateDesc: '',
                                   }
@@ -872,7 +872,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               + Add State
                             </button>
                             {/* Done — finishes wizard */}
-                            {setup.stateList && setup.stateList.length > 0 && (
+                            {setup.outputSignals && setup.outputSignals.length > 0 && (
                               <button className="slot-wizard-btn slot-wizard-btn-primary"
                                 style={{ background: `${slotColor}20`, borderColor: slotColor, color: slotColor }}
                                 onClick={e => handleReferenceComplete(slot.id, e)}>
@@ -1033,7 +1033,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <span className={`slot-state-badge ${stateBadge.cls}`}>{stateBadge.text}</span>
                   ) : inSetup ? (
                     <span className="slot-tag setup-tag">
-                      {setup.stage === 'connect' ? 'Setting up…' : setup.stage === 'slug' ? 'Name node' : setup.stage === 'top' ? 'Select TOP' : 'Add State'}
+                      {setup.stage === 'connect' ? 'Setting up…' : setup.stage === 'slug' ? 'Name node' : false ? 'Select TOP' : 'Add State'}
                     </span>
                   ) : (
                     <span className="slot-tag available-tag">
