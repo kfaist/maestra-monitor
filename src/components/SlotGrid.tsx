@@ -666,68 +666,44 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       {/* STAGE: Connect */}
                       {setup.stage === 'connect' && (
                         <div className="slot-wizard-content">
-                          <div className="slot-wizard-title" style={{ color: slotColor, letterSpacing: '0.15em' }}>
+                          <div className="slot-wizard-title" style={{ color: slotColor, letterSpacing: '0.15em', marginBottom: 8 }}>
                             CONNECT YOUR NODE
                           </div>
 
-                          {/* Step 1: Download + drag into TD */}
-                          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Step 1</div>
-                            <a
-                              href="/maestra.tox"
-                              download="maestra.tox"
-                              onClick={e => e.stopPropagation()}
-                              style={{
-                                display: 'flex', alignItems: 'center', gap: 6,
-                                padding: '8px 10px',
-                                background: `${slotColor}12`,
-                                border: `1px solid ${slotColor}40`,
-                                color: slotColor,
-                                textDecoration: 'none',
-                                fontSize: 10,
-                                fontFamily: 'var(--font-display)',
-                                letterSpacing: '0.06em',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              <span style={{ fontSize: 13 }}>↓</span>
-                              Download maestra.tox
-                            </a>
-                            <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', lineHeight: 1.6 }}>
-                              Drag it into your <span style={{ color: 'rgba(255,255,255,0.6)', fontFamily: 'var(--font-mono)' }}>.toe</span> file in TouchDesigner.
-                              It auto-registers and this slot appears.
+                          {/* Option A: Already have the TOX — browse to .toe */}
+                          <button
+                            className="slot-wizard-btn slot-wizard-btn-primary"
+                            style={{ width: '100%', textAlign: 'left', padding: '8px 12px', position: 'relative' }}
+                            onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'role' } })); }}
+                          >
+                            <div style={{ fontSize: 10, fontWeight: 700, color: slotColor, marginBottom: 2 }}>
+                              ✓ I already have maestra.tox in my .toe
                             </div>
-                          </div>
-
-                          {/* Divider */}
-                          <div style={{ width: '100%', borderTop: '1px solid rgba(255,255,255,0.06)', margin: '2px 0' }} />
-
-                          {/* Step 2: Already have it — enter TD path */}
-                          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Already have it?</div>
-                            <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)' }}>Enter the TD path where maestra.tox is loaded:</div>
-                            <div style={{ display: 'flex', gap: 4 }}>
-                              <input
-                                type="text"
-                                value={setup.refPath}
-                                onClick={e => e.stopPropagation()}
-                                onChange={e => handleRefPathChange(slot.id, e.target.value)}
-                                placeholder="project1/maestra"
-                                style={{
-                                  flex: 1, padding: '5px 8px', fontSize: 10,
-                                  fontFamily: 'var(--font-mono)',
-                                  background: 'rgba(0,0,0,0.5)',
-                                  border: `1px solid ${slotColor}30`,
-                                  color: slotColor, outline: 'none',
-                                }}
-                              />
-                              <button
-                                className="slot-wizard-btn slot-wizard-btn-primary"
-                                style={{ padding: '5px 10px', fontSize: 9, flexShrink: 0 }}
-                                onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'role' } })); }}
-                              >Next →</button>
+                            <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', fontFamily: 'var(--font-mono)' }}>
+                              maestra.tox is dropped into my project → continue setup
                             </div>
-                          </div>
+                          </button>
+
+                          {/* Option B: Download the TOX first */}
+                          <a
+                            href="/maestra.tox"
+                            download="maestra.tox"
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                              width: '100%', boxSizing: 'border-box',
+                              display: 'block', padding: '8px 12px',
+                              border: '1px solid rgba(255,255,255,0.08)',
+                              background: 'rgba(255,255,255,0.03)',
+                              textDecoration: 'none', cursor: 'pointer',
+                            }}
+                          >
+                            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginBottom: 2 }}>
+                              ↓ Download maestra.tox
+                            </div>
+                            <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-mono)' }}>
+                              Drag into your .toe file → it registers automatically
+                            </div>
+                          </a>
                         </div>
                       )}
 
