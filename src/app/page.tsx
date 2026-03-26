@@ -26,6 +26,7 @@ import { FleetSlot, LogEntry, EventEntry, AudioAnalysisData, SlotConnectionInfo,
 import { createInitialSlots, SUGGESTIONS } from '@/mock';
 import { WSSimulator } from '@/mock/ws-simulator';
 import { API_BASE } from '@/mock/gpu-nodes';
+import { GALLERY_URL, RAILWAY_URL } from '@/components/Header';
 import GlobalOutBar from '@/components/GlobalOutBar';
 import { formatTimestamp } from '@/lib/audio-utils';
 import { FRAME_FETCH_INTERVAL } from '@/lib/constants';
@@ -41,6 +42,8 @@ export default function Home() {
   // State
   const [activeTab, setActiveTab] = useState('dashboard');
   const [wsStatus, setWsStatus] = useState<'online' | 'offline' | 'connecting'>('connecting');
+  const [serverMode, setServerMode] = useState<'railway' | 'gallery'>('railway');
+  const serverModeRef = useRef<'railway' | 'gallery'>('railway');
   const [apiStatus, setApiStatus] = useState<'online' | 'offline'>('offline');
   const [slots, setSlots] = useState<FleetSlot[]>(createInitialSlots);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -88,6 +91,7 @@ export default function Home() {
   const activeNodeUrlRef = useRef<string | null>(null);
   const slotsRef = useRef(slots);
   slotsRef.current = slots;
+  serverModeRef.current = serverMode;
   // Track remote entity IDs (e.g. TD nodes) so we can target prompt/p6 at them
   const remoteEntitiesRef = useRef<Set<string>>(new Set());
   const selectedIdRef = useRef(selectedId);
@@ -318,6 +322,16 @@ export default function Home() {
   }, [log, logEvent, saveConnectedSlots]);
 
   // Update connection config
+  const handleServerModeChange = useCallback((mode: 'railway' | 'gallery') => {
+    setServerMode(mode);
+    // Reconnect WS to new server
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    setTimeout(connectWS, 300);
+  }, [connectWS]);
+
   const updateConnectionConfig = useCallback((config: { serverUrl?: string; entityId?: string; port?: number; streamPath?: string }) => {
     if (!connectionInfo) return;
     const slotId = connectionInfo.slotId;
@@ -441,7 +455,8 @@ export default function Home() {
   const connectWS = useCallback(() => {
     if (wsRef.current && (wsRef.current.readyState === 0 || wsRef.current.readyState === 1)) return;
 
-    const WS_URL = API_BASE.replace('https', 'wss') + '/ws';
+    const activeBase = serverModeRef.current === 'gallery' ? GALLERY_URL : RAILWAY_URL;
+    const WS_URL = activeBase.replace('https', 'wss').replace('http', 'ws') + '/ws';
     log('Connecting to WebSocket...', 'info');
     setWsStatus('connecting');
 
@@ -669,7 +684,8 @@ export default function Home() {
   // API polling
   const fetchEntities = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/entities`);
+      const activeBase = serverModeRef.current === 'gallery' ? GALLERY_URL : RAILWAY_URL;
+      const res = await fetch(`${activeBase}/entities`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setApiStatus('online');
     } catch {
@@ -1511,6 +1527,8 @@ export default function Home() {
         audioActive={audioActive}
         frameRelayCount={frameRelayCount}
         onJoinMaestra={() => setJoinModalOpen(true)}
+        serverMode={serverMode}
+        onServerModeChange={handleServerModeChange}
       />
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
