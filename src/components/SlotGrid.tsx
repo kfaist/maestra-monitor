@@ -1035,7 +1035,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <span className={`slot-state-badge ${stateBadge.cls}`}>{stateBadge.text}</span>
                   ) : inSetup ? (
                     <span className="slot-tag setup-tag">
-                      {setup.stage === 'connect' ? 'Setting up…' : setup.stage === 'slug' ? 'Name node' : false ? 'Select TOP' : 'Add State'}
+                      {setup.stage === 'connect' ? 'Setting up…' : setup.stage === 'slug' ? 'Name node' : 'Add State'}
                     </span>
                   ) : (
                     <span className="slot-tag available-tag">
