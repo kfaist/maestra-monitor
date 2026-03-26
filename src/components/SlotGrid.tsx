@@ -767,10 +767,16 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
 
                                                     {/* TOP — dropdown if WS has data, text input always editable */}
                           {(() => {
-                            const _eid = setup.slug || slot.entity_id || slot.id;
-                            const _es = (entityStates[_eid] || entityStates[slot.entity_id || ''] || {}) as Record<string,unknown>;
+                            // Collect tops from ALL connected entities — use any that has tops
+                            const _allTops: string[] = [];
+                            Object.values(entityStates).forEach((es: unknown) => {
+                              const _es = es as Record<string,unknown>;
+                              if (Array.isArray(_es?.tops)) (_es.tops as string[]).forEach(t => { if (!_allTops.includes(t)) _allTops.push(t); });
+                            });
+                            // Also check slot.metadata REST data
                             const _sm = ((slot as unknown as Record<string,unknown>).metadata || {}) as Record<string,unknown>;
-                            const _tops: string[] = Array.isArray(_es?.tops) ? _es.tops as string[] : Array.isArray(_sm?.tops) ? _sm.tops as string[] : [];
+                            if (Array.isArray(_sm?.tops)) (_sm.tops as string[]).forEach((t: string) => { if (!_allTops.includes(t)) _allTops.push(t); });
+                            const _tops: string[] = _allTops;
                             return (
                               <div style={{ width: '100%' }}>
                                 <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
