@@ -752,7 +752,15 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           color: lockedSlots.has(slot.id) ? slotColor : 'rgba(255,255,255,0.18)',
                           cursor: 'pointer', fontSize: 10, lineHeight: 1, transition: 'color 0.15s',
                         }}
-                      >{lockedSlots.has(slot.id) ? '🔒' : '🔓'}</button>
+                      >{lockedSlots.has(slot.id) ? (<svg width="11" height="13" viewBox="0 0 11 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <rect x="1" y="5.5" width="9" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+                          <path d="M3 5.5V3.5a2.5 2.5 0 0 1 5 0v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                          <circle cx="5.5" cy="9" r="1" fill="currentColor"/>
+                        </svg>) : (<svg width="11" height="13" viewBox="0 0 11 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <rect x="1" y="5.5" width="9" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+                          <path d="M3 5.5V3.5a2.5 2.5 0 0 1 5 0" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                          <circle cx="5.5" cy="9" r="1" fill="currentColor"/>
+                        </svg>)}</button>
                       <button
                         onClick={e => { e.stopPropagation(); onAddSlot?.(); }}
                         title="Add a new slot"
