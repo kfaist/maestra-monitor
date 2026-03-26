@@ -13,7 +13,13 @@ interface HeaderProps {
   audioActive: boolean;
   frameRelayCount?: number;
   onJoinMaestra?: () => void;
+  /** Current server mode */
+  serverMode?: 'railway' | 'gallery';
+  onServerModeChange?: (mode: 'railway' | 'gallery') => void;
 }
+
+export const RAILWAY_URL = 'https://maestra-backend-v2-production.up.railway.app';
+export const GALLERY_URL = 'http://192.168.128.115:8080';
 
 export default function Header({
   wsStatus,
@@ -22,6 +28,8 @@ export default function Header({
   totalSlots,
   audioActive,
   frameRelayCount,
+  serverMode = 'railway',
+  onServerModeChange,
 }: HeaderProps) {
   const [clock, setClock] = useState('--:--:--');
 
@@ -32,11 +40,12 @@ export default function Header({
     return () => clearInterval(interval);
   }, []);
 
+  const isGallery = serverMode === 'gallery';
+
   return (
     <>
       <header>
         <div className="logo">Maestra <span>Monitor</span></div>
-        {/* Minimal status bar inline */}
         <div className="system-status-bar">
           <div className="sys-stat">
             <div className={`dot ${wsStatus}`} />
@@ -73,6 +82,39 @@ export default function Header({
           <div className="sys-stat">
             <span>{clock}</span>
           </div>
+
+          {/* ── Server Toggle ── */}
+          {onServerModeChange && (
+            <>
+              <div className="sys-stat-sep" />
+              <div
+                onClick={() => onServerModeChange(isGallery ? 'railway' : 'gallery')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  cursor: 'pointer', padding: '2px 8px',
+                  border: `1px solid ${isGallery ? 'rgba(0,255,136,0.4)' : 'rgba(0,212,255,0.3)'}`,
+                  borderRadius: 2,
+                  background: isGallery ? 'rgba(0,255,136,0.07)' : 'rgba(0,212,255,0.05)',
+                  transition: 'all 0.2s',
+                  userSelect: 'none',
+                }}
+                title={isGallery ? 'Gallery: 192.168.128.115:8080 — click to switch to Railway' : 'Railway backend — click to switch to Gallery (on-site only)'}
+              >
+                <div style={{
+                  width: 5, height: 5, borderRadius: '50%',
+                  background: isGallery ? 'var(--active)' : 'var(--accent)',
+                  boxShadow: isGallery ? '0 0 6px var(--active)' : '0 0 6px var(--accent)',
+                }} />
+                <span style={{
+                  fontFamily: 'var(--font-display)', fontSize: 8, fontWeight: 700,
+                  letterSpacing: '0.12em', textTransform: 'uppercase',
+                  color: isGallery ? 'var(--active)' : 'var(--accent)',
+                }}>
+                  {isGallery ? '⚡ Gallery' : '☁ Railway'}
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </header>
     </>
