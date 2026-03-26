@@ -19,3 +19,5 @@ export { default as TDConnectGuide } from './TDConnectGuide';
 export { default as WebcamCapture } from './WebcamCapture';
 export { default as ScenePanel } from './ScenePanel';
 export { default as LightingPanel } from './LightingPanel';
+
+export { default as EntityPatchBay } from './EntityPatchBay';
