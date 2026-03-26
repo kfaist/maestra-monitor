@@ -486,11 +486,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   })()}
 
                   <div className="live-section">
-                    {/* ↑ Output signals — slot color */}
+                    {/* Output signals - slot color */}
                     {publishing.length > 0 && (
                       <div style={{ marginBottom: 5 }}>
                         <div style={{ fontSize: 7, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
-                          ↑ output
+                          {'↑ output'}
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                           {publishing.map(s => (
@@ -503,11 +503,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         </div>
                       </div>
                     )}
-                    {/* ↓ Input signals — dimmer */}
+                    {/* Input signals - dimmer */}
                     {listening.length > 0 && (
                       <div>
                         <div style={{ fontSize: 7, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
-                          ↓ input
+                          {'↓ input'}
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                           {listening.map(s => (
