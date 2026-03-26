@@ -698,10 +698,10 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     /* ════ DEFAULT AVAILABLE STATE ════ */
                     <div className="slot-available-state">
                       <div className="slot-available-banner">
-                        <span className="slot-available-flicker">AVAILABLE</span>
+                        <span className="slot-available-flicker" style={{ color: slotColor, opacity: 0.7, fontSize: 11, letterSpacing: '0.2em', fontWeight: 700 }}>AVAILABLE</span>
                       </div>
 
-                      <div className="slot-available-hover-btn">
+                      <div className="slot-available-hover-btn" style={{ borderColor: slotColor, color: slotColor }}>
                         <span className="slot-available-hover-icon">+</span>
                         Click to Connect
                       </div>
@@ -734,9 +734,10 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         onChange={e => { e.stopPropagation(); if (e.target.value) handleSlotClick(slot); }}
                         defaultValue=""
                         style={{
-                          fontSize: 9, letterSpacing: '0.08em',
+                          fontSize: 11, letterSpacing: '0.06em',
                           color: slotColor,
-                          border: `1px solid ${slotColor}50`,
+                          border: `1px solid ${slotColor}70`,
+                          fontWeight: 600,
                           background: `${slotColor}0a`,
                           padding: '3px 6px',
                           cursor: 'pointer',
