@@ -11,11 +11,10 @@ import {
   ToxReferenceTab,
   ConnectionPanel,
   JoinModal,
-  LightingPanel,
-  ColorPalette,
-  ModulationGrid,
+  LightingPanel
 } from '@/components';
 import { JoinMaestraResult } from '@/components/JoinModal';
+import { SceneDefinition } from '@/components/ScenePanel';
 import { EntityBusEntry } from '@/components/DetailPanel';
 import { DmxState, defaultDmxState, SCENE_CUE_MAP } from '@/components/LightingPanel';
 import { FleetSlot, LogEntry, EventEntry, AudioAnalysisData, SlotConnectionInfo, MaestraSlotStatus, defaultSlotStatus } from '@/types';
@@ -23,7 +22,6 @@ import { createInitialSlots, SUGGESTIONS } from '@/mock';
 import { WSSimulator } from '@/mock/ws-simulator';
 import { API_BASE } from '@/mock/gpu-nodes';
 import { GALLERY_URL, RAILWAY_URL } from '@/components/Header';
-import SlotEntityPanel from '@/components/SlotEntityPanel';
 import { formatTimestamp } from '@/lib/audio-utils';
 import { FRAME_FETCH_INTERVAL } from '@/lib/constants';
 import {
@@ -1540,14 +1538,17 @@ export default function Home() {
               entityStates={entityStates}
             />
 
-            {/* Slot Entity Panels — TD OUT signals, one colored card per slot */}
-            <SlotEntityPanel
-              slots={slots}
-              entityStates={entityStates}
-              liveValues={{}}
-            />
-
             <AudioAnalysis audioData={audioData} onSendAudio={sendToTarget} />
+
+            <ScenePanel
+              onActivateScene={handleActivateScene}
+              injectActive={injectActive}
+              onInjectToggle={setInjectActive}
+              promptText={promptText}
+              onPromptChange={setPromptText}
+              onBroadcast={broadcastPrompt}
+              onP6Flush={p6Flush}
+            />
 
             <LightingPanel
               dmxState={dmxState}
@@ -1559,9 +1560,6 @@ export default function Home() {
               audioReactiveEnabled={audioReactiveEnabled}
               onAudioReactiveToggle={setAudioReactiveEnabled}
             />
-
-            <ColorPalette onColorChange={handleColorChange} />
-            <ModulationGrid onModulationChange={handleModulationChange} />
           </div>
 
           {/* Right: Detail Panel */}
