@@ -583,40 +583,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   })()}
 
                   {/* ── Section 4: Signal Injection ── */}
-                  <div className="live-section">
-                    <div className="live-section-head">Inject Signal</div>
-                    <div className="live-inject-form">
-                      <div className="live-inject-row">
-                        <span className="live-inject-label">field</span>
-                        <input
-                          className="live-inject-input"
-                          type="text"
-                          value={inject.field}
-                          onClick={e => e.stopPropagation()}
-                          onChange={e => handleInjectFieldChange(slot.id, e.target.value)}
-                          placeholder="audio.bpm"
-                        />
-                      </div>
-                      <div className="live-inject-row">
-                        <span className="live-inject-label">value</span>
-                        <input
-                          className="live-inject-input"
-                          type="text"
-                          value={inject.value}
-                          onClick={e => e.stopPropagation()}
-                          onChange={e => handleInjectValueChange(slot.id, e.target.value)}
-                          placeholder="120"
-                        />
-                      </div>
-                      <button
-                        className="live-inject-send"
-                        onClick={e => handleInjectSend(slot.id, e)}
-                        disabled={!inject.field || !inject.value}
-                      >
-                        Send
-                      </button>
-                    </div>
-                  </div>
+                  
+
 
                   {/* ── Section 4: Source / Reference ── */}
                   <div className="live-section">
@@ -1181,63 +1149,61 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
               </div>
               {/* Top-right: + / - behavior indicator, lock/unlock, pin */}
               <div className="slot-top-controls" style={{
-                position: 'absolute', top: 5, right: 5,
-                display: 'flex', alignItems: 'center', gap: 2,
-                opacity: slot.active ? 1 : 0,
-                transition: 'opacity 0.15s',
+                position: 'absolute', top: 6, right: 6,
+                display: 'flex', alignItems: 'center', gap: 3,
                 zIndex: 10,
               }}>
-                {/* + OUT / - IN behavior badge */}
-                {slot.active && slot.nodeRole && (
-                  <span style={{
-                    fontSize: 9, fontWeight: 700,
-                    color: slot.nodeRole === 'receive' ? '#34d399' : slotColor,
-                    border: `1px solid ${slot.nodeRole === 'receive' ? '#34d39940' : slotColor + '40'}`,
-                    background: slot.nodeRole === 'receive' ? '#34d39910' : `${slotColor}10`,
-                    borderRadius: 2, padding: '1px 5px',
-                    fontFamily: 'var(--font-display)', letterSpacing: '0.04em',
-                  }}>
-                    {slot.nodeRole === 'send' ? '+' : slot.nodeRole === 'receive' ? '-' : '+/-'}
+                {/* ↑↓↕ send/receive/both indicator — always visible on active slots */}
+                {slot.active && (
+                  <span
+                    title={slot.nodeRole === 'receive' ? 'Receiving only' : slot.nodeRole === 'send' ? 'Sending only' : 'Sending + Receiving'}
+                    style={{
+                      fontSize: 10, fontWeight: 700, lineHeight: 1,
+                      color: slot.nodeRole === 'receive' ? '#34d399' : slot.nodeRole === 'two_way' ? '#f59e0b' : slotColor,
+                      opacity: 0.8, cursor: 'default', padding: '1px 3px',
+                    }}>
+                    {slot.nodeRole === 'receive' ? '↓' : slot.nodeRole === 'two_way' ? '↕' : '↑'}
                   </span>
                 )}
-                {/* Lock / Unlock — locked = view only */}
+                {/* Lock / Unlock */}
                 <button
+                  title={lockedSlots.has(slot.id) ? 'Locked — click to unlock' : 'Unlocked — click to lock'}
                   onClick={e => { e.stopPropagation(); toggleLock(slot.id, slot, entityStates[slot.entity_id || slot.id] as Record<string, unknown> || {}); }}
-                  title={lockedSlots.has(slot.id) ? 'Locked (view only) — click to unlock' : 'Unlocked — click to lock'}
                   style={{
-                    width: 20, height: 20, borderRadius: '50%', cursor: 'pointer', fontSize: 8,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: lockedSlots.has(slot.id) ? slotColor : 'rgba(0,0,0,0.45)',
-                    border: `1px solid ${lockedSlots.has(slot.id) ? slotColor : 'rgba(255,255,255,0.12)'}`,
-                    color: lockedSlots.has(slot.id) ? '#000' : 'rgba(255,255,255,0.35)',
-                    transition: 'all 0.15s', flexShrink: 0, fontWeight: 700,
-                  }}
-                >
-                      {lockedSlots.has(slot.id) ? (
-                        <svg width="10" height="11" viewBox="0 0 10 11" fill="none">
-                          <rect x="1.5" y="5" width="7" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2"/>
-                          <path d="M3 5V3.5a2 2 0 0 1 4 0V5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                        </svg>
-                      ) : (
-                        <svg width="10" height="11" viewBox="0 0 10 11" fill="none" style={{opacity:0.45}}>
-                          <rect x="1.5" y="5" width="7" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2"/>
-                          <path d="M3 5V3.5a2 2 0 0 1 4 0" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                        </svg>
-                      )}
-                    </button>
-                {/* Pin — sets slot to view-only default */}
+                    background: 'none', border: 'none', padding: '1px 2px',
+                    cursor: 'pointer', color: lockedSlots.has(slot.id) ? slotColor : 'rgba(255,255,255,0.35)',
+                    display: 'flex', alignItems: 'center',
+                  }}>
+                  {lockedSlots.has(slot.id) ? (
+                    <svg width="11" height="12" viewBox="0 0 11 12" fill="none">
+                      <rect x="1.5" y="5.5" width="8" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+                      <path d="M3.5 5.5V3.5a2 2 0 0 1 4 0v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                    </svg>
+                  ) : (
+                    <svg width="11" height="12" viewBox="0 0 11 12" fill="none" style={{opacity:0.5}}>
+                      <rect x="1.5" y="5.5" width="8" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+                      <path d="M3.5 5.5V3.5a2 2 0 0 1 4 0" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                    </svg>
+                  )}
+                </button>
+                {/* PIN button — set a short code to identify this slot */}
                 <button
-                  onClick={e => { e.stopPropagation(); togglePin(slot.id); }}
-                  title={pinnedSlots.has(slot.id) ? 'Pinned as default view — click to unpin' : 'Click to pin this slot (view-only default)'}
-                  style={{
-                    width: 20, height: 20, borderRadius: '50%', cursor: 'pointer', fontSize: 8,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: pinnedSlots.has(slot.id) ? `${slotColor}25` : 'rgba(0,0,0,0.45)',
-                    border: `1px solid ${pinnedSlots.has(slot.id) ? slotColor + '55' : 'rgba(255,255,255,0.08)'}`,
-                    color: pinnedSlots.has(slot.id) ? slotColor : 'rgba(255,255,255,0.2)',
-                    transition: 'all 0.15s', flexShrink: 0, fontWeight: 700,
+                  title="Set PIN to identify this slot"
+                  onClick={e => {
+                    e.stopPropagation();
+                    const pin = prompt('Set a PIN for this slot (short label, e.g. "CAM1"):');
+                    if (pin) {
+                      const label = pin.slice(0,6).toUpperCase();
+                      setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateKey: label } }));
+                    }
                   }}
-                >📌</button>
+                  style={{
+                    background: 'none', border: 'none', padding: '1px 2px',
+                    cursor: 'pointer', color: 'rgba(255,255,255,0.25)',
+                    fontSize: 7, fontFamily: 'var(--font-display)', letterSpacing: '0.08em',
+                  }}>
+                  PIN
+                </button>
               </div>
               <style>{'.slot:hover .slot-top-controls { opacity: 1 !important; }'}</style>
             </div>
