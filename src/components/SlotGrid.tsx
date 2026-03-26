@@ -18,6 +18,7 @@ interface SlotSetup {
   stateDesc: string;
   outputSignals: Array<{ key: string; type: string; desc: string; top: string }>;
   streamType: string;
+  selectedNode: string;
 }
 
 interface InjectState {
@@ -211,7 +212,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
       return;
     }
     onSelectSlot(slot.id);
-    setSetupState(prev => ({ ...prev, [slot.id]: { stage: 'connect', slug: '', refFile: null, selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [], streamType: '' } }));
+    setSetupState(prev => ({ ...prev, [slot.id]: { stage: 'connect', slug: '', refFile: null, selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [], streamType: '', selectedNode: '' } }));
   }, [setupState, onSelectSlot]);
 
   const handleConnect = useCallback((slotId: string, e: React.MouseEvent) => {
@@ -810,9 +811,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 })();
                             const nodes = Object.keys(nodeMap).sort();
 
-                            // Selected node + TOP derived from selectedTop
-                            const stParts  = (setup.selectedTop || '').split('/').filter(Boolean);
-                            const selNode  = stParts.length >= 2 ? stParts[1] : '';
+                            // Selected node comes from setup.selectedNode (explicit, not derived from path)
+                            const selNode  = setup.selectedNode || '';
                             const selTop   = setup.selectedTop || '';
                             const nodeTops = selNode ? (nodeMap[selNode] || []) : [];
 
@@ -833,6 +833,20 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               { key: 'data',    label: 'Data',    desc: 'Generic data' },
                             ];
                             const streamFilter = setup.streamType || '';
+                            // Map Maestra stream type → TD op type prefixes
+                            const TYPE_MAP: Record<string,string[]> = {
+                              ndi:     ['ndiinTOP','ndioutTOP','TOP'],
+                              syphon:  ['syphonspoutinTOP','syphonspoutoutTOP','TOP'],
+                              spout:   ['syphonspoutinTOP','syphonspoutoutTOP','TOP'],
+                              srt:     ['TOP'],
+                              video:   ['TOP','moviefileinTOP','videodevinTOP'],
+                              audio:   ['audiofileinCHOP','audiodevinCHOP','CHOP'],
+                              texture: ['TOP'],
+                              midi:    ['midiinCHOP','midioutCHOP','CHOP'],
+                              osc:     ['oscoutDAT','oscinDAT','DAT'],
+                              sensor:  ['CHOP','DAT'],
+                              data:    ['CHOP','DAT','scriptDAT','chopexecDAT'],
+                            };
 
                             // Filter nodeTops by stream type hint in path
                             // Map stream type → op type prefixes in tree format
@@ -893,10 +907,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                       onChange={e => {
                                         e.stopPropagation();
                                         const n = e.target.value;
-                                        const tops = nodeMap[n] || [];
-                                        const first = tops[0] || '';
-                                        const key = first.split('/').pop() || '';
-                                        setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], selectedTop: first, stateKey: key } }));
+                                        setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id],
+                                          selectedNode: n,
+                                          selectedTop: '',
+                                          stateKey: '',
+                                        }}));
                                       }}
                                       style={{ width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'var(--font-mono)',
                                         background: 'rgba(0,0,0,0.6)', border: `1px solid ${slotColor}40`, color: slotColor, outline: 'none' }}>
@@ -914,7 +929,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 {selNode && (
                                   <div style={{ width: '100%' }}>
                                     <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
-                                      Operators in {selNode} {filteredTops.length > 0 && <span style={{ color: slotColor }}>· {filteredTops.length}</span>}{nodeTops.length > filteredTops.length && <span style={{ opacity: 0.4 }}> (filtered from {nodeTops.length})</span>}
+                                      Operators in {selNode || '…'} {filteredTops.length > 0 && <span style={{ color: slotColor }}>· {filteredTops.length}</span>}{nodeTops.length > filteredTops.length && <span style={{ opacity: 0.35 }}> of {nodeTops.length}</span>}
                                     </div>
                                     {filteredTops.length > 0 ? (
                                       <select value={selTop} onClick={e => e.stopPropagation()}
