@@ -115,6 +115,10 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   const [setupState, setSetupState] = useState<Record<string, SlotSetup>>({});
   const [injectState, setInjectState] = useState<Record<string, InjectState>>({});
   const [sourceState, setSourceState] = useState<Record<string, SourceState>>({});
+  // ═══ Drag-and-drop wiring state ═══
+  const [dragSource, setDragSource] = useState<{ slug: string; key: string; dir: 'output' | 'input' } | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ slug: string; key: string; dir: 'output' | 'input' } | null>(null);
+
   // Lock state — active slots are auto-locked, can be manually unlocked
   const [lockedSlots, setLockedSlots] = useState<Set<string>>(new Set());
   const [pinnedSlots, setPinnedSlots] = useState<Set<string>>(new Set());
@@ -310,6 +314,41 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     } catch {}
   }, []);
 
+  /** Drag-and-drop handlers for signal chip wiring */
+  const handleChipDragStart = useCallback((slug: string, key: string, dir: 'output' | 'input') => {
+    setDragSource({ slug, key, dir });
+  }, []);
+
+  const handleChipDragOver = useCallback((e: React.DragEvent, slug: string, key: string, dir: 'output' | 'input') => {
+    // Only allow drop if opposite direction
+    if (dragSource && dragSource.dir !== dir) {
+      e.preventDefault();
+      setDropTarget({ slug, key, dir });
+    }
+  }, [dragSource]);
+
+  const handleChipDragLeave = useCallback(() => {
+    setDropTarget(null);
+  }, []);
+
+  const handleChipDrop = useCallback((e: React.DragEvent, slug: string, key: string, dir: 'output' | 'input') => {
+    e.preventDefault();
+    if (!dragSource || dragSource.dir === dir) return;
+    // Wire: + output → − input
+    if (dragSource.dir === 'output') {
+      createWire(dragSource.slug, dragSource.key, slug, key);
+    } else {      // Dragged an input onto an output — reverse
+      createWire(slug, key, dragSource.slug, dragSource.key);
+    }
+    setDragSource(null);
+    setDropTarget(null);
+  }, [dragSource, createWire]);
+
+  const handleChipDragEnd = useCallback(() => {
+    setDragSource(null);
+    setDropTarget(null);
+  }, []);
+
   // When a slot becomes active, clear its setup state
   useEffect(() => {
     setSetupState(prev => {
@@ -488,6 +527,19 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
           <button className="btn-add" onClick={onAddSlot}>+ Add Slot</button>
         </div>
       </div>
+      {/* Drag wiring indicator */}
+      {dragSource && (
+        <div style={{
+          padding: '4px 10px', fontSize: 9, fontFamily: 'var(--font-mono)',
+          background: dragSource.dir === 'output' ? 'rgba(34,197,94,0.1)' : 'rgba(92,200,255,0.1)',
+          border: `1px solid ${dragSource.dir === 'output' ? '#22c55e40' : '#5cc8ff40'}`,
+          color: dragSource.dir === 'output' ? '#22c55e' : '#5cc8ff',
+          textAlign: 'center', letterSpacing: '0.06em',
+        }}>
+          {dragSource.dir === 'output' ? '+ ' : '− '}
+          Dragging <strong>{dragSource.slug}/{dragSource.key}</strong> — drop on a {dragSource.dir === 'output' ? '− input' : '+ output'} chip to wire
+        </div>
+      )}
       <div className="slot-grid">
         {slots.map((slot, slotIdx) => {
           const mStatus = slot.maestraStatus;
@@ -756,7 +808,23 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             const isNum = sigDef?.type === 'number' || typeof liveVal === 'number';
                             const isBool = sigDef?.type === 'boolean' || typeof liveVal === 'boolean';
                             return (
-                              <span key={s} className="live-signal-tag pub" style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+                              <span key={s} className="live-signal-tag pub"
+                                draggable
+                                onDragStart={() => handleChipDragStart(slot.entity_id || slot.id, s, 'output')}
+                                onDragEnd={handleChipDragEnd}
+                                onDragOver={e => handleChipDragOver(e, slot.entity_id || slot.id, s, 'output')}
+                                onDragLeave={handleChipDragLeave}
+                                onDrop={e => handleChipDrop(e, slot.entity_id || slot.id, s, 'output')}
+                                style={{
+                                  display:'inline-flex', alignItems:'center', gap:5,
+                                  cursor: dragSource?.dir === 'input' ? 'copy' : 'grab',
+                                  opacity: dragSource?.slug === (slot.entity_id || slot.id) && dragSource?.key === s ? 0.5 : 1,
+                                  outline: dragSource?.slug === (slot.entity_id || slot.id) && dragSource?.key === s ? '2px solid #22c55e'
+                                    : dropTarget?.slug === (slot.entity_id || slot.id) && dropTarget?.key === s ? '2px dashed #22c55e' : 'none',
+                                  background: dropTarget?.slug === (slot.entity_id || slot.id) && dropTarget?.key === s
+                                    ? 'rgba(34,197,94,0.2)' : undefined,
+                                  transition: 'all 0.15s',
+                                }}>
                                 <span style={{ color: '#22c55e', fontWeight: 700, fontSize: 9 }}>+</span>{s}
                                 {liveVal !== undefined && liveVal !== null && (
                                   <span style={{
@@ -789,7 +857,22 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             const eid = slot.entity_id || slot.id;
                             const liveVal = (entityStates[eid] as Record<string,unknown>|undefined)?.[s];
                             return (
-                              <span key={s} className="live-signal-tag sub" style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+                              <span key={s} className="live-signal-tag sub"
+                                draggable
+                                onDragStart={() => handleChipDragStart(slot.entity_id || slot.id, s, 'input')}
+                                onDragEnd={handleChipDragEnd}
+                                onDragOver={e => handleChipDragOver(e, slot.entity_id || slot.id, s, 'input')}
+                                onDragLeave={handleChipDragLeave}
+                                onDrop={e => handleChipDrop(e, slot.entity_id || slot.id, s, 'input')}
+                                style={{
+                                  display:'inline-flex', alignItems:'center', gap:5,
+                                  cursor: dragSource?.dir === 'output' ? 'copy' : 'grab',
+                                  background: dropTarget?.slug === (slot.entity_id || slot.id) && dropTarget?.key === s
+                                    ? 'rgba(92,200,255,0.2)' : undefined,
+                                  outline: dropTarget?.slug === (slot.entity_id || slot.id) && dropTarget?.key === s
+                                    ? '2px dashed #5cc8ff' : 'none',
+                                  transition: 'all 0.15s',
+                                }}>
                                 <span style={{ color: '#5cc8ff', fontWeight: 700, fontSize: 9 }}>−</span>{s}
                                 {liveVal !== undefined && liveVal !== null && (
                                   <span style={{ fontSize:8, fontFamily:'var(--font-mono)', color:'rgba(255,255,255,0.5)', fontWeight:700 }}>
@@ -1199,7 +1282,153 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     );
                   })()}
 
-                  {/* ── Section 7: Recent Activity ── */}
+                  {/* ── Section 8: DMX Lighting Panel (audio_reactive slots) ── */}
+                  {(slot.signalType === 'audio_reactive' || listening.some(s => s.includes('lighting') || s.includes('scene'))) && (
+                    <div className="live-section">
+                      <div className="live-section-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>DMX Lighting</span>
+                        <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)' }}>
+                          sACN / Art-Net
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {/* Cue trigger buttons */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                          {[
+                            { label: 'Bass Hit', color: '#ef4444', key: 'cue.bass_hit' },
+                            { label: 'Snare Flash', color: '#f97316', key: 'cue.snare_flash' },
+                            { label: 'Energy Swell', color: '#eab308', key: 'cue.energy_swell' },
+                            { label: 'Blackout', color: '#6b7280', key: 'cue.blackout' },
+                            { label: 'Full White', color: '#f8fafc', key: 'cue.full_white' },
+                            { label: 'Strobe', color: '#a855f7', key: 'cue.strobe' },
+                          ].map(cue => (
+                            <button key={cue.key}
+                              onClick={e => {
+                                e.stopPropagation();
+                                onInjectSignal?.(slot.id, cue.key, '1');
+                              }}
+                              style={{                                fontSize: 8, fontFamily: 'var(--font-display)', fontWeight: 700,
+                                letterSpacing: '0.06em', textTransform: 'uppercase',
+                                padding: '3px 8px', cursor: 'pointer',
+                                background: `${cue.color}15`,
+                                border: `1px solid ${cue.color}40`,
+                                color: cue.color,
+                                transition: 'all 0.1s',
+                              }}
+                              onMouseDown={e => { (e.target as HTMLElement).style.transform = 'scale(0.95)'; }}
+                              onMouseUp={e => { (e.target as HTMLElement).style.transform = ''; }}>
+                              {cue.label}
+                            </button>
+                          ))}
+                        </div>
+                        {/* Bass threshold slider */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0' }}>
+                          <span style={{ fontSize: 8, fontFamily: 'var(--font-display)', fontWeight: 700,
+                            letterSpacing: '0.08em', color: 'rgba(255,255,255,0.4)', width: 80, flexShrink: 0 }}>
+                            BASS THRESHOLD
+                          </span>
+                          <input type="range" min="0" max="100" defaultValue="45"
+                            onClick={e => e.stopPropagation()}
+                            onChange={e => {
+                              e.stopPropagation();
+                              onInjectSignal?.(slot.id, 'dmx.bass_threshold', String(Number(e.target.value) / 100));
+                            }}
+                            style={{ flex: 1, height: 3, accentColor: '#ef4444' }} />
+                          <span style={{ fontSize: 8, fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,0.3)', width: 28, textAlign: 'right' }}>45%</span>                        </div>
+                        {/* Pause / Fade controls */}
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button onClick={e => { e.stopPropagation(); onInjectSignal?.(slot.id, 'dmx.pause', '1'); }}
+                            style={{ fontSize: 8, padding: '2px 8px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}>
+                            ⏸ Pause
+                          </button>
+                          <button onClick={e => { e.stopPropagation(); onInjectSignal?.(slot.id, 'dmx.fade_to_black', '1'); }}
+                            style={{ fontSize: 8, padding: '2px 8px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}>
+                            ◼ Fade to Black
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Section 9: Audio Analysis Visualization ── */}
+                  {(slot.signalType === 'audio_reactive' || publishing.some(s => s.includes('bass') || s.includes('rms') || s.includes('bpm'))) && (() => {
+                    const eid = slot.entity_id || slot.id;
+                    const eState = entityStates[eid] as Record<string, unknown> | undefined;
+                    // Audio metrics
+                    const bands = [
+                      { label: 'SUB', key: 'sub', color: '#ef4444' },
+                      { label: 'BASS', key: 'bass', color: '#f97316' },
+                      { label: 'MID', key: 'mid', color: '#eab308' },
+                      { label: 'HIGH', key: 'high', color: '#22c55e' },
+                    ];                    const meters = [
+                      { label: 'RMS', key: 'rms', color: '#5cc8ff' },
+                      { label: 'BPM', key: 'bpm', color: '#a855f7' },
+                      { label: 'ENERGY', key: 'energy', color: '#f59e0b' },
+                    ];
+                    return (
+                      <div className="live-section">
+                        <div className="live-section-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span>Audio Analysis</span>
+                          <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)' }}>
+                            {eState?.bpm ? `${Number(eState.bpm).toFixed(0)} BPM` : 'analyzing...'}
+                          </span>
+                        </div>
+
+                        {/* Frequency spectrum bars */}
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 40, padding: '4px 0' }}>
+                          {bands.map(band => {
+                            const val = eState?.[band.key] ? Number(eState[band.key]) : Math.random() * 0.5;
+                            const height = Math.max(2, Math.min(36, val * 36));
+                            return (
+                              <div key={band.key} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                                <div style={{
+                                  width: '100%', height, maxHeight: 36,
+                                  background: `linear-gradient(to top, ${band.color}60, ${band.color})`,
+                                  borderRadius: '2px 2px 0 0',
+                                  transition: 'height 0.15s ease-out',
+                                }} />
+                                <span style={{ fontSize: 6, fontFamily: 'var(--font-display)', fontWeight: 700,
+                                  letterSpacing: '0.1em', color: band.color, opacity: 0.7 }}>                                  {band.label}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Meters row */}
+                        <div style={{ display: 'flex', gap: 6, paddingTop: 4, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                          {meters.map(meter => {
+                            const val = eState?.[meter.key] ? Number(eState[meter.key]) : 0;
+                            const display = meter.key === 'bpm' ? val.toFixed(0) : val.toFixed(3);
+                            return (
+                              <div key={meter.key} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                  <span style={{ fontSize: 7, fontFamily: 'var(--font-display)', fontWeight: 700,
+                                    letterSpacing: '0.08em', color: 'rgba(255,255,255,0.35)' }}>
+                                    {meter.label}
+                                  </span>
+                                  <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', fontWeight: 700, color: meter.color }}>
+                                    {display}
+                                  </span>
+                                </div>
+                                {/* Mini bar */}
+                                <div style={{ width: '100%', height: 2, background: 'rgba(255,255,255,0.06)', borderRadius: 1 }}>
+                                  <div style={{
+                                    width: `${Math.min(100, (meter.key === 'bpm' ? val / 180 : val) * 100)}%`,
+                                    height: '100%', background: meter.color, borderRadius: 1,
+                                    transition: 'width 0.2s ease-out',                                  }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* ── Section 10: Recent Activity ── */}
                   <div className="live-section">
                     <div className="live-section-head">Recent Activity</div>
                     <div className="live-activity-log">
