@@ -803,17 +803,18 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             const nodeTops = selNode ? (nodeMap[selNode] || []) : [];
 
                             // Stream type filter
-                            const STREAM_TYPES = [
-                              { key: '',        label: 'All',     desc: '' },
-                              { key: 'ndi',     label: 'NDI',     desc: 'NDI video/audio' },
-                              { key: 'syphon',  label: 'Syphon',  desc: 'Texture (macOS)' },
-                              { key: 'spout',   label: 'Spout',   desc: 'Texture (Windows)' },
-                              { key: 'srt',     label: 'SRT',     desc: 'SRT video stream' },
+                            // Exact Maestra stream types — https://jordansnyder.github.io/maestra-core/concepts/entities/
+                            const STREAM_TYPES: { key: string; label: string; desc: string }[] = [
+                              { key: '',        label: 'All',     desc: 'Show all TOPs' },
+                              { key: 'ndi',     label: 'NDI',     desc: 'NDI video/audio (NewTek)' },
+                              { key: 'syphon',  label: 'Syphon',  desc: 'Syphon texture (macOS)' },
+                              { key: 'spout',   label: 'Spout',   desc: 'Spout texture (Windows)' },
+                              { key: 'srt',     label: 'SRT',     desc: 'SRT video streaming' },
                               { key: 'video',   label: 'Video',   desc: 'Generic video' },
                               { key: 'audio',   label: 'Audio',   desc: 'Audio feeds' },
                               { key: 'texture', label: 'Texture', desc: 'GPU textures' },
                               { key: 'midi',    label: 'MIDI',    desc: 'MIDI data' },
-                              { key: 'osc',     label: 'OSC',     desc: 'OSC messages' },
+                              { key: 'osc',     label: 'OSC',     desc: 'OSC message streams' },
                               { key: 'sensor',  label: 'Sensor',  desc: 'Sensor data' },
                               { key: 'data',    label: 'Data',    desc: 'Generic data' },
                             ];
@@ -832,10 +833,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                     Stream Type
                                   </div>
                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                                    {STREAM_TYPES.map(({ key, label }) => {
+                                    {STREAM_TYPES.map(({ key, label, desc }) => {
                                       const active = (key === '' && !streamFilter) || key === streamFilter;
                                       return (
                                         <button key={key}
+                                          title={desc}
                                           onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateType: key || 'string' } })); }}
                                           style={{ fontSize: 8, padding: '2px 7px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
                                             background: active ? `${slotColor}25` : 'rgba(255,255,255,0.03)',
