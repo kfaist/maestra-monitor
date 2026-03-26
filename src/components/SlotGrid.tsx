@@ -728,22 +728,42 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         </span>
                       </>
                     ) : (
-                      /* Inactive: TOOL ▾ dropdown chip in slot color — no hardcoded name */
-                      <span style={{
-                        fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase',
-                        color: slotColor, border: `1px solid ${slotColor}40`,
-                        background: `${slotColor}08`, padding: '2px 8px',
-                        display: 'inline-flex', alignItems: 'center', gap: 5, userSelect: 'none',
-                      }}>
-                        TOOL
-                        <svg width="7" height="5" viewBox="0 0 7 5" fill="none" style={{ flexShrink: 0 }}>
-                          <path d="M1 1L3.5 4L6 1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                        </svg>
-                      </span>
+                      /* Inactive: "Connect Your Tool" dropdown in slot color */
+                      <select
+                        onClick={e => e.stopPropagation()}
+                        onChange={e => { e.stopPropagation(); if (e.target.value) handleSlotClick(slot); }}
+                        defaultValue=""
+                        style={{
+                          fontSize: 9, letterSpacing: '0.08em',
+                          color: slotColor,
+                          border: `1px solid ${slotColor}50`,
+                          background: `${slotColor}0a`,
+                          padding: '3px 6px',
+                          cursor: 'pointer',
+                          outline: 'none',
+                          appearance: 'none',
+                          WebkitAppearance: 'none',
+                          fontFamily: 'var(--font-display)',
+                          paddingRight: 20,
+                          backgroundImage: `url("data:image/svg+xml,%3Csvg width='7' height='5' viewBox='0 0 7 5' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L3.5 4L6 1' stroke='${encodeURIComponent(slotColor)}' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E")`,
+                          backgroundRepeat: 'no-repeat',
+                          backgroundPosition: 'right 5px center',
+                        }}
+                      >
+                        <option value="" disabled style={{ background: '#0a0a14', color: '#666' }}>Connect Your Tool</option>
+                        <option value="touchdesigner" style={{ background: '#0a0a14', color: '#fff' }}>TouchDesigner</option>
+                        <option value="max_msp" style={{ background: '#0a0a14', color: '#fff' }}>Max/MSP</option>
+                        <option value="unreal" style={{ background: '#0a0a14', color: '#fff' }}>Unreal Engine</option>
+                        <option value="unity" style={{ background: '#0a0a14', color: '#fff' }}>Unity</option>
+                        <option value="arduino" style={{ background: '#0a0a14', color: '#fff' }}>Arduino / ESP32</option>
+                        <option value="web" style={{ background: '#0a0a14', color: '#fff' }}>Web / React / Mobile</option>
+                        <option value="python" style={{ background: '#0a0a14', color: '#fff' }}>Python</option>
+                        <option value="raspberry_pi" style={{ background: '#0a0a14', color: '#fff' }}>Raspberry Pi</option>
+                      </select>
                     )}
-                  {/* Lock + controls — only on active slots */}
+                  {/* Lock + controls — show on hover */}
                   {slot.active && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
+                    <div className="slot-footer-controls" style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
                       <button
                         onClick={e => { e.stopPropagation(); toggleLock(slot.id, slot, entityStates[slot.entity_id || slot.id] as Record<string, unknown> || {}); }}
                         title={lockedSlots.has(slot.id) ? '🔒 Locked — click to unlock and modify' : '🔓 Click to lock and protect this slot'}
