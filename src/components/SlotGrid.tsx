@@ -108,8 +108,12 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   // Per-slot server mode: which Maestra server this slot is targeting
   const [slotServerModes, setSlotServerModes] = useState<Record<string, 'auto' | 'gallery' | 'railway' | 'custom'>>({});
   // Cached tops from /api/tops — populated by build_maestra_tox.py
-  const [cachedTops, setCachedTops] = useState<string[]>([]);
-  const [cachedTree, setCachedTree] = useState<Record<string, string[]>>({});
+  const [cachedTops, setCachedTops] = useState<string[]>(() => {
+    try { const v = localStorage.getItem('maestra_cached_tops'); return v ? JSON.parse(v) : []; } catch { return []; }
+  });
+  const [cachedTree, setCachedTree] = useState<Record<string, string[]>>(() => {
+    try { const v = localStorage.getItem('maestra_cached_tree'); return v ? JSON.parse(v) : {}; } catch { return {}; }
+  });
   useEffect(() => {
     const LS_TOPS = 'maestra_cached_tops';
     const LS_TREE = 'maestra_cached_tree';
