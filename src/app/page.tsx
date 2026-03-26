@@ -26,6 +26,7 @@ import { FleetSlot, LogEntry, EventEntry, AudioAnalysisData, SlotConnectionInfo,
 import { createInitialSlots, SUGGESTIONS } from '@/mock';
 import { WSSimulator } from '@/mock/ws-simulator';
 import { API_BASE } from '@/mock/gpu-nodes';
+import GlobalOutBar from '@/components/GlobalOutBar';
 import { formatTimestamp } from '@/lib/audio-utils';
 import { FRAME_FETCH_INTERVAL } from '@/lib/constants';
 import {
@@ -1541,30 +1542,12 @@ export default function Home() {
               onP6Flush={p6Flush}
             />
 
-            {/* Target selector for color/modulation sends */}
-            <div className="send-target-bar">
-              <span className="send-target-label">Send to</span>
-              <div className="send-target-options">
-                <button
-                  className={`send-target-btn ${sendTarget === 'global' ? 'active' : ''}`}
-                  onClick={() => setSendTarget('global')}
-                >
-                  Global
-                </button>
-                {remoteEntityList.map(eid => (
-                  <button
-                    key={eid}
-                    className={`send-target-btn ${sendTarget === eid ? 'active' : ''}`}
-                    onClick={() => setSendTarget(eid)}
-                  >
-                    {eid.length > 16 ? eid.slice(0, 14) + '…' : eid}
-                  </button>
-                ))}
-              </div>
-              {sendTarget !== 'global' && (
-                <span className="send-target-indicator">{sendTarget}</span>
-              )}
-            </div>
+                        {/* Global OUT bar — drag chips to slot IN zones */}
+            <GlobalOutBar
+              slots={slots}
+              sendTarget={sendTarget}
+              onSendTargetChange={setSendTarget}
+            />
 
             <AudioAnalysis audioData={audioData} onSendAudio={sendToTarget} />
 
