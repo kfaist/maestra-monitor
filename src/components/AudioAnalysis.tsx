@@ -165,6 +165,9 @@ export default function AudioAnalysis({ audioData, onSendAudio }: AudioAnalysisP
       <div className="aa-header">
         <span className="aa-title">Audio Analysis</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {onSendAudio && (
+            <button
+              onClick={() => setSendActive(v => !v)}
               style={{
                 padding: '6px 14px',
                 fontSize: 12,
