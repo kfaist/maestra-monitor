@@ -1540,8 +1540,6 @@ export default function Home() {
               entityStates={entityStates}
             />
 
-            <AudioAnalysis audioData={audioData} onSendAudio={sendToTarget} />
-
             <LightingPanel
               dmxState={dmxState}
               onTriggerCue={triggerDmxCue}
@@ -1552,6 +1550,8 @@ export default function Home() {
               audioReactiveEnabled={audioReactiveEnabled}
               onAudioReactiveToggle={setAudioReactiveEnabled}
             />
+
+            <AudioAnalysis audioData={audioData} onSendAudio={sendToTarget} />
 
             <ColorPalette onColorChange={handleColorChange} />
             <ModulationGrid onModulationChange={handleModulationChange} />
