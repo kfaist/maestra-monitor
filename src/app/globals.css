@@ -2659,3 +2659,16 @@ footer a:hover { text-decoration: underline; }
   .tox-params-2col { grid-template-columns: 1fr; }
   header { flex-direction: column; gap: 10px; align-items: flex-start; }
 }
+
+/* ── Slot footer controls: hidden until hover ── */
+.slot-footer-controls { opacity: 0; transition: opacity 0.15s; }
+.slot:hover .slot-footer-controls,
+.slot.selected .slot-footer-controls { opacity: 1; }
+
+/* ── AVAILABLE text uses slot color ── */
+.slot-available-flicker { color: var(--slot-color, var(--text-dim)); opacity: 0.5; letter-spacing: 0.18em; }
+
+/* ── Slot footer select: inherit slot color ── */
+.slot-footer select:focus { outline: none; }
+.slot-footer select option { background: #0a0a14; }
+
