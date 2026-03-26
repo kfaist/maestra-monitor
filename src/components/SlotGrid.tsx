@@ -768,8 +768,15 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           {/* TOP dropdown — populated from metadata.tops sent by TOX */}
                           {(() => {
                             const eid = setup.slug || slot.entity_id || slot.id;
-                            const eState = entityStates[eid] as Record<string,unknown> | undefined;
-                            const tops: string[] = Array.isArray(eState?.tops) ? (eState!.tops as string[]) : Array.isArray(eState?.metadata) ? [] : Array.isArray((eState?.metadata as Record<string,unknown>|undefined)?.tops) ? ((eState!.metadata as Record<string,unknown>).tops as string[]) : [];
+                            // Check all sources: WS entityStates (by slug), by entity_id, and REST slot.metadata
+                            const eState = (entityStates[eid] || entityStates[slot.entity_id || ''] || {}) as Record<string,unknown>;
+                            const slotMeta = ((slot as unknown as Record<string,unknown>).metadata || {}) as Record<string,unknown>;
+                            const tops: string[] = (
+                              Array.isArray(eState?.tops) ? eState.tops as string[] :
+                              Array.isArray((eState?.metadata as Record<string,unknown>|undefined)?.tops) ? ((eState.metadata as Record<string,unknown>).tops as string[]) :
+                              Array.isArray(slotMeta?.tops) ? slotMeta.tops as string[] :
+                              []
+                            );
                             return (
                               <div style={{ width: '100%' }}>
                                 <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)',
