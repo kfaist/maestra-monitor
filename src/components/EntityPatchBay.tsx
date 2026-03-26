@@ -227,14 +227,14 @@ export default function EntityPatchBay({ slots, entityStates, liveValues, onAppl
                       return (
                         <div key={sigId} style={{
                           display: 'flex', alignItems: 'center', gap: 3,
-                          background: `${s.color}15`, border: `1px solid ${s.color}40`,
+                          background: `${color}15`, border: `1px solid ${color}45`,
                           padding: '1px 5px', fontSize: 8,
                         }}>
-                          <span style={{ color: s.color }}>{s.icon}</span>
-                          <span style={{ fontFamily: 'var(--font-mono)', color: s.color }}>{s.label}</span>
+                          <span style={{ color }}>{s.icon}</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', color }}>{s.label}</span>
                           <span
                             onClick={() => removeRoute(slot.id, sigId)}
-                            style={{ marginLeft: 2, color: 'var(--text-dim)', cursor: 'pointer', fontSize: 10, lineHeight: 1 }}
+                            style={{ marginLeft: 3, color, opacity: 0.5, cursor: 'pointer', fontSize: 10, lineHeight: 1 }}
                           >×</span>
                         </div>
                       );
