@@ -105,10 +105,14 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   const [slotServerModes, setSlotServerModes] = useState<Record<string, 'auto' | 'gallery' | 'railway' | 'custom'>>({});
   // Cached tops from /api/tops — populated by build_maestra_tox.py
   const [cachedTops, setCachedTops] = useState<string[]>([]);
+  const [cachedTree, setCachedTree] = useState<Record<string, string[]>>({});
   useEffect(() => {
     const load = () => fetch('/api/tops')
       .then(r => r.json())
-      .then(d => { if (d.tops?.length) setCachedTops(d.tops); })
+      .then(d => {
+        if (d.tops?.length) setCachedTops(d.tops);
+        if (d.tree && Object.keys(d.tree).length) setCachedTree(d.tree);
+      })
       .catch(() => {});
     load();
     const t = setInterval(load, 15000);
@@ -809,7 +813,13 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
 
                             // Filter nodeTops by stream type hint in path
                             const filteredTops = streamFilter
-                              ? nodeTops.filter(t => t.toLowerCase().includes(streamFilter))
+                              ? nodeTops.filter(t => {
+                                  const low = t.toLowerCase();
+                                  // Match stream type against type prefix or path
+                                  const typeMatch = low.startsWith(streamFilter + ':');
+                                  const pathMatch = low.includes(streamFilter);
+                                  return typeMatch || pathMatch;
+                                })
                               : nodeTops;
 
                             return (
@@ -883,8 +893,16 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                           background: 'rgba(0,0,0,0.6)', border: `1px solid ${slotColor}40`, color: slotColor, outline: 'none' }}>
                                         <option value="">— select TOP —</option>
                                         {filteredTops.map(t => {
-                                          const rel = t.split('/').slice(2).join('/');
-                                          return <option key={t} value={t} style={{ background: '#0a0a14' }}>{rel}</option>;
+                                          // Entry format: "TYPE:name:path" or plain "/path"
+                                          let label = t, val = t;
+                                          if (t.includes(':') && t.split(':').length >= 3) {
+                                            const pts = t.split(':');
+                                            label = '[' + pts[0] + '] ' + pts[1];
+                                            val   = pts.slice(2).join(':'); // the path
+                                          } else {
+                                            label = t.split('/').pop() || t;
+                                          }
+                                          return <option key={t} value={t} style={{ background: '#0a0a14' }}>{label}</option>;
                                         })}
                                       </select>
                                     ) : (
