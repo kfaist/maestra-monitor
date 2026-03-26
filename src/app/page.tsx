@@ -37,10 +37,13 @@ export default function Home() {
   // State
   const [activeTab, setActiveTab] = useState('dashboard');
   const [wsStatus, setWsStatus] = useState<'online' | 'offline' | 'connecting'>('connecting');
-  const [serverMode, setServerMode] = useState<'railway' | 'gallery' | 'auto' | 'custom' | 'auto' | 'custom'>('auto');
-  const [customUrl, setCustomUrl] = useState<string>('');
-  const serverModeRef = useRef<'railway' | 'gallery' | 'auto' | 'custom' | 'auto' | 'custom'>('auto');
-  const customUrlRef = useRef<string>('');
+  type ServerMode = 'railway' | 'gallery' | 'auto' | 'custom';
+  const [serverMode, setServerMode] = useState<ServerMode>('auto');
+  const [customUrl, setCustomUrl] = useState('');
+  const [serverConnected, setServerConnected] = useState(false);
+  const [resolvedServerUrl, setResolvedServerUrl] = useState('');
+  const serverModeRef = useRef<ServerMode>('auto');
+  const customUrlRef = useRef('');
   const [apiStatus, setApiStatus] = useState<'online' | 'offline'>('offline');
   const [slots, setSlots] = useState<FleetSlot[]>([]); // populated from GET /entities
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -86,14 +89,14 @@ export default function Home() {
   const simulatorRef = useRef<WSSimulator | null>(null);
   const activeNodeUrlRef = useRef<string | null>(null);
   // Resolve active server URL from mode
-  const resolveActiveBase = (() => {
+  const resolveActiveBase = () => {
     const mode = serverModeRef.current;
     const cu = customUrlRef.current;
     if (mode === 'gallery') return GALLERY_URL;
     if (mode === 'custom' && cu) return cu;
     if (mode === 'railway') return RAILWAY_URL;
     return GALLERY_URL; // auto: try gallery first
-  });
+  };
 
   const slotsRef = useRef(slots);
   slotsRef.current = slots;
