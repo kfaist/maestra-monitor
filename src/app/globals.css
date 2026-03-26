@@ -461,15 +461,15 @@ header {
 /* SLOT GRID */
 .slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px; }
 .slot {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--slot-color, var(--accent)) 6%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--slot-color, var(--border)) 30%, transparent);
   border-radius: 4px;
   overflow: hidden;
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
   position: relative;
 }
-.slot:hover { border-color: rgba(0,212,255,0.6); box-shadow: 0 0 20px rgba(0,212,255,0.2), inset 0 0 30px rgba(0,212,255,0.03); transform: translateY(-2px); }
+.slot:hover { border-color: color-mix(in srgb, var(--slot-color, var(--accent)) 80%, transparent); box-shadow: 0 0 20px rgba(0,212,255,0.2), inset 0 0 30px rgba(0,212,255,0.03); transform: translateY(-2px); }
 .slot.selected { border-color: var(--accent); border-width: 2px; box-shadow: 0 0 0 1px var(--accent), 0 0 24px rgba(0,212,255,0.3), inset 0 0 40px rgba(0,212,255,0.04); }
 .slot { border-color: var(--slot-color, var(--border)); border-width: 1px; }
 .slot:not(.active-slot) { border-color: color-mix(in srgb, var(--slot-color, var(--border)) 30%, transparent); }
