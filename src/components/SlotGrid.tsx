@@ -665,7 +665,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
                           >
                             <div style={{ fontSize: 11, color: slotColor, marginBottom: 4 }}>
-                              Drag <strong>maestra.tox</strong> into your .toe
+                              Run <strong>build_maestra_tox.py</strong> in TD Textport
                             </div>
                             <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', lineHeight: 1.5 }}>
                               The TOX auto-registers when your project opens.<br/>
@@ -674,7 +674,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           </div>
                           {/* Download TOX link */}
                           <a
-                            href='/maestra.tox'
+                            href='https://raw.githubusercontent.com/kfaist/maestra-monitor/main/public/build_maestra_tox.py'
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={e => e.stopPropagation()}
@@ -682,7 +682,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               fontSize: 8, color: slotColor, opacity: 0.6,
                               textDecoration: 'underline', alignSelf: 'flex-start',
                             }}
-                          >↓ Download maestra.tox</a>
+                          >↓ Download build_maestra_tox.py</a>
                           <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.25)', width: '100%' }}>
                             or if already running in TD →
                           </div>
