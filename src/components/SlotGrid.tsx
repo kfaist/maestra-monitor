@@ -1707,11 +1707,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             style={{ display: 'block', width: '100%', boxSizing: 'border-box',
                               padding: '10px 12px', textDecoration: 'none',
                               border: `1px solid ${slotColor}40`, background: `${slotColor}08` }}>
-                            <div style={{ fontSize: 15.5, fontWeight: 700, color: slotColor,
-                              fontFamily: 'var(--font-display)', letterSpacing: '0.05em', marginBottom: 3 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: slotColor,
+                              fontFamily: 'var(--font-display)', letterSpacing: '0.05em', marginBottom: 4 }}>
                               ↓ Download maestra.tox
                             </div>
-                            <div style={{ fontSize: 15.5, color: 'rgba(255,255,255,0.35)' }}>
+                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
                               Drag into your .toe → auto-registers when project opens
                             </div>
                           </a>
@@ -1724,10 +1724,10 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             padding: '10px 12px', cursor: 'pointer', position: 'relative',
                             border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}
                             onClick={e => e.stopPropagation()}>
-                            <div style={{ fontSize: 15.5, color: 'rgba(255,255,255,0.6)', marginBottom: 4, pointerEvents: 'none' }}>
+                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 4, pointerEvents: 'none' }}>
                               {setup.refFile ? `📁 ${setup.refFile}` : 'Browse to your .toe file'}
                             </div>
-                            <div style={{ fontSize: 15.5, color: 'rgba(255,255,255,0.25)', lineHeight: 1.7, pointerEvents: 'none' }}>
+                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', lineHeight: 1.7, pointerEvents: 'none' }}>
                               The TOX auto-registers when your project opens.<br/>
                               Once connected, this slot updates automatically.
                             </div>
