@@ -204,6 +204,17 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   const [setupState, setSetupState] = useState<Record<string, SlotSetup>>({});
   const [injectState, setInjectState] = useState<Record<string, InjectState>>({});
   const [sourceState, setSourceState] = useState<Record<string, SourceState>>({});
+  // ═══ Preview image failure tracking — resets when source changes ═══
+  const [imgFailedMap, setImgFailedMap] = useState<Record<string, boolean>>({});
+  // Reset imgFailed when frameUrl or entity changes
+  const prevFrameKeys = useRef<string>('');
+  useEffect(() => {
+    const key = slots.map(s => `${s.id}:${s.frameUrl || ''}:${s.entity_id || ''}`).join('|');
+    if (key !== prevFrameKeys.current) {
+      prevFrameKeys.current = key;
+      setImgFailedMap({});
+    }
+  }, [slots]);
   // ═══ Drag-and-drop wiring state ═══
   const [dragSource, setDragSource] = useState<{ slug: string; key: string; dir: 'output' | 'input' } | null>(null);
   const [dropTarget, setDropTarget] = useState<{ slug: string; key: string; dir: 'output' | 'input' } | null>(null);
@@ -816,33 +827,38 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   <div className="live-node-thumb">
                     {(() => {
                       const eid = slot.entity_id || slot.id;
-                      const srv = 'https://maestra-backend-v2-production.up.railway.app';
-                      const url = slot.frameUrl || `${srv}/video/frame/${eid}`;
-                      return (
-                        <>
-                          <img src={url} alt="stream"
-                            style={{ width:'100%', height:'100%', objectFit:'cover', display:'block', position:'relative', zIndex:1 }}
-                            onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
-                          {/* Placeholder behind the img — visible when img fails or is loading */}
-                          <div className="live-node-thumb-placeholder" style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', zIndex:0 }}>
-                            <span className="live-node-thumb-icon" style={{ fontSize: 24, opacity: 0.6 }}>
-                              {slot.signalType === 'audio_reactive' ? '♫'
-                                : slot.signalType === 'json_stream' ? '{}'
-                                : slot.signalType === 'osc' ? '~'
-                                : slot.signalType === 'touchdesigner' ? '◆'
-                                : slot.signalType === 'text' ? 'A'
-                                : '●'}
-                            </span>
-                            <span className="live-node-thumb-status" style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>
-                              {mStatus?.stream === 'live' ? 'LIVE — WAITING FOR FRAME'
-                                : mStatus?.stream === 'advertised' ? 'NO FRAME'
-                                : statusText}
-                            </span>
-                          </div>
-                        </>
+                      const fallbackUrl = `https://maestra-backend-v2-production.up.railway.app/video/frame/${eid}`;
+                      const previewUrl = slot.frameUrl || fallbackUrl;
+                      const imgFailed = imgFailedMap[slot.id] ?? false;
+                      const showImage = !!previewUrl && !imgFailed;
+
+                      return showImage ? (
+                        <img
+                          key={previewUrl}
+                          src={previewUrl}
+                          alt="stream"
+                          style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
+                          onError={() => setImgFailedMap(prev => ({ ...prev, [slot.id]: true }))}
+                        />
+                      ) : (
+                        <div className="live-node-thumb-placeholder">
+                          <span className="live-node-thumb-icon" style={{ fontSize: 24, opacity: 0.6 }}>
+                            {slot.signalType === 'audio_reactive' ? '♫'
+                              : slot.signalType === 'json_stream' ? '{}'
+                              : slot.signalType === 'osc' ? '~'
+                              : slot.signalType === 'touchdesigner' ? '◆'
+                              : slot.signalType === 'text' ? 'A'
+                              : '●'}
+                          </span>
+                          <span className="live-node-thumb-status" style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>
+                            {mStatus?.stream === 'live' ? 'LIVE — WAITING FOR FRAME'
+                              : mStatus?.stream === 'advertised' ? 'NO FRAME'
+                              : statusText}
+                          </span>
+                        </div>
                       );
                     })()}
-                    <div className={`live-node-badge ${statusCls}`} style={{ zIndex: 2 }}>
+                    <div className={`live-node-badge ${statusCls}`}>
                       {slot.frameUrl ? 'LIVE' : mStatus?.stream === 'advertised' ? 'ADVERTISED' : 'LIVE'}
                     </div>
                   </div>
