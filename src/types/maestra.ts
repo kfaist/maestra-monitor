@@ -107,6 +107,7 @@ export interface MaestraEntity {
 }
 
 export type SignalType = 'touchdesigner' | 'json_stream' | 'osc' | 'audio_reactive' | 'text' | 'test_signal' | 'video' | null;
+export type StreamType = 'ndi' | 'syphon' | 'spout' | 'srt' | 'video' | 'audio' | 'texture' | 'midi' | 'osc' | 'sensor' | 'data';
 export type NodeRole = 'receive' | 'send' | 'two_way' | null;
 
 

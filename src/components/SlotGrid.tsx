@@ -1,7 +1,7 @@
 'use client';
 
 import { SLOT_COLORS } from './SignalPanel';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { FleetSlot, slotStatusLabel, slotStatusClass, formatAge, EventEntry } from '@/types';
 
 type InlineStage = 'idle' | 'connect' | 'setup' | 'slug' | 'addState';
@@ -207,50 +207,64 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   const [dragSource, setDragSource] = useState<{ slug: string; key: string; dir: 'output' | 'input' } | null>(null);
   const [dropTarget, setDropTarget] = useState<{ slug: string; key: string; dir: 'output' | 'input' } | null>(null);
 
-  // Lock state — active slots are auto-locked, can be manually unlocked
+  // Lock state — derived from Maestra backend entity metadata
   const [lockedSlots, setLockedSlots] = useState<Set<string>>(new Set());
   const [pinnedSlots, setPinnedSlots] = useState<Set<string>>(new Set());
   const togglePin = (slotId: string) =>
     setPinnedSlots(prev => { const n = new Set(prev); n.has(slotId) ? n.delete(slotId) : n.add(slotId); return n; });
   // Per-slot server mode: which Maestra server this slot is targeting
   const [slotServerModes, setSlotServerModes] = useState<Record<string, 'auto' | 'gallery' | 'railway' | 'custom'>>({});
-  // Cached tops from /api/tops — populated by build_maestra_tox.py
-  // slotPins: { [slotId]: pinHash } — locked slots
-  const [slotPins, setSlotPins] = useState<Record<string,string>>(() => {
-    try { return JSON.parse(localStorage.getItem('maestra_slot_pins')||'{}'); } catch { return {}; }
-  });
-  const OVERRIDE_PIN = '1177'; // global override — always unlocks any slot
 
-  const hashPin = (p: string) => btoa(p).slice(0,12); // simple obfuscation
+  // Hydrate lock state from entityStates (backend is source of truth)
+  const lockedSlotsRef = useRef(lockedSlots);
+  lockedSlotsRef.current = lockedSlots;
+  useEffect(() => {
+    const nextLocked = new Set<string>();
+    slots.forEach(slot => {
+      const eid = slot.entity_id || slot.id;
+      const es = entityStates[eid] as Record<string, unknown> | undefined;
+      if (es?.locked === true || es?.locked === 'true') nextLocked.add(slot.id);
+    });
+    // Only update if different to avoid render loops
+    const prev = lockedSlotsRef.current;
+    if (nextLocked.size !== prev.size || [...nextLocked].some(id => !prev.has(id))) {
+      setLockedSlots(nextLocked);
+    }
+  }, [entityStates, slots]);
 
-  const lockSlot = (slotId: string, pin: string) => {
-    const h = hashPin(pin);
-    const next = { ...slotPins, [slotId]: h };
-    setSlotPins(next);
-    try { localStorage.setItem('maestra_slot_pins', JSON.stringify(next)); } catch {}
-    // Also persist outputSignals so they survive refresh
-    const setup = setupState[slotId];
-    const sigs = setup?.outputSignals || [];
-    const slug = setup?.slug || slotId;
-    if (sigs.length > 0) {
-      fetch('/api/slots', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ slug, outputSignals: sigs }) }).catch(()=>{});
-      try { localStorage.setItem('maestra_slot_'+slug, JSON.stringify(sigs)); } catch {}
+  const isLocked = (slotId: string) => lockedSlots.has(slotId);
+
+  const MAESTRA_API = 'https://maestra-backend-v2-production.up.railway.app';
+
+  // PATCH entity metadata — always merges, never overwrites
+  const patchEntityMeta = async (entityId: string, patch: Record<string, unknown>) => {
+    // Read existing metadata first to merge
+    try {
+      const res = await fetch(`${MAESTRA_API}/entities/${entityId}`);
+      const entity = await res.json();
+      const existingMeta = (entity?.metadata as Record<string, unknown>) || {};
+      await fetch(`${MAESTRA_API}/entities/${entityId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metadata: { ...existingMeta, ...patch } }),
+      });
+    } catch (err) {
+      console.error('Failed to patch entity metadata:', err);
     }
   };
 
-  const unlockSlot = (slotId: string, pin: string) => {
-    if (pin === OVERRIDE_PIN || hashPin(pin) === slotPins[slotId]) {
-      const next = { ...slotPins };
-      delete next[slotId];
-      setSlotPins(next);
-      try { localStorage.setItem('maestra_slot_pins', JSON.stringify(next)); } catch {}
-      return true;
-    }
-    return false;
+  const toggleLockBackend = (slotId: string, slot: FleetSlot) => {
+    const entityId = slot.entity_id || slot.entityId || slotId;
+    const newLocked = !lockedSlots.has(slotId);
+    // Optimistic UI update
+    setLockedSlots(prev => {
+      const n = new Set(prev);
+      newLocked ? n.add(slotId) : n.delete(slotId);
+      return n;
+    });
+    // Persist to backend
+    patchEntityMeta(entityId, { locked: newLocked });
   };
-
-  const isLocked = (slotId: string) => !!slotPins[slotId];
 
   const [cachedTops, setCachedTops] = useState<string[]>(() => { try { const v = localStorage.getItem('maestra_cached_tops'); return v ? JSON.parse(v) : []; } catch { return []; } });
   const [cachedTree, setCachedTree] = useState<Record<string, string[]>>(() => { try { const v = localStorage.getItem('maestra_cached_tree'); return v ? JSON.parse(v) : {}; } catch { return {}; } });
@@ -305,25 +319,18 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   const [lockedLabels, setLockedLabels] = useState<Record<string, string>>({});
 
   const toggleLock = (slotId: string, slot: FleetSlot, entityState: Record<string, unknown>) => {
-    setLockedSlots(prev => {
-      const n = new Set(prev);
-      if (n.has(slotId)) {
-        n.delete(slotId);
-      } else {
-        // On lock: derive label from tool type + entity name
-        const toeName = entityState?.toe_name as string | undefined;
-        const entityId = slot.entity_id || slotId;
-        // Detect tool type from entity metadata or signal type
-        const toolTag = slot.signalType === 'audio_reactive' ? 'Max/MSP'
-          : slot.signalType === 'osc' ? 'Max/MSP'
-          : slot.cloudNode ? 'Scope'
-          : 'TouchDesigner';
-        const shortName = toeName || entityId.replace(/_/g, ' ').replace(/\w/g, l => l.toUpperCase());
-        setLockedLabels(p => ({ ...p, [slotId]: `${toolTag} · ${shortName}` }));
-        n.add(slotId);
-      }
-      return n;
-    });
+    // Derive label on lock
+    if (!lockedSlots.has(slotId)) {
+      const toeName = entityState?.toe_name as string | undefined;
+      const entityId = slot.entity_id || slotId;
+      const toolTag = slot.signalType === 'audio_reactive' ? 'Max/MSP'
+        : slot.signalType === 'osc' ? 'Max/MSP'
+        : slot.cloudNode ? 'Scope'
+        : 'TouchDesigner';
+      const shortName = toeName || entityId.replace(/_/g, ' ').replace(/\w/g, l => l.toUpperCase());
+      setLockedLabels(p => ({ ...p, [slotId]: `${toolTag} · ${shortName}` }));
+    }
+    toggleLockBackend(slotId, slot);
   };
 
   const [now, setNow] = useState(Date.now());
@@ -691,14 +698,20 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
           const publishing = slot.active ? getPublishingSignals(slot) : [];
           const listening = slot.active ? getListeningSignals(slot) : [];
 
-          // Derive state badge
+          // Derive stream type from entity metadata
+          const entityId = slot.entity_id || slot.id;
+          const slotStreamType = (entityStates[entityId] as Record<string, unknown>)?.streamType as string | undefined;
+          const streamTypeLabel = slotStreamType ? slotStreamType.toUpperCase() : '';
+
+          // Derive state badge — with stream type prefix when available
           const stateBadge = (() => {
             if (!slot.active) return { text: '', cls: '' };
-            if (mStatus?.stream === 'live') return { text: 'STREAMING', cls: 'badge-streaming' };
-            if (mStatus?.heartbeat === 'live' || mStatus?.stateSync === 'active') return { text: 'ACTIVE', cls: 'badge-active' };
+            if (mStatus?.stream === 'live') return { text: streamTypeLabel ? `${streamTypeLabel} LIVE` : 'STREAMING', cls: 'badge-streaming' };
+            if (mStatus?.stream === 'advertised') return { text: streamTypeLabel ? `${streamTypeLabel} ADVERTISED` : 'ADVERTISED', cls: 'badge-active' };
+            if (mStatus?.heartbeat === 'live' || mStatus?.stateSync === 'active') return { text: streamTypeLabel ? `${streamTypeLabel} ACTIVE` : 'ACTIVE', cls: 'badge-active' };
             if (mStatus?.heartbeat === 'stale' || mStatus?.heartbeat === 'lost') return { text: 'PAUSED', cls: 'badge-paused' };
             if (slot.nodeRole === 'receive') return { text: 'MONITOR', cls: 'badge-monitor' };
-            return { text: 'ACTIVE', cls: 'badge-active' };
+            return { text: streamTypeLabel ? `${streamTypeLabel} ACTIVE` : 'ACTIVE', cls: 'badge-active' };
           })();
 
           const slotColor = getSlotColor(slot, slotIdx);
@@ -742,8 +755,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     flexWrap: 'wrap',
                   }}>
                     <span style={{
-                      fontSize: 7, fontFamily: 'var(--font-display)', letterSpacing: '0.1em',
-                      color: 'rgba(255,255,255,0.15)', marginRight: 3, whiteSpace: 'nowrap',
+                      fontSize: 9, fontFamily: 'var(--font-display)', letterSpacing: '0.1em',
+                      color: '#ffffff', marginRight: 3, whiteSpace: 'nowrap',
                       textTransform: 'uppercase',
                     }}>Server Mode: //</span>
                     {modes.map(({ key, label, color }) => {
@@ -2272,14 +2285,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   title={isLocked(slot.id) ? 'Unlock slot' : 'Lock slot'}
                   onClick={e => {
                     e.stopPropagation();
-                    if (isLocked(slot.id)) {
-                      const pin = prompt('Enter PIN to unlock (or use override):');
-                      if (!pin) return;
-                      if (!unlockSlot(slot.id, pin)) alert('Incorrect PIN');
-                    } else {
-                      const pin = prompt('Set a PIN to lock this slot:');
-                      if (pin && pin.length >= 1) lockSlot(slot.id, pin);
-                    }
+                    toggleLockBackend(slot.id, slot);
                   }}
                   style={{
                     background: 'none', border: 'none', padding: '1px 3px',
