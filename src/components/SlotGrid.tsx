@@ -807,7 +807,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     })()}
                     {!slot.frameUrl && (
                       <div className="live-node-thumb-placeholder">
-                        <span className="live-node-thumb-icon">
+                        <span className="live-node-thumb-icon" style={{ fontSize: 20, opacity: 0.5 }}>
                           {slot.signalType === 'audio_reactive' ? '♫'
                             : slot.signalType === 'json_stream' ? '{}'
                             : slot.signalType === 'osc' ? '~'
@@ -815,7 +815,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             : slot.signalType === 'text' ? 'A'
                             : '●'}
                         </span>
-                        <span className="live-node-thumb-status">{statusText}</span>
+                        <span className="live-node-thumb-status" style={{ fontSize: 10, opacity: 0.8 }}>
+                          {mStatus?.stream === 'advertised' ? 'STREAM ADVERTISED — NO FRAME' : statusText}
+                        </span>
                       </div>
                     )}
                     <div className={`live-node-badge ${statusCls}`}>LIVE</div>
