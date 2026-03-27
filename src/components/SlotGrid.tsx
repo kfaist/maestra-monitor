@@ -171,7 +171,7 @@ function EntityPicker({ slotColor, current, onSelect }: {
           background: 'rgba(0,0,0,0.5)', border: `1px solid ${slotColor}50`,
           outline: 'none', boxSizing: 'border-box' }}
       />
-      {loading && <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-mono)' }}>loading nodes…</div>}
+      {loading && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-mono)' }}>loading nodes…</div>}
       {!loading && filtered.length > 0 && (
         <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.6)' }}>
           {filtered.map(e => (
@@ -186,7 +186,7 @@ function EntityPicker({ slotColor, current, onSelect }: {
                 {e.slug}
               </span>
               {e.name !== e.slug && (
-                <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', marginLeft: 'auto' }}>{e.name}</span>
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginLeft: 'auto' }}>{e.name}</span>
               )}
             </div>
           ))}
@@ -642,7 +642,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
       {/* Drag wiring indicator */}
       {dragSource && (
         <div style={{
-          padding: '4px 10px', fontSize: 9, fontFamily: 'var(--font-mono)',
+          padding: '4px 10px', fontSize: 11, fontFamily: 'var(--font-mono)',
           background: dragSource.dir === 'output' ? 'rgba(34,197,94,0.1)' : 'rgba(92,200,255,0.1)',
           border: `1px solid ${dragSource.dir === 'output' ? '#22c55e40' : '#5cc8ff40'}`,
           color: dragSource.dir === 'output' ? '#22c55e' : '#5cc8ff',
@@ -755,7 +755,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     flexWrap: 'wrap',
                   }}>
                     <span style={{
-                      fontSize: 9, fontFamily: 'var(--font-display)', letterSpacing: '0.1em',
+                      fontSize: 11, fontFamily: 'var(--font-display)', letterSpacing: '0.1em',
                       color: '#ffffff', marginRight: 3, whiteSpace: 'nowrap',
                       textTransform: 'uppercase',
                     }}>Server Mode: //</span>
@@ -765,7 +765,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         <button key={key}
                           onClick={e => { e.stopPropagation(); setSlotServer(slot.id, key); }}
                           style={{
-                            fontSize: 7, fontFamily: 'var(--font-display)', fontWeight: 700,
+                            fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 700,
                             letterSpacing: '0.08em', textTransform: 'uppercase',
                             padding: '1px 5px', cursor: 'pointer',
                             background: active ? `${color}15` : 'transparent',
@@ -779,7 +779,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     {/* Active server URL — shows what TD actually reported */}
                     {slotServerStr && (
                       <span style={{
-                        fontSize: 7, fontFamily: 'var(--font-mono)',
+                        fontSize: 10, fontFamily: 'var(--font-mono)',
                         color: `${activeMode.color}80`,
                         marginLeft: 'auto',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -835,12 +835,12 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       </span>
                       {/* slug */}
                       <span className="live-kv-key">slug</span>
-                      <span className="live-kv-val" style={{ fontFamily: 'var(--font-mono)', fontSize: 9 }}>
+                      <span className="live-kv-val" style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>
                         {slot.entity_id || slot.id}
                       </span>
                       {/* server */}
                       <span className="live-kv-key">server</span>
-                      <span className="live-kv-val" style={{ fontSize: 8, opacity: 0.55 }}>
+                      <span className="live-kv-val" style={{ fontSize: 10, opacity: 0.55 }}>
                         {(() => {
                           const s = (entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.server as string | undefined;
                           if (!s) return '—';
@@ -888,11 +888,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               <div key={key} style={{
                                 display: 'inline-flex', alignItems: 'center', gap: 3,
                                 background: `${slotColor}12`, border: `1px solid ${slotColor}40`,
-                                padding: '2px 5px', fontSize: 8,
+                                padding: '2px 5px', fontSize: 10,
                               }}>
-                                <span style={{ color: slotColor, fontSize: 7 }}>↑</span>
+                                <span style={{ color: slotColor, fontSize: 10 }}>↑</span>
                                 <span style={{ fontFamily: 'var(--font-mono)', color: slotColor }}>{key}</span>
-                                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 7 }}>{varDef.type}</span>
+                                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10 }}>{varDef.type}</span>
                                 {lv && <span style={{ color: 'var(--text-dim)', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: 3 }}>{lv}</span>}
                               </div>
                             );
@@ -901,11 +901,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             <div key={key} style={{
                               display: 'inline-flex', alignItems: 'center', gap: 3,
                               background: 'rgba(255,255,255,0.03)', border: `1px solid ${slotColor}20`,
-                              padding: '2px 5px', fontSize: 8,
+                              padding: '2px 5px', fontSize: 10,
                             }}>
-                              <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: 7 }}>↓</span>
+                              <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>↓</span>
                               <span style={{ fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,0.4)' }}>{key}</span>
-                              <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: 7 }}>{varDef.type}</span>
+                              <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: 10 }}>{varDef.type}</span>
                             </div>
                           ))}
                         </div>
@@ -945,10 +945,10 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                     ? 'rgba(34,197,94,0.2)' : undefined,
                                   transition: 'all 0.15s',
                                 }}>
-                                <span style={{ color: '#22c55e', fontWeight: 700, fontSize: 9 }}>+</span>{s}
+                                <span style={{ color: '#22c55e', fontWeight: 700, fontSize: 11 }}>+</span>{s}
                                 {liveVal !== undefined && liveVal !== null && (
                                   <span style={{
-                                    fontSize: 8, fontFamily: 'var(--font-mono)',
+                                    fontSize: 10, fontFamily: 'var(--font-mono)',
                                     color: isBool
                                       ? (liveVal ? '#4ade80' : 'rgba(255,255,255,0.3)')
                                       : 'rgba(255,255,255,0.6)',
@@ -993,9 +993,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                     ? '2px dashed #5cc8ff' : 'none',
                                   transition: 'all 0.15s',
                                 }}>
-                                <span style={{ color: '#5cc8ff', fontWeight: 700, fontSize: 9 }}>−</span>{s}
+                                <span style={{ color: '#5cc8ff', fontWeight: 700, fontSize: 11 }}>−</span>{s}
                                 {liveVal !== undefined && liveVal !== null && (
-                                  <span style={{ fontSize:8, fontFamily:'var(--font-mono)', color:'rgba(255,255,255,0.5)', fontWeight:700 }}>
+                                  <span style={{ fontSize: 10, fontFamily:'var(--font-mono)', color:'rgba(255,255,255,0.5)', fontWeight:700 }}>
                                     {typeof liveVal === 'boolean' ? (liveVal ? '● ON' : '○ off') : String(liveVal).slice(0,24)}
                                   </span>
                                 )}
@@ -1006,7 +1006,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       </div>
                     )}
                     {publishing.length === 0 && listening.length === 0 && (
-                      <span className="live-empty" style={{ fontSize: 8 }}>No signals configured</span>
+                      <span className="live-empty" style={{ fontSize: 10 }}>No signals configured</span>
                     )}
                     {/* Add output / input buttons when unlocked */}
                     {!isLocked(slot.id) && (
@@ -1015,7 +1015,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           onClick={e => { e.stopPropagation();
                             setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], direction: 'send' as NodeRole, stage: 'addState' } }));
                           }}
-                          style={{ fontSize: 8, padding: '2px 8px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                          style={{ fontSize: 10, padding: '2px 8px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
                             background: `${slotColor}12`, border: `1px solid ${slotColor}40`, color: slotColor,
                             letterSpacing: '0.05em' }}>
                           + output
@@ -1025,7 +1025,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             const key = prompt('State key to listen to (e.g. prompt_text):');
                             if (key?.trim()) onInjectSignal?.(slot.id, '__subscribe__', key.trim());
                           }}
-                          style={{ fontSize: 8, padding: '2px 8px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                          style={{ fontSize: 10, padding: '2px 8px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
                             background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)',
                             color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em' }}>
                           + input
@@ -1123,7 +1123,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       <div className="live-section">
                         <div className="live-section-head" style={{ color: slotColor }}>
                           Origin: {originKey.split('/').pop() || originKey}
-                          <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.25)', marginLeft: 6 }}>
+                          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', marginLeft: 6 }}>
                             {siblings.length + 1} slots from this file
                           </span>
                         </div>
@@ -1135,17 +1135,17 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               return (
                                 <div key={i} title={`${sig.slotLabel}: ${sig.desc || sig.key}`}
                                   style={{ display: 'inline-flex', alignItems: 'center', gap: 3,
-                                    padding: '2px 6px', fontSize: 8, fontFamily: 'var(--font-mono)',
+                                    padding: '2px 6px', fontSize: 10, fontFamily: 'var(--font-mono)',
                                     background: `${dirColor}08`, border: `1px solid ${dirColor}30`, color: dirColor }}>
                                   <span style={{ fontWeight: 700 }}>{dirIcon}</span>
-                                  <span style={{ opacity: 0.5, fontSize: 7 }}>{sig.slotLabel}/</span>{sig.key}
-                                  <span style={{ opacity: 0.4, fontSize: 7 }}>· {sig.type}</span>
+                                  <span style={{ opacity: 0.5, fontSize: 10 }}>{sig.slotLabel}/</span>{sig.key}
+                                  <span style={{ opacity: 0.4, fontSize: 10 }}>· {sig.type}</span>
                                 </div>
                               );
                             })}
                           </div>
                         ) : (
-                          <span className="live-empty" style={{ fontSize: 8 }}>
+                          <span className="live-empty" style={{ fontSize: 10 }}>
                             Sibling slots have no signals yet
                           </span>
                         )}
@@ -1199,7 +1199,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       <div className="live-section">
                         <div className="live-section-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <span>{isReceiver ? 'Audio Reactive Modulation' : 'Outbound Wires'}</span>
-                          <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)' }}>
+                          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)' }}>
                             {isReceiver ? `${inboundWires.length} wires` : `${outboundWires.length} wires`}
                           </span>
                         </div>
@@ -1225,7 +1225,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 }}>
                                   {/* Param label */}
                                   <div style={{
-                                    width: 80, fontSize: 8, fontFamily: 'var(--font-display)',
+                                    width: 80, fontSize: 10, fontFamily: 'var(--font-display)',
                                     fontWeight: 700, letterSpacing: '0.08em', color: 'rgba(255,255,255,0.5)',
                                     textTransform: 'uppercase', flexShrink: 0,
                                   }}>
@@ -1251,7 +1251,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                       createWire(srcSlug, srcKey, slotSlug, inputKey);
                                     }}
                                     style={{
-                                      flex: 1, fontSize: 8, fontFamily: 'var(--font-mono)',
+                                      flex: 1, fontSize: 10, fontFamily: 'var(--font-mono)',
                                       background: 'rgba(0,0,0,0.5)', color: wire ? '#22c55e' : 'rgba(255,255,255,0.3)',
                                       border: `1px solid ${wire ? '#22c55e40' : 'rgba(255,255,255,0.08)'}`,
                                       padding: '3px 4px', outline: 'none', cursor: 'pointer',
@@ -1285,7 +1285,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                       }}
                                     />
                                     <span style={{
-                                      fontSize: 8, fontFamily: 'var(--font-mono)', fontWeight: 700,
+                                      fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 700,
                                       color: wire ? slotColor : 'rgba(255,255,255,0.15)',
                                       width: 28, textAlign: 'right',
                                     }}>
@@ -1296,7 +1296,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                   {/* Live value indicator */}
                                   {wire && liveVal !== undefined && (
                                     <span style={{
-                                      fontSize: 7, fontFamily: 'var(--font-mono)',
+                                      fontSize: 10, fontFamily: 'var(--font-mono)',
                                       color: 'rgba(255,255,255,0.4)', maxWidth: 40,
                                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                     }}>
@@ -1321,7 +1321,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                         onClick={e => { e.stopPropagation(); deleteWire(wire.id); }}
                                         style={{
                                           background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px',
-                                          color: 'rgba(255,255,255,0.15)', fontSize: 9,
+                                          color: 'rgba(255,255,255,0.15)', fontSize: 11,
                                         }}>
                                         ×
                                       </button>
@@ -1352,7 +1352,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                   }
                                 }}
                                 style={{
-                                  fontSize: 8, padding: '3px 8px', cursor: 'pointer',
+                                  fontSize: 10, padding: '3px 8px', cursor: 'pointer',
                                   fontFamily: 'var(--font-mono)', letterSpacing: '0.05em',
                                   background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.1)',
                                   color: 'rgba(255,255,255,0.25)', textAlign: 'left',
@@ -1369,7 +1369,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             {outboundWires.length > 0 ? outboundWires.map(wire => (
                               <div key={wire.id} style={{
                                 display: 'flex', alignItems: 'center', gap: 6,
-                                padding: '3px 6px', fontSize: 8, fontFamily: 'var(--font-mono)',
+                                padding: '3px 6px', fontSize: 10, fontFamily: 'var(--font-mono)',
                                 background: wire.active ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.02)',
                                 border: `1px solid ${wire.active ? 'rgba(34,197,94,0.25)' : 'rgba(255,255,255,0.06)'}`,
                               }}>
@@ -1389,12 +1389,12 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 <button
                                   title="Remove"
                                   onClick={e => { e.stopPropagation(); deleteWire(wire.id); }}
-                                  style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.15)', fontSize:9, padding:'0 2px' }}>
+                                  style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.15)', fontSize: 11, padding:'0 2px' }}>
                                   ×
                                 </button>
                               </div>
                             )) : (
-                              <span className="live-empty" style={{ fontSize: 8 }}>No receivers wired yet</span>
+                              <span className="live-empty" style={{ fontSize: 10 }}>No receivers wired yet</span>
                             )}
                           </div>
                         )}
@@ -1407,7 +1407,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     <div className="live-section">
                       <div className="live-section-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span>DMX Lighting</span>
-                        <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)' }}>
+                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)' }}>
                           sACN / Art-Net
                         </span>
                       </div>
@@ -1427,7 +1427,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 e.stopPropagation();
                                 onInjectSignal?.(slot.id, cue.key, '1');
                               }}
-                              style={{                                fontSize: 8, fontFamily: 'var(--font-display)', fontWeight: 700,
+                              style={{                                fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 700,
                                 letterSpacing: '0.06em', textTransform: 'uppercase',
                                 padding: '3px 8px', cursor: 'pointer',
                                 background: `${cue.color}15`,
@@ -1443,7 +1443,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         </div>
                         {/* Bass threshold slider */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0' }}>
-                          <span style={{ fontSize: 8, fontFamily: 'var(--font-display)', fontWeight: 700,
+                          <span style={{ fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 700,
                             letterSpacing: '0.08em', color: 'rgba(255,255,255,0.4)', width: 80, flexShrink: 0 }}>
                             BASS THRESHOLD
                           </span>
@@ -1454,16 +1454,16 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               onInjectSignal?.(slot.id, 'dmx.bass_threshold', String(Number(e.target.value) / 100));
                             }}
                             style={{ flex: 1, height: 3, accentColor: '#ef4444' }} />
-                          <span style={{ fontSize: 8, fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,0.3)', width: 28, textAlign: 'right' }}>45%</span>                        </div>
+                          <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,0.3)', width: 28, textAlign: 'right' }}>45%</span>                        </div>
                         {/* Pause / Fade controls */}
                         <div style={{ display: 'flex', gap: 4 }}>
                           <button onClick={e => { e.stopPropagation(); onInjectSignal?.(slot.id, 'dmx.pause', '1'); }}
-                            style={{ fontSize: 8, padding: '2px 8px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                            style={{ fontSize: 10, padding: '2px 8px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
                               background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}>
                             ⏸ Pause
                           </button>
                           <button onClick={e => { e.stopPropagation(); onInjectSignal?.(slot.id, 'dmx.fade_to_black', '1'); }}
-                            style={{ fontSize: 8, padding: '2px 8px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                            style={{ fontSize: 10, padding: '2px 8px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
                               background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}>
                             ◼ Fade to Black
                           </button>
@@ -1491,7 +1491,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       <div className="live-section">
                         <div className="live-section-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <span>Audio Analysis</span>
-                          <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)' }}>
+                          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)' }}>
                             {eState?.bpm ? `${Number(eState.bpm).toFixed(0)} BPM` : 'analyzing...'}
                           </span>
                         </div>
@@ -1525,11 +1525,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             return (
                               <div key={meter.key} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                  <span style={{ fontSize: 7, fontFamily: 'var(--font-display)', fontWeight: 700,
+                                  <span style={{ fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 700,
                                     letterSpacing: '0.08em', color: 'rgba(255,255,255,0.35)' }}>
                                     {meter.label}
                                   </span>
-                                  <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', fontWeight: 700, color: meter.color }}>
+                                  <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 700, color: meter.color }}>
                                     {display}
                                   </span>
                                 </div>
@@ -1603,7 +1603,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           </a>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
                             <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
-                            <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em' }}>OR</span>
+                            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em' }}>OR</span>
                             <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
                           </div>
                           <label style={{ display: 'block', width: '100%', boxSizing: 'border-box',
@@ -1666,7 +1666,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                 {setup.stage === 'slug' && (
                         <div className="slot-wizard-content">
                           <div className="slot-wizard-title" style={{ color: slotColor }}>Name Your Slot</div>
-                          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginBottom: 6, textAlign: 'center' }}>
+                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 6, textAlign: 'center' }}>
                             {setup.slug ? 'Confirm or edit the slug for this slot' : 'Pick an existing entity or type a new slug'}
                           </div>
                           <EntityPicker
@@ -1717,18 +1717,18 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               <div style={{ width: '100%', marginBottom: 6 }}>
                                 {outputs.length > 0 && (
                                   <>
-                                    <div style={{ fontSize: 7, letterSpacing: '0.12em', color: '#22c55e',
+                                    <div style={{ fontSize: 10, letterSpacing: '0.12em', color: '#22c55e',
                                       textTransform: 'uppercase', marginBottom: 4 }}>+ Outputs</div>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: inputs.length > 0 ? 6 : 0 }}>
                                       {outputs.map((sig, i) => {
                                         const globalIdx = (setup.outputSignals || []).indexOf(sig);
                                         return (
                                           <div key={globalIdx} style={{ display: 'inline-flex', alignItems: 'center', gap: 4,
-                                            padding: '2px 7px', fontSize: 9, fontFamily: 'var(--font-mono)',
+                                            padding: '2px 7px', fontSize: 11, fontFamily: 'var(--font-mono)',
                                             background: '#22c55e12', border: '1px solid #22c55e50', color: '#22c55e' }}>
-                                            <span style={{ fontWeight: 700, fontSize: 9 }}>+</span>
+                                            <span style={{ fontWeight: 700, fontSize: 11 }}>+</span>
                                             {sig.key}
-                                            <span style={{ opacity: 0.5, fontSize: 8 }}>· {sig.type}</span>
+                                            <span style={{ opacity: 0.5, fontSize: 10 }}>· {sig.type}</span>
                                             <button onClick={e => { e.stopPropagation();
                                               setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id],
                                                 outputSignals: prev[slot.id].outputSignals.filter((_,j) => j !== globalIdx) } })); }}
@@ -1742,18 +1742,18 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 )}
                                 {inputs.length > 0 && (
                                   <>
-                                    <div style={{ fontSize: 7, letterSpacing: '0.12em', color: '#5cc8ff',
+                                    <div style={{ fontSize: 10, letterSpacing: '0.12em', color: '#5cc8ff',
                                       textTransform: 'uppercase', marginBottom: 4 }}>− Inputs</div>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                                       {inputs.map((sig, i) => {
                                         const globalIdx = (setup.outputSignals || []).indexOf(sig);
                                         return (
                                           <div key={globalIdx} style={{ display: 'inline-flex', alignItems: 'center', gap: 4,
-                                            padding: '2px 7px', fontSize: 9, fontFamily: 'var(--font-mono)',
+                                            padding: '2px 7px', fontSize: 11, fontFamily: 'var(--font-mono)',
                                             background: '#5cc8ff12', border: '1px solid #5cc8ff50', color: '#5cc8ff' }}>
-                                            <span style={{ fontWeight: 700, fontSize: 9 }}>−</span>
+                                            <span style={{ fontWeight: 700, fontSize: 11 }}>−</span>
                                             {sig.key}
-                                            <span style={{ opacity: 0.5, fontSize: 8 }}>· {sig.type}</span>
+                                            <span style={{ opacity: 0.5, fontSize: 10 }}>· {sig.type}</span>
                                             <button onClick={e => { e.stopPropagation();
                                               setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id],
                                                 outputSignals: prev[slot.id].outputSignals.filter((_,j) => j !== globalIdx) } })); }}
@@ -1859,7 +1859,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               <>
                                 {/* Stream type chips */}
                                 <div style={{ width: '100%' }}>
-                                  <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 4 }}>
+                                  <div style={{ fontSize: 10, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 4 }}>
                                     Stream Type
                                   </div>
                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
@@ -1869,7 +1869,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                         <button key={key}
                                           title={desc}
                                           onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], streamType: key } })); }}
-                                          style={{ fontSize: 8, padding: '2px 7px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                                          style={{ fontSize: 10, padding: '2px 7px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
                                             background: active ? `${slotColor}25` : 'rgba(255,255,255,0.03)',
                                             border: `1px solid ${active ? slotColor + '70' : 'rgba(255,255,255,0.08)'}`,
                                             color: active ? slotColor : 'rgba(255,255,255,0.3)',
@@ -1884,7 +1884,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 {/* Operator picker — shows ops ONLY within setup.selectedNode */}
                                 {/* Node select dropdown */}
                                 <div style={{ width: '100%' }}>
-                                  <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
+                                  <div style={{ fontSize: 10, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
                                     Select Node {Object.keys(nodeMap).length > 0 && <span style={{ color: slotColor }}>· {Object.keys(nodeMap).length} found</span>}
                                   </div>
                                   {Object.keys(nodeMap).length > 0 ? (
@@ -1892,7 +1892,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                     <input type="text" value={setup.nodeSearch||''} placeholder="search nodes…"
                                       onClick={e=>e.stopPropagation()}
                                       onChange={e=>{e.stopPropagation();setSetupState(prev=>({...prev,[slot.id]:{...prev[slot.id],nodeSearch:e.target.value}}));}}
-                                      style={{width:'100%',padding:'3px 7px',fontSize:9,fontFamily:'var(--font-mono)',background:'rgba(0,0,0,0.4)',border:'1px solid rgba(255,255,255,0.1)',color:'rgba(255,255,255,0.6)',outline:'none',boxSizing:'border-box',marginBottom:3}}/>
+                                      style={{width:'100%',padding:'3px 7px',fontSize: 11,fontFamily:'var(--font-mono)',background:'rgba(0,0,0,0.4)',border:'1px solid rgba(255,255,255,0.1)',color:'rgba(255,255,255,0.6)',outline:'none',boxSizing:'border-box',marginBottom:3}}/>
                                     <select value={setup.selectedNode||''} onClick={e=>e.stopPropagation()}
                                       onChange={e=>{e.stopPropagation();const n=e.target.value;setSetupState(prev=>({...prev,[slot.id]:{...prev[slot.id],selectedNode:n,selectedTop:'',stateKey:''}}));}}
                                       style={{width:'100%',padding:'5px 8px',fontSize:10,fontFamily:'var(--font-mono)',background:'rgba(0,0,0,0.6)',border:`1px solid ${slotColor}40`,color:slotColor,outline:'none'}}>
@@ -1901,7 +1901,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                     </select>
                                     </>
                                   ) : (
-                                    <div style={{fontSize:9,color:'rgba(255,255,255,0.2)',fontFamily:'var(--font-mono)',padding:'4px 0',lineHeight:1.6}}>
+                                    <div style={{fontSize: 11,color:'rgba(255,255,255,0.2)',fontFamily:'var(--font-mono)',padding:'4px 0',lineHeight:1.6}}>
                                       No nodes detected. Run exec(open(r&apos;build_maestra_tox.py&apos;).read()) in TD once.
                                     </div>
                                   )}
@@ -1909,13 +1909,13 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
 
                                 {setup.selectedNode && (
                                   <div style={{ width: '100%' }}>
-                                    <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
+                                    <div style={{ fontSize: 10, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
                                       Operators in {setup.selectedNode}
                                       {' '}<span style={{ color: slotColor }}>· {(nodeMap[setup.selectedNode]||[]).length}</span>
                                     </div>
                                     {(nodeMap[setup.selectedNode]||[]).length > 0 ? (
                                       <>
-                                      <input type="text" value={setup.opSearch||''} placeholder="search operators…" onClick={e=>e.stopPropagation()} onChange={e=>{e.stopPropagation();setSetupState(prev=>({...prev,[slot.id]:{...prev[slot.id],opSearch:e.target.value}}));}} style={{width:'100%',padding:'3px 7px',fontSize:9,fontFamily:'var(--font-mono)',background:'rgba(0,0,0,0.4)',border:'1px solid rgba(255,255,255,0.1)',color:'rgba(255,255,255,0.6)',outline:'none',boxSizing:'border-box',marginBottom:3}}/>
+                                      <input type="text" value={setup.opSearch||''} placeholder="search operators…" onClick={e=>e.stopPropagation()} onChange={e=>{e.stopPropagation();setSetupState(prev=>({...prev,[slot.id]:{...prev[slot.id],opSearch:e.target.value}}));}} style={{width:'100%',padding:'3px 7px',fontSize: 11,fontFamily:'var(--font-mono)',background:'rgba(0,0,0,0.4)',border:'1px solid rgba(255,255,255,0.1)',color:'rgba(255,255,255,0.6)',outline:'none',boxSizing:'border-box',marginBottom:3}}/>
                                       <select value={setup.selectedTop || ''} onClick={e => e.stopPropagation()}
                                         onChange={e => {
                                           e.stopPropagation();
@@ -1951,7 +1951,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                       </select>
                                       </>
                                     ) : (
-                                      <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)', padding: '4px 0' }}>
+                                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)', padding: '4px 0' }}>
                                         No operators found in this node
                                       </div>
                                     )}
@@ -1960,7 +1960,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
 
                                 {/* State key — auto-filled, always editable */}
                                 <div style={{ width: '100%' }}>
-                                  <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
+                                  <div style={{ fontSize: 10, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', marginBottom: 3 }}>
                                     State Key <span style={{ opacity: 0.4 }}>(rename if needed)</span>
                                   </div>
                                   <input type="text" value={setup.stateKey}
@@ -1977,13 +1977,13 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
 
                           {/* Type chips */}
                           <div style={{ width: '100%' }}>
-                            <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)',
+                            <div style={{ fontSize: 10, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)',
                               textTransform: 'uppercase', marginBottom: 4 }}>Type</div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                               {(['string','number','boolean','color','vector2','vector3','range','enum','array','object'] as const).map(t => (
                                 <button key={t} onClick={e => { e.stopPropagation();
                                   setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stateType: t } })); }}
-                                  style={{ fontSize: 8, padding: '2px 6px', cursor: 'pointer',
+                                  style={{ fontSize: 10, padding: '2px 6px', cursor: 'pointer',
                                     fontFamily: 'var(--font-mono)',
                                     background: setup.stateType === t ? `${slotColor}25` : 'rgba(255,255,255,0.03)',
                                     border: `1px solid ${setup.stateType === t ? slotColor+'70' : 'rgba(255,255,255,0.08)'}`,
@@ -1995,7 +1995,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
 
                           {/* Description — optional */}
                           <div style={{ width: '100%' }}>
-                            <div style={{ fontSize: 7, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.2)',
+                            <div style={{ fontSize: 10, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.2)',
                               textTransform: 'uppercase', marginBottom: 3 }}>
                               Description <span style={{ opacity: 0.5 }}>(optional)</span>
                             </div>
@@ -2004,7 +2004,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               onClick={e => e.stopPropagation()}
                               onChange={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev,
                                 [slot.id]: { ...prev[slot.id], stateDesc: e.target.value } })); }}
-                              style={{ width: '100%', padding: '5px 8px', fontSize: 9,
+                              style={{ width: '100%', padding: '5px 8px', fontSize: 11,
                                 background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.07)',
                                 color: 'rgba(255,255,255,0.5)', outline: 'none', boxSizing: 'border-box' }} />
                           </div>
@@ -2089,7 +2089,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         target='_blank' rel='noreferrer'
                         onClick={(e) => e.stopPropagation()}
                         style={{
-                          fontSize: 8, color: `${slotColor}50`,
+                          fontSize: 10, color: `${slotColor}50`,
                           textDecoration: 'none',
                           borderBottom: `1px solid ${slotColor}25`,
                           paddingBottom: 1,
@@ -2115,7 +2115,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             return toeName ? String(toeName) : (slot.entity_id || slot.label);
                           })()}
                         </span>
-                        <span style={{ fontSize: 8, letterSpacing: '0.1em', color: 'var(--text-dim)', opacity: 0.3, marginLeft: 4, textTransform: 'uppercase' }}>
+                        <span style={{ fontSize: 10, letterSpacing: '0.1em', color: 'var(--text-dim)', opacity: 0.3, marginLeft: 4, textTransform: 'uppercase' }}>
                           slot {slots.indexOf(slot) + 1}
                         </span>
                       </>
@@ -2160,7 +2160,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       onClick={e => { e.stopPropagation();
                         setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'addState' } }));
                       }}
-                      style={{ fontSize: 7, padding: '1px 6px', cursor: 'pointer',
+                      style={{ fontSize: 10, padding: '1px 6px', cursor: 'pointer',
                         fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
                         background: `${slotColor}10`, border: `1px solid ${slotColor}30`,
                         color: slotColor, opacity: 0.7, marginBottom: 3 }}>
@@ -2278,7 +2278,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       e.stopPropagation();
                       setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'addState' } }));
                     }}
-                    style={{ background:'none', border:'none', padding:'1px 3px', cursor:'pointer', color:'rgba(255,255,255,0.3)', fontSize:8, fontFamily:'var(--font-display)', letterSpacing:'0.06em' }}>
+                    style={{ background:'none', border:'none', padding:'1px 3px', cursor:'pointer', color:'rgba(255,255,255,0.3)', fontSize: 10, fontFamily:'var(--font-display)', letterSpacing:'0.06em' }}>
                     EDIT
                   </button>
                 )}
@@ -2293,7 +2293,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     background: 'none', border: 'none', padding: '1px 3px',
                     cursor: 'pointer',
                     color: isLocked(slot.id) ? slotColor : 'rgba(255,255,255,0.25)',
-                    fontSize: 9, lineHeight: 1,
+                    fontSize: 11, lineHeight: 1,
                   }}>
                   {isLocked(slot.id) ? (
                     <svg width="10" height="11" viewBox="0 0 10 11" fill="none" xmlns="http://www.w3.org/2000/svg">
