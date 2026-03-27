@@ -204,17 +204,6 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   const [setupState, setSetupState] = useState<Record<string, SlotSetup>>({});
   const [injectState, setInjectState] = useState<Record<string, InjectState>>({});
   const [sourceState, setSourceState] = useState<Record<string, SourceState>>({});
-  // ═══ Preview image failure tracking — resets when source changes ═══
-  const [imgFailedMap, setImgFailedMap] = useState<Record<string, boolean>>({});
-  // Reset imgFailed when frameUrl or entity changes
-  const prevFrameKeys = useRef<string>('');
-  useEffect(() => {
-    const key = slots.map(s => `${s.id}:${s.frameUrl || ''}:${s.entity_id || ''}`).join('|');
-    if (key !== prevFrameKeys.current) {
-      prevFrameKeys.current = key;
-      setImgFailedMap({});
-    }
-  }, [slots]);
   // ═══ Drag-and-drop wiring state ═══
   const [dragSource, setDragSource] = useState<{ slug: string; key: string; dir: 'output' | 'input' } | null>(null);
   const [dropTarget, setDropTarget] = useState<{ slug: string; key: string; dir: 'output' | 'input' } | null>(null);
@@ -836,22 +825,18 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
               {/* ═══════ ACTIVE SLOT: LIVE NODE PANEL ═══════ */}
               {slot.active ? (
                 <div className="live-node-panel">
-                  {/* Thumbnail frame at top */}
+                  {/* Thumbnail frame at top — single stable source, no key remounts */}
                   <div className="live-node-thumb">
                     {(() => {
-                      const eid = slot.entity_id || slot.id;
-                      const fallbackUrl = `https://maestra-backend-v2-production.up.railway.app/video/frame/${eid}`;
-                      const previewUrl = slot.frameUrl || fallbackUrl;
-                      const imgFailed = imgFailedMap[slot.id] ?? false;
-                      const showImage = !!previewUrl && !imgFailed;
+                      // Use frameUrl (blob from polling) as sole source.
+                      // Fallback only shown as placeholder when no frames have arrived yet.
+                      const hasFrame = !!slot.frameUrl;
 
-                      return showImage ? (
+                      return hasFrame ? (
                         <img
-                          key={previewUrl}
-                          src={previewUrl}
+                          src={slot.frameUrl!}
                           alt="stream"
                           style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
-                          onError={() => setImgFailedMap(prev => ({ ...prev, [slot.id]: true }))}
                         />
                       ) : (
                         <div className="live-node-thumb-placeholder">
