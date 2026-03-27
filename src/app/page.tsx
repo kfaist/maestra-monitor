@@ -444,9 +444,11 @@ export default function Home() {
           let smooth = s._fpsSmooth;
           if (times.length >= 2) {
             const span = (times[times.length - 1] - times[0]) / 1000;
-            const raw = (times.length - 1) / span;
-            smooth = smooth != null ? smooth * 0.6 + raw * 0.4 : raw;
-            fps = Math.round(smooth);
+            if (span > 0) {
+              const raw = (times.length - 1) / span;
+              smooth = smooth != null ? smooth * 0.6 + raw * 0.4 : raw;
+              fps = Math.round(smooth);
+            }
           }
           // Auto-activate slot when frames arrive — makes the live node panel visible
           return { ...s, frameUrl: url, fps, active: true, connection_status: 'connected', _frameTimes: times, _fpsSmooth: smooth };
@@ -947,9 +949,11 @@ export default function Home() {
       let smooth = s._fpsSmooth;
       if (times.length >= 2) {
         const span = (times[times.length - 1] - times[0]) / 1000;
-        const raw = (times.length - 1) / span;
-        smooth = smooth != null ? smooth * 0.7 + raw * 0.3 : raw;
-        slotFps = Math.round(smooth);
+        if (span > 0) {
+          const raw = (times.length - 1) / span;
+          smooth = smooth != null ? smooth * 0.7 + raw * 0.3 : raw;
+          slotFps = Math.round(smooth);
+        }
       }
       return { ...s, frameUrl: blobUrl, fps: slotFps || fps, _frameTimes: times, _fpsSmooth: smooth };
     }));
