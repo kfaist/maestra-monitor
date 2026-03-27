@@ -463,7 +463,8 @@ header {
 .slot {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: color-mix(in srgb, var(--slot-color, var(--accent)) 5%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--slot-color, var(--border)) 50%, transparent);
   border-radius: 4px;
@@ -2709,7 +2710,8 @@ footer a:hover { text-decoration: underline; }
 .palette { grid-template-columns: repeat(8, 56px) !important; gap: 6px !important; }
 .palette-btn { width: 56px !important; height: 56px !important; min-height: 0 !important; aspect-ratio: unset !important; }
 .slot-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; overflow-y: auto !important; }
-.slot { max-height: clamp(380px, 32vw, 550px) !important; overflow-y: auto !important; overflow-x: hidden !important; }
+/* Slots expand naturally — setup wizard needs full height for finalize buttons */
+.slot { overflow-y: auto !important; overflow-x: hidden !important; }
 .live-node-panel { max-height: none !important; }
 .live-node-thumb { aspect-ratio: 16 / 9 !important; }
 .slot[data-signal="text"] { max-height: 155px !important; }

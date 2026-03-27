@@ -1717,15 +1717,25 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'setup' } })); }}>
                               ← Back
                             </button>
-                            <button className="slot-wizard-btn slot-wizard-btn-primary" style={{ flex: 1 }}
+                            <button className="slot-wizard-btn slot-wizard-btn-primary"
                               disabled={!setup.slug.trim()}
+                              style={{ flex: 1, background: '#22c55e20', borderColor: '#22c55e', color: '#22c55e' }}
                               onClick={e => {
                                 e.stopPropagation();
                                 if (!setup.slug.trim()) return;
-                                // Auto-set send direction and advance
-                                setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'addState' } }));
+                                setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], direction: 'send' as NodeRole, stage: 'addState' } }));
                               }}>
-                              {setup.slug.trim() ? `Continue as "${setup.slug}" →` : 'Enter a slug first'}
+                              + Send (output)
+                            </button>
+                            <button className="slot-wizard-btn slot-wizard-btn-primary"
+                              disabled={!setup.slug.trim()}
+                              style={{ flex: 1, background: '#5cc8ff20', borderColor: '#5cc8ff', color: '#5cc8ff' }}
+                              onClick={e => {
+                                e.stopPropagation();
+                                if (!setup.slug.trim()) return;
+                                setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], direction: 'receive' as NodeRole, stage: 'addState' } }));
+                              }}>
+                              − Receive (input)
                             </button>
                           </div>
                         </div>
@@ -2337,7 +2347,17 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     EDIT
                   </button>
                 )}
-                {/* (Lock button is already rendered above — duplicate removed) */}
+                {/* Pin button */}
+                <button
+                  title={pinnedSlots.has(slot.id) ? 'Pinned — click to unpin' : 'Click to pin this slot'}
+                  onClick={e => { e.stopPropagation(); togglePin(slot.id); }}
+                  style={{
+                    background: 'none', border: 'none', padding: '1px 2px',
+                    cursor: 'pointer', color: pinnedSlots.has(slot.id) ? slotColor : 'rgba(255,255,255,0.35)',
+                    display: 'flex', alignItems: 'center', fontSize: 11,
+                  }}>
+                  {pinnedSlots.has(slot.id) ? '📌' : '📍'}
+                </button>
               </div>
               <style>{'.slot:hover .slot-top-controls { opacity: 1 !important; }'}</style>
             </div>
