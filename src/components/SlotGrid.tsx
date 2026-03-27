@@ -250,24 +250,37 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
 
   // PATCH entity metadata — always merges, never overwrites
   const patchEntityMeta = async (entityId: string, patch: Record<string, unknown>) => {
-    // Read existing metadata first to merge
+    console.log('PATCH META →', entityId, patch);
     try {
-      const res = await fetch(`${MAESTRA_API}/entities/${entityId}`);
-      const entity = await res.json();
+      // Read existing metadata first to merge
+      const getRes = await fetch(`${MAESTRA_API}/entities/${entityId}`);
+      if (!getRes.ok) {
+        console.error('PATCH META: GET failed', getRes.status, entityId);
+        return;
+      }
+      const entity = await getRes.json();
       const existingMeta = (entity?.metadata as Record<string, unknown>) || {};
-      await fetch(`${MAESTRA_API}/entities/${entityId}`, {
+      const merged = { ...existingMeta, ...patch };
+      console.log('PATCH META: merging', existingMeta, '+', patch, '=', merged);
+      const patchRes = await fetch(`${MAESTRA_API}/entities/${entityId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ metadata: { ...existingMeta, ...patch } }),
+        body: JSON.stringify({ metadata: merged }),
       });
+      if (!patchRes.ok) {
+        console.error('PATCH META: PATCH failed', patchRes.status, await patchRes.text());
+      } else {
+        console.log('PATCH META: ✓ saved', entityId, merged);
+      }
     } catch (err) {
-      console.error('Failed to patch entity metadata:', err);
+      console.error('PATCH META: exception', err);
     }
   };
 
   const toggleLockBackend = (slotId: string, slot: FleetSlot) => {
-    const entityId = slot.entity_id || slot.entityId || slotId;
+    const entityId = slot.entity_id || slotId;
     const newLocked = !lockedSlots.has(slotId);
+    console.log('PATCH LOCK', entityId, newLocked);
     // Optimistic UI update
     setLockedSlots(prev => {
       const n = new Set(prev);

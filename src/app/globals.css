@@ -474,8 +474,8 @@ header {
 }
 /* Available slots: fixed tile aspect ratio — no tall empty stacks */
 .slot:not(.active-slot) { aspect-ratio: 16 / 10; }
-/* Active slots: let content determine height but cap it */
-.slot.active-slot { max-height: calc(50vh - 40px); overflow-y: auto; }
+/* Active slots: governed by aspect-ratio + grid only, no viewport clamps */
+.slot.active-slot { overflow-y: auto; }
 
 /* Audio amplitude glow — driven by --audio-amp (0.0–1.0) set inline from entityStates */
 @property --audio-amp {
