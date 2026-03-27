@@ -459,7 +459,7 @@ header {
 .entity-count { font-size: 10px; color: var(--text-dim); background: var(--surface2); border: 1px solid var(--border); padding: 3px 8px; border-radius: 2px; letter-spacing: 0.05em; }
 
 /* SLOT GRID */
-.slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px; overflow-y: auto !important; }
+.slot-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; overflow-y: auto !important; }
 .slot {
   display: flex;
   flex-direction: column;
