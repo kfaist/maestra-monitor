@@ -1106,12 +1106,10 @@ header {
 }
 @keyframes paletteBreathe { 0%, 100% { opacity: 0.85; filter: brightness(0.95); } 50% { opacity: 1; filter: brightness(1.02); } }
 .palette-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.5; margin-bottom: 0.75rem; }
-.palette { display: grid; grid-template-columns: repeat(8, 56px); gap: 6px; margin-bottom: 0.5rem; }
+.palette { display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; margin-bottom: 0.5rem; }
 .palette-btn {
-  width: 56px;
-  height: 56px;
-  min-height: 0;
-  aspect-ratio: unset;
+  aspect-ratio: 1;
+  min-height: 48px;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -2705,9 +2703,7 @@ footer a:hover { text-decoration: underline; }
   .fleet-layout { grid-template-columns: 1fr; height: auto; }
 }
 
-/* PROPORTION OVERRIDES — text/osc slots + palette */
-.palette { grid-template-columns: repeat(8, 56px) !important; gap: 6px !important; }
-.palette-btn { width: 56px !important; height: 56px !important; min-height: 0 !important; aspect-ratio: unset !important; }
+/* PROPORTION OVERRIDES — text/osc slots */
 .slot[data-signal="text"] .slot-video-area { display: none !important; }
 .slot[data-signal="osc"] .slot-video-area { display: none !important; }
 
