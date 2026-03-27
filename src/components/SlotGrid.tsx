@@ -200,6 +200,10 @@ function EntityPicker({ slotColor, current, onSelect }: {
 export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, onJoinNode, onSlotSetupComplete, onInjectSignal, onSourceUpdate, eventEntries = [], entityStates = {} }: SlotGridProps) {
   const activeCount = slots.filter(s => s.active).length;
   const hasActiveNodes = activeCount > 0;
+  const hasFrames = slots.some(s => s.active && s.frameUrl);
+  const [showBootstrap, setShowBootstrap] = useState(false);
+  // Auto-show bootstrap when system is inactive
+  const bootstrapVisible = showBootstrap || (!hasActiveNodes && !hasFrames);
 
   const [setupState, setSetupState] = useState<Record<string, SlotSetup>>({});
   const [injectState, setInjectState] = useState<Record<string, InjectState>>({});
@@ -333,18 +337,34 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   const [lockedLabels, setLockedLabels] = useState<Record<string, string>>({});
 
   const toggleLock = (slotId: string, slot: FleetSlot, entityState: Record<string, unknown>) => {
-    // Derive label on lock
-    if (!lockedSlots.has(slotId)) {
+    const isCurrentlyLocked = lockedSlots.has(slotId);
+    const entityId = slot.entity_id || slotId;
+
+    if (!isCurrentlyLocked) {
+      // Locking: prompt for a PIN
+      const pin = prompt('Set a PIN to lock this slot (4+ characters):');
+      if (!pin || pin.length < 4) { alert('PIN must be at least 4 characters.'); return; }
+      // Derive label on lock
       const toeName = entityState?.toe_name as string | undefined;
-      const entityId = slot.entity_id || slotId;
       const toolTag = slot.signalType === 'audio_reactive' ? 'Max/MSP'
         : slot.signalType === 'osc' ? 'Max/MSP'
         : slot.cloudNode ? 'Scope'
         : 'TouchDesigner';
       const shortName = toeName || entityId.replace(/_/g, ' ').replace(/\w/g, l => l.toUpperCase());
       setLockedLabels(p => ({ ...p, [slotId]: `${toolTag} · ${shortName}` }));
+      // Save lock + PIN to backend
+      setLockedSlots(prev => { const n = new Set(prev); n.add(slotId); return n; });
+      patchEntityMeta(entityId, { locked: true, lockPin: pin });
+    } else {
+      // Unlocking: require the PIN
+      const storedPin = (entityStates[entityId] as Record<string, unknown>)?.lockPin as string | undefined;
+      if (storedPin) {
+        const entered = prompt('Enter PIN to unlock this slot:');
+        if (entered !== storedPin) { alert('Incorrect PIN.'); return; }
+      }
+      setLockedSlots(prev => { const n = new Set(prev); n.delete(slotId); return n; });
+      patchEntityMeta(entityId, { locked: false });
     }
-    toggleLockBackend(slotId, slot);
   };
 
   const [now, setNow] = useState(Date.now());
@@ -666,9 +686,65 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
         <div className="panel-title-sm">// Fleet Slots</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div className="entity-count">{activeCount} active / {slots.length} slots</div>
+          <button
+            onClick={() => setShowBootstrap(prev => !prev)}
+            style={{
+              background: showBootstrap ? 'rgba(0,212,255,0.15)' : 'transparent',
+              border: '1px solid rgba(0,212,255,0.3)', color: 'var(--accent)',
+              padding: '3px 8px', fontSize: 10, fontFamily: 'var(--font-display)',
+              letterSpacing: '0.08em', cursor: 'pointer', borderRadius: 2,
+            }}>
+            {showBootstrap ? '✕ CLOSE' : '? HELP'}
+          </button>
           <button className="btn-add" onClick={onAddSlot}>+ Add Slot</button>
         </div>
       </div>
+
+      {/* Bootstrap / Help panel — auto-shows when inactive, toggleable always */}
+      {bootstrapVisible && (
+        <div style={{
+          background: 'rgba(0,212,255,0.03)', border: '1px solid rgba(0,212,255,0.18)',
+          padding: '14px 16px', marginBottom: 16, borderRadius: 4,
+        }}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: '0.12em', color: 'var(--accent)', marginBottom: 10, textTransform: 'uppercase' }}>
+            Quick Start — Connect TouchDesigner
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.8, marginBottom: 10 }}>
+            Drop <code style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>build_maestra_tox.py</code> into
+            your project and run it once. It creates <code style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>/project1/maestra</code>,
+            registers your entity, and pushes your <strong style={{ color: 'var(--accent)' }}>TOE name + available TOPs</strong> to the Monitor.
+          </div>
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', padding: '10px 12px', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-dim)', lineHeight: 1.7, marginBottom: 10 }}>
+            <span style={{ opacity: 0.5 }}># In TouchDesigner Textport (Alt+P / Opt+P):</span><br/>
+            <span style={{ color: 'var(--accent)' }}>exec</span>(<span style={{ color: 'var(--active)' }}>open</span>(<span style={{ color: '#fbbf24' }}>&apos;/path/to/build_maestra_tox.py&apos;</span>).<span style={{ color: 'var(--active)' }}>read</span>())<br/><br/>
+            <span style={{ opacity: 0.5 }}># Or create a Text DAT, paste the script, right-click → Run Script</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <a href="/build_maestra_tox.py" download="build_maestra_tox.py"
+              onClick={e => e.stopPropagation()}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none', fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.4)', padding: '6px 12px', borderRadius: 3 }}>
+              ↓ Download build_maestra_tox.py
+            </a>
+            <a href="/maestra.tox" download="maestra.tox"
+              onClick={e => e.stopPropagation()}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none', fontSize: 11, fontWeight: 700, color: '#a78bfa', background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.4)', padding: '6px 12px', borderRadius: 3 }}>
+              ↓ Download maestra.tox
+            </a>
+            {hasActiveNodes && (
+              <button onClick={() => setShowBootstrap(false)}
+                style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)', padding: '6px 12px', fontSize: 10, cursor: 'pointer', borderRadius: 3 }}>
+                Dismiss
+              </button>
+            )}
+          </div>
+          {!hasActiveNodes && (
+            <div style={{ marginTop: 10, fontSize: 10, color: 'var(--text-dim)', fontStyle: 'italic' }}>
+              No active streams detected. This panel will auto-hide once an entity connects.
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Drag wiring indicator */}
       {dragSource && (
         <div style={{
