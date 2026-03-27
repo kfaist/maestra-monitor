@@ -1671,7 +1671,6 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 if (!setup.slug.trim()) return;
                                 // Auto-set send direction and advance
                                 setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'addState' } }));
-                                onSlotSetupComplete?.(slot.id, 'send' as NodeRole, 'touchdesigner' as SignalSource);
                               }}>
                               {setup.slug.trim() ? `Continue as "${setup.slug}" →` : 'Enter a slug first'}
                             </button>
@@ -2034,6 +2033,13 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 Connect ✓
                               </button>
                             )}
+                          <button
+                            className="slot-wizard-btn"
+                            style={{ width: '100%', marginTop: 4, fontSize: 10, padding: '4px 8px', background: 'transparent', border: '1px solid #334155', color: '#8892b0', cursor: 'pointer', textAlign: 'center' }}
+                            onClick={e => handleReferenceComplete(slot.id, e)}>
+                            Skip \u2014 go live without signals \u2192
+                          </button>
+
                           </div>
                         </div>
                       )}
