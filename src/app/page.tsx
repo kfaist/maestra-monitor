@@ -257,8 +257,8 @@ export default function Home() {
     // For krista1: also mark stream as 'advertised' so fetchFrame starts pulling SD frames
     setSlots(prev => prev.map(s => {
       if (s.id !== slotId) return s;
-      // Match wizard behavior: TD/SD slots use /video/frame/td
-      const isSDSlot = slotId === 'krista1' || slotId === 'slot2';
+      // Match wizard behavior: krista1 TD slot uses /video/frame/td
+      const isSDSlot = slotId === 'krista1';
       const endpoint = s.endpoint || (isSDSlot ? '/video/frame/td' : `/video/frame/${entityId}`);
       return {
         ...s,
