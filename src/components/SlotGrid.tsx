@@ -2033,13 +2033,12 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 Connect ✓
                               </button>
                             )}
-                          <button
-                            className="slot-wizard-btn"
-                            style={{ width: '100%', marginTop: 4, fontSize: 10, padding: '4px 8px', background: 'transparent', border: '1px solid #334155', color: '#8892b0', cursor: 'pointer', textAlign: 'center' }}
-                            onClick={e => handleReferenceComplete(slot.id, e)}>
-                            Skip \u2014 go live without signals \u2192
-                          </button>
-
+                            <button
+                              className="slot-wizard-btn slot-wizard-btn-primary"
+                              style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.6)' }}
+                              onClick={e => handleReferenceComplete(slot.id, e)}>
+                              Skip → Go Live
+                            </button>
                           </div>
                         </div>
                       )}
