@@ -16,6 +16,7 @@ export interface WireRoute {
   targetSlug: string;        // - slot entity slug
   targetKey: string;         // input key on target
   active: boolean;           // can be temporarily disabled
+  amount: number;            // 0.0–1.0 gain/multiplier
   createdAt: number;         // epoch ms
 }
 
@@ -24,7 +25,12 @@ interface RouteStore {
 }
 
 function load(): RouteStore {
-  try { return JSON.parse(fs.readFileSync(FILE, 'utf8')); }
+  try {
+    const store = JSON.parse(fs.readFileSync(FILE, 'utf8')) as RouteStore;
+    // Backfill amount for legacy routes
+    store.routes.forEach(r => { if (r.amount == null) r.amount = 1.0; });
+    return store;
+  }
   catch { return { routes: [] }; }
 }
 
@@ -91,6 +97,7 @@ export async function POST(req: NextRequest) {
       targetSlug: body.targetSlug,
       targetKey: body.targetKey,
       active: true,
+      amount: (body as Record<string,unknown>).amount != null ? Number((body as Record<string,unknown>).amount) : 1.0,
       createdAt: Date.now(),
     };
 
@@ -139,6 +146,8 @@ export async function PATCH(req: NextRequest) {
 
     if (body.active !== undefined) {
       route.active = body.active;
+    } else if ((body as Record<string,unknown>).amount !== undefined) {
+      route.amount = Number((body as Record<string,unknown>).amount);
     } else {
       route.active = !route.active; // toggle
     }

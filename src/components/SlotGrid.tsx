@@ -45,10 +45,11 @@ interface WireRoute {
   targetSlug: string;
   targetKey: string;
   active: boolean;
+  amount: number;
   createdAt: number;
 }
 
-/** Per-wire gain/amount value */
+/** Per-wire gain/amount overrides (optimistic UI during slider drag) */
 type WireAmounts = Record<string, number>; // wireId → 0.0–1.0
 
 interface SlotGridProps {
@@ -85,8 +86,8 @@ function getPublishingSignals(slot: FleetSlot): string[] {
   const role = slot.nodeRole;
   if (role === 'receive') return [];
   const sig = slot.signalType;
-  if (sig === 'audio_reactive') return ['bpm', 'bass', 'energy', 'rms'];
-  if (sig === 'touchdesigner') return ['frame', 'render.state'];
+  if (sig === 'audio_reactive') return ['sub', 'bass', 'mid', 'high', 'rms', 'bpm'];
+  if (sig === 'touchdesigner') return ['frame', 'render.state', 'cue', 'sequence', 'step', 'progress'];
   if (sig === 'json_stream') return ['data.payload'];
   if (sig === 'osc') return ['osc.msg'];
   if (sig === 'text') return ['text.content'];
@@ -341,9 +342,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
 
   // ═══ Wire routes state — fetched from /api/routes ═══
   const [wireRoutes, setWireRoutes] = useState<WireRoute[]>([]);
-  const [wireAmounts, setWireAmounts] = useState<WireAmounts>(() => {
-    try { return JSON.parse(localStorage.getItem('maestra_wire_amounts') || '{}'); } catch { return {}; }
-  });
+  // Wire amounts are now stored on the route itself (route.amount), not in localStorage.
+  // This local state is only for optimistic UI updates during slider drags.
+  const [wireAmountOverrides, setWireAmountOverrides] = useState<WireAmounts>({});
 
   // Fetch routes periodically
   useEffect(() => {
@@ -356,10 +357,26 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     return () => clearInterval(t);
   }, []);
 
-  // Persist wire amounts
-  useEffect(() => {
-    try { localStorage.setItem('maestra_wire_amounts', JSON.stringify(wireAmounts)); } catch {}
-  }, [wireAmounts]);
+  // Helper: get wire amount (prefer local override for responsive sliders, else route.amount)
+  const getWireAmount = (wire: WireRoute) => wireAmountOverrides[wire.id] ?? wire.amount ?? 1.0;
+
+  // Persist amount to backend (debounced per wire)
+  const amountPatchTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const patchWireAmount = useCallback((wireId: string, amount: number) => {
+    setWireAmountOverrides(prev => ({ ...prev, [wireId]: amount }));
+    // Debounce backend write
+    if (amountPatchTimers.current[wireId]) clearTimeout(amountPatchTimers.current[wireId]);
+    amountPatchTimers.current[wireId] = setTimeout(() => {
+      fetch('/api/routes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: wireId, amount }),
+      }).then(() => {
+        // Clear override after backend confirms
+        setWireAmountOverrides(prev => { const n = { ...prev }; delete n[wireId]; return n; });
+      }).catch(() => {});
+    }, 300);
+  }, []);
 
   /** Create a wire route */
   const createWire = useCallback(async (sourceSlug: string, sourceKey: string, targetSlug: string, targetKey: string) => {
@@ -376,7 +393,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
           return [...prev, data.route];
         });
         // Default amount = 1.0
-        setWireAmounts(prev => ({ ...prev, [data.route.id]: 1.0 }));
+        setWireAmountOverrides(prev => ({ ...prev, [data.route.id]: 1.0 }));
       }
     } catch {}
   }, []);
@@ -390,7 +407,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
         body: JSON.stringify({ id: wireId }),
       });
       setWireRoutes(prev => prev.filter(r => r.id !== wireId));
-      setWireAmounts(prev => { const n = { ...prev }; delete n[wireId]; return n; });
+      setWireAmountOverrides(prev => { const n = { ...prev }; delete n[wireId]; return n; });
     } catch {}
   }, []);
 
@@ -801,26 +818,33 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       const eid = slot.entity_id || slot.id;
                       const srv = 'https://maestra-backend-v2-production.up.railway.app';
                       const url = slot.frameUrl || `${srv}/video/frame/${eid}`;
-                      return <img src={url} alt="stream"
-                        style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
-                        onError={e => { (e.target as HTMLImageElement).style.opacity='0'; }} />;
+                      return (
+                        <>
+                          <img src={url} alt="stream"
+                            style={{ width:'100%', height:'100%', objectFit:'cover', display:'block', position:'relative', zIndex:1 }}
+                            onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
+                          {/* Placeholder behind the img — visible when img fails or is loading */}
+                          <div className="live-node-thumb-placeholder" style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', zIndex:0 }}>
+                            <span className="live-node-thumb-icon" style={{ fontSize: 24, opacity: 0.6 }}>
+                              {slot.signalType === 'audio_reactive' ? '♫'
+                                : slot.signalType === 'json_stream' ? '{}'
+                                : slot.signalType === 'osc' ? '~'
+                                : slot.signalType === 'touchdesigner' ? '◆'
+                                : slot.signalType === 'text' ? 'A'
+                                : '●'}
+                            </span>
+                            <span className="live-node-thumb-status" style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>
+                              {mStatus?.stream === 'live' ? 'LIVE — WAITING FOR FRAME'
+                                : mStatus?.stream === 'advertised' ? 'NO FRAME'
+                                : statusText}
+                            </span>
+                          </div>
+                        </>
+                      );
                     })()}
-                    {!slot.frameUrl && (
-                      <div className="live-node-thumb-placeholder">
-                        <span className="live-node-thumb-icon" style={{ fontSize: 20, opacity: 0.5 }}>
-                          {slot.signalType === 'audio_reactive' ? '♫'
-                            : slot.signalType === 'json_stream' ? '{}'
-                            : slot.signalType === 'osc' ? '~'
-                            : slot.signalType === 'touchdesigner' ? '◆'
-                            : slot.signalType === 'text' ? 'A'
-                            : '●'}
-                        </span>
-                        <span className="live-node-thumb-status" style={{ fontSize: 10, opacity: 0.8 }}>
-                          {mStatus?.stream === 'advertised' ? 'STREAM ADVERTISED — NO FRAME' : statusText}
-                        </span>
-                      </div>
-                    )}
-                    <div className={`live-node-badge ${statusCls}`}>LIVE</div>
+                    <div className={`live-node-badge ${statusCls}`} style={{ zIndex: 2 }}>
+                      {slot.frameUrl ? 'LIVE' : mStatus?.stream === 'advertised' ? 'ADVERTISED' : 'LIVE'}
+                    </div>
                   </div>
 
                                     {/* ── Entity Identity + Live Status ── */}
@@ -1209,7 +1233,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                             {inputKeys.map(inputKey => {
                               const wire = inboundWires.find(w => w.targetKey === inputKey);
-                              const amount = wire ? (wireAmounts[wire.id] ?? 1.0) : 0;
+                              const amount = wire ? (getWireAmount(wire) ?? 1.0) : 0;
                               const label = PARAM_LABELS[inputKey] || inputKey.toUpperCase().replace(/_/g, ' ');
                               const sourceVal = wire ? `${wire.sourceSlug}.${wire.sourceKey}` : '';
                               const liveVal = wire
@@ -1274,7 +1298,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                       onChange={e => {
                                         e.stopPropagation();
                                         if (wire) {
-                                          setWireAmounts(prev => ({ ...prev, [wire.id]: Number(e.target.value) / 100 }));
+                                          patchWireAmount(wire.id, Number(e.target.value) / 100);
                                         }
                                       }}
                                       disabled={!wire}
@@ -1378,7 +1402,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 <span style={{ color: 'rgba(255,255,255,0.15)' }}>→</span>
                                 <span style={{ color: '#5cc8ff' }}>−{wire.targetSlug}/{wire.targetKey}</span>
                                 <span style={{ marginLeft: 'auto', color: 'rgba(255,255,255,0.2)' }}>
-                                  {wireAmounts[wire.id] != null ? `${Math.round((wireAmounts[wire.id] ?? 1) * 100)}%` : '100%'}
+                                  {getWireAmount(wire) != null ? `${Math.round((getWireAmount(wire) ?? 1) * 100)}%` : '100%'}
                                 </span>
                                 <button
                                   title={wire.active ? 'Disable' : 'Enable'}
@@ -2236,8 +2260,25 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                 display: 'flex', alignItems: 'center', gap: 3,
                 zIndex: 10,
               }}>
-                {/* +/− polarity badge — always visible when direction is known */}
-                {polarityIcon && (
+                {/* +/− signal count badges — always visible for active slots */}
+                {slot.active && (publishing.length > 0 || listening.length > 0) && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                    {publishing.length > 0 && (
+                      <span title={`${publishing.length} output${publishing.length > 1 ? 's' : ''}: ${publishing.join(', ')}`}
+                        style={{ color: '#22c55e', padding: '1px 3px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', lineHeight: 1 }}>
+                        +{publishing.length}
+                      </span>
+                    )}
+                    {listening.length > 0 && (
+                      <span title={`${listening.length} input${listening.length > 1 ? 's' : ''}: ${listening.join(', ')}`}
+                        style={{ color: '#5cc8ff', padding: '1px 3px', background: 'rgba(92,200,255,0.1)', border: '1px solid rgba(92,200,255,0.3)', lineHeight: 1 }}>
+                        −{listening.length}
+                      </span>
+                    )}
+                  </span>
+                )}
+                {/* Polarity badge for inactive slots with known direction */}
+                {!slot.active && polarityIcon && (
                   <span
                     title={directionForSlot === 'receive' ? 'Receiver (−)' : 'Sender (+)'}
                     style={{
@@ -2282,31 +2323,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     EDIT
                   </button>
                 )}
-                {/* Lock/Unlock button */}
-                <button
-                  title={isLocked(slot.id) ? 'Unlock slot' : 'Lock slot'}
-                  onClick={e => {
-                    e.stopPropagation();
-                    toggleLockBackend(slot.id, slot);
-                  }}
-                  style={{
-                    background: 'none', border: 'none', padding: '1px 3px',
-                    cursor: 'pointer',
-                    color: isLocked(slot.id) ? slotColor : 'rgba(255,255,255,0.25)',
-                    fontSize: 11, lineHeight: 1,
-                  }}>
-                  {isLocked(slot.id) ? (
-                    <svg width="10" height="11" viewBox="0 0 10 11" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <rect x="1" y="5" width="8" height="6" rx="1" fill="currentColor" opacity="0.9"/>
-                      <path d="M3 5V3.5C3 2.4 3.9 1.5 5 1.5C6.1 1.5 7 2.4 7 3.5V5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
-                    </svg>
-                  ) : (
-                    <svg width="10" height="11" viewBox="0 0 10 11" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <rect x="1" y="5" width="8" height="6" rx="1" fill="currentColor" opacity="0.3"/>
-                      <path d="M3 5V3.5C3 2.4 3.9 1.5 5 1.5C6.1 1.5 7 2.4 7 3.5V5" stroke="currentColor" strokeWidth="1.2" fill="none" opacity="0.4"/>
-                    </svg>
-                  )}
-                </button>
+                {/* (Lock button is already rendered above — duplicate removed) */}
               </div>
               <style>{'.slot:hover .slot-top-controls { opacity: 1 !important; }'}</style>
             </div>
