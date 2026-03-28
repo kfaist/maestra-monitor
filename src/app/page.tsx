@@ -51,6 +51,7 @@ export default function Home() {
   const [apiStatus, setApiStatus] = useState<'online' | 'offline'>('offline');
   const [slots, setSlots] = useState<FleetSlot[]>(createInitialSlots); // seeded from mock, hydrated from server
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [wizardTarget, setWizardTarget] = useState<string | null>(null);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [eventEntries, setEventEntries] = useState<EventEntry[]>([]);
   const [audioData, setAudioData] = useState<AudioAnalysisData>({
@@ -1581,6 +1582,8 @@ export default function Home() {
               onInjectSignal={handleInjectSignal}
               eventEntries={eventEntries}
               entityStates={entityStates}
+              wizardTrigger={wizardTarget}
+              onWizardTriggered={() => setWizardTarget(null)}
             />
 
             <LightingPanel
@@ -1625,6 +1628,7 @@ export default function Home() {
             entityBus={entityBus}
             slots={slots}
             entityStates={entityStates as Record<string, Record<string, unknown>>}
+            onOpenWizard={() => { setSelectedId('slot_3'); setWizardTarget('slot_3'); }}
           />
         </div>
       </div>

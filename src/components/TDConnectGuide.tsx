@@ -56,41 +56,6 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
   const [signalSource, setSignalSource] = useState<SignalSource | null>(null);
   const [tdProjectPath, setTdProjectPath] = useState('project1/');
 
-  // Live node list from backend
-  const [liveNodes, setLiveNodes] = useState<{slug:string; name:string; status:string}[]>([]);
-  const [nodesLoading, setNodesLoading] = useState(true);
-  const [nodeSearch, setNodeSearch] = useState('');
-  const [selectedNode, setSelectedNode] = useState<string | null>(null);
-
-  // Fetch registered entities on mount
-  useEffect(() => {
-    fetch('https://maestra-backend-v2-production.up.railway.app/entities')
-      .then(r => r.json())
-      .then((data: unknown[]) => {
-        const seen = new Set<string>();
-        const list = data
-          .filter((e: unknown) => {
-            const en = e as Record<string,unknown>;
-            if (!en.slug || seen.has(String(en.slug))) return false;
-            seen.add(String(en.slug));
-            return true;
-          })
-          .map((e: unknown) => {
-            const en = e as Record<string,unknown>;
-            return { slug: String(en.slug), name: String(en.name||en.slug), status: String(en.status||'offline') };
-          })
-          .sort((a,b) => {
-            if (a.status === 'online' && b.status !== 'online') return -1;
-            if (b.status === 'online' && a.status !== 'online') return 1;
-            return a.slug.localeCompare(b.slug);
-          })
-          .slice(0, 100);
-        setLiveNodes(list);
-        setNodesLoading(false);
-      })
-      .catch(() => setNodesLoading(false));
-  }, []);
-
   // Activity log (live mode)
   const activityRef = useRef<{ time: string; msg: string }[]>([]);
   const [activityTick, setActivityTick] = useState(0);
@@ -332,47 +297,6 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
                   <span className="td-onboard-action-desc">I already have the Maestra connector running in TD</span>
                 </div>
               </button>
-
-              {/* Option 2: Browse to local .toe file */}
-              <label className="td-onboard-action-btn" style={{ cursor: 'pointer', position: 'relative' }}>
-                <span className="td-onboard-action-icon">📂</span>
-                <div className="td-onboard-action-text">
-                  <span className="td-onboard-action-title">{tdProjectPath !== 'project1/' ? tdProjectPath : 'Browse to .toe File'}</span>
-                  <span className="td-onboard-action-desc">Select your TouchDesigner project from disk</span>
-                </div>
-                <input type="file" accept=".toe,.tox"
-                  style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
-                  onClick={e => e.stopPropagation()}
-                  onChange={e => {
-                    const f = e.target.files?.[0];
-                    if (f) {
-                      setTdProjectPath(f.name);
-                      setWaitingForNode(true);
-                      onConnect?.();
-                    }
-                  }} />
-              </label>
-
-              {/* Option 3: Paste a local path */}
-              <div style={{ width: '100%' }}>
-                <input type="text" placeholder="Or paste local path  e.g. C:\project\my-show.toe"
-                  style={{
-                    width: '100%', boxSizing: 'border-box', padding: '8px 10px',
-                    fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
-                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)',
-                    color: '#c8d8e8', outline: 'none', borderRadius: 4, letterSpacing: '0.02em',
-                  }}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      const val = (e.target as HTMLInputElement).value.trim();
-                      if (!val) return;
-                      setTdProjectPath(val);
-                      setWaitingForNode(true);
-                      onConnect?.();
-                    }
-                  }}
-                />
-              </div>
 
               {/* Option 2: Need the connector? */}
               <div className="td-onboard-divider">

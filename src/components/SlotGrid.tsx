@@ -64,6 +64,9 @@ interface SlotGridProps {
   eventEntries?: EventEntry[];
   /** Live entity state for each entity */
   entityStates?: EntityStateMap;
+  /** When set to a slot ID, auto-opens the wizard for that slot */
+  wizardTrigger?: string | null;
+  onWizardTriggered?: () => void;
 }
 
 const ROLES: { value: NodeRole; label: string; icon: string; color: string }[] = [
@@ -200,7 +203,7 @@ function EntityPicker({ slotColor, current, onSelect }: {
   );
 }
 
-export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, onJoinNode, onSlotSetupComplete, onInjectSignal, onSourceUpdate, eventEntries = [], entityStates = {} }: SlotGridProps) {
+export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, onJoinNode, onSlotSetupComplete, onInjectSignal, onSourceUpdate, eventEntries = [], entityStates = {}, wizardTrigger, onWizardTriggered }: SlotGridProps) {
   const activeCount = slots.filter(s => s.active).length;
   const hasActiveNodes = activeCount > 0;
   const hasFrames = slots.some(s => s.active && s.frameUrl);
@@ -557,6 +560,16 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
       return { ...prev, [slot.id]: { stage: startStage, slug: existingSlug, refFile: null, direction: 'send' as NodeRole, selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [], streamType: '', selectedNode: '' , nodeSearch: '', opSearch: '' } };
     });
   }, [onSelectSlot]); // NO setupState in deps
+
+  // External wizard trigger — opens wizard for a specific slot when banner is clicked
+  useEffect(() => {
+    if (!wizardTrigger) return;
+    const targetSlot = slots.find(s => s.id === wizardTrigger);
+    if (targetSlot) {
+      handleSlotClick(targetSlot);
+    }
+    onWizardTriggered?.();
+  }, [wizardTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleConnect = useCallback((slotId: string, e: React.MouseEvent) => {
     e.stopPropagation();
