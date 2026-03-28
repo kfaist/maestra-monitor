@@ -673,6 +673,13 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     return (sourceState[slot.id]?.path || setupState[slot.id]?.refFile || '').trim().toLowerCase();
   };
 
+  /** Look up a card's theme color by its entity slug */
+  const getColorForSlug = (slug: string): string => {
+    const idx = slots.findIndex(s => (s.entity_id || s.id) === slug);
+    if (idx >= 0) return getSlotColor(slots[idx], idx);
+    return 'rgba(255,255,255,0.4)';
+  };
+
   /** Collect all available + outputs across the fleet for wiring dropdowns */
   const allPlusOutputs = (() => {
     const results: Array<{ slug: string; key: string; type: string; slotLabel: string; color: string }> = [];
@@ -1074,7 +1081,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       fontFamily: 'var(--font-mono)',
                       cursor: dir === 'output' ? 'grab' : (anyDragActive && dir === 'input' ? 'copy' : 'default'),
                       borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      borderLeft: dir === 'output' ? '4px solid #22c55e60' : '4px solid #5cc8ff40',
+                      borderLeft: `4px solid ${slotColor}60`,
                       background: isDropTgt
                         ? (dir === 'output' ? 'rgba(34,197,94,0.25)' : 'rgba(92,200,255,0.25)')
                         : isDragSrc ? 'rgba(34,197,94,0.15)'
@@ -1116,7 +1123,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             // Custom drag image: floating label
                             const ghost = document.createElement('div');
                             ghost.textContent = `+ ${row.key}`;
-                            ghost.style.cssText = 'position:fixed;top:-100px;left:-100px;padding:6px 14px;background:#22c55e;color:#000;font:700 12px monospace;border-radius:4px;white-space:nowrap;z-index:9999;';
+                            ghost.style.cssText = `position:fixed;top:-100px;left:-100px;padding:6px 14px;background:${slotColor};color:#000;font:700 12px monospace;border-radius:4px;white-space:nowrap;z-index:9999;`;
                             document.body.appendChild(ghost);
                             e.dataTransfer.setDragImage(ghost, 0, 0);
                             setTimeout(() => document.body.removeChild(ghost), 0);
@@ -1131,7 +1138,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           {/* Column 1: direction badge + drag grip */}
                           <span className="sig-row__badge" style={{
                             fontWeight: 900, fontSize: row.dir === 'output' ? 16 : 14, lineHeight: 1,
-                            color: row.dir === 'output' ? '#22c55e' : '#5cc8ff',
+                            color: '#fff',
                             textAlign: 'center',
                             transition: 'transform 0.15s',
                             cursor: row.dir === 'output' ? 'grab' : 'default',
@@ -1192,8 +1199,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             <div style={{
                               display: 'grid', gridTemplateColumns: '20px 1fr 52px 1fr auto',
                               padding: '5px 6px 3px', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
-                              color: '#22c55e', borderBottom: `1px solid ${slotColor}20`,
-                              background: 'rgba(34,197,94,0.06)',
+                              color: slotColor, borderBottom: `1px solid ${slotColor}20`,
+                              background: `${slotColor}0a`,
                             }}>
                               <span></span>
                               <span>OUTPUTS (+)</span>
@@ -1222,8 +1229,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             <div style={{
                               display: 'grid', gridTemplateColumns: '20px 1fr 52px 1fr auto',
                               padding: '5px 6px 3px', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
-                              color: '#5cc8ff', borderBottom: `1px solid ${slotColor}20`,
-                              background: 'rgba(92,200,255,0.06)',
+                              color: slotColor, borderBottom: `1px solid ${slotColor}20`,
+                              background: `${slotColor}0a`,
                               borderTop: canSend ? `1px solid ${slotColor}20` : 'none',
                             }}>
                               <span></span>
@@ -1262,16 +1269,16 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                   fontSize: isCardDropTarget ? 14 : 12,
                                   fontWeight: 700,
                                   fontFamily: 'var(--font-mono)',
-                                  color: isCardDropTarget ? '#fff' : 'rgba(92,200,255,0.5)',
+                                  color: isCardDropTarget ? '#fff' : `${slotColor}80`,
                                   fontStyle: 'normal',
-                                  border: isCardDropTarget ? '3px dashed #5cc8ff' : '2px dashed rgba(92,200,255,0.25)',
+                                  border: isCardDropTarget ? `3px dashed ${slotColor}` : `2px dashed ${slotColor}40`,
                                   borderRadius: 6,
                                   margin: '6px',
                                   background: isCardDropTarget
-                                    ? 'rgba(92,200,255,0.2)'
-                                    : 'rgba(92,200,255,0.04)',
+                                    ? `${slotColor}30`
+                                    : `${slotColor}08`,
                                   boxShadow: isCardDropTarget
-                                    ? '0 0 30px rgba(92,200,255,0.3), inset 0 0 40px rgba(92,200,255,0.08), 0 0 60px rgba(92,200,255,0.15)'
+                                    ? `0 0 30px ${slotColor}50, inset 0 0 40px ${slotColor}15, 0 0 60px ${slotColor}25`
                                     : 'none',
                                   transition: 'all 0.15s ease-out',
                                   textAlign: 'center',
@@ -1318,43 +1325,44 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                       </div>
                                       {inboundWires.map(wire => {
                                         const srcName = wire.sourceSlug.replace('KFaist_', '').replace(/_/g, ' ');
+                                        const originColor = getColorForSlug(wire.sourceSlug);
                                         const amt = getWireAmount(wire);
                                         return (
                                           <div key={wire.id} style={{
                                             padding: '6px 6px 8px',
-                                            borderBottom: '1px solid rgba(255,255,255,0.06)',
-                                            background: wire.active ? 'rgba(167,139,250,0.06)' : 'transparent',
+                                            borderBottom: `1px solid ${originColor}15`,
+                                            background: wire.active ? `${originColor}0a` : 'transparent',
                                             transition: 'background 0.15s',
                                             textAlign: 'left',
                                           }}>
-                                            {/* Row 1: signal name (big bold white) + source (small, right) */}
+                                            {/* Row 1: signal name (big bold white) + source (small, right, origin color) */}
                                             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
                                               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                {/* Active dot */}
+                                                {/* Active dot — origin card color */}
                                                 <span style={{
                                                   width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                                                  background: wire.active ? '#a78bfa' : 'rgba(255,255,255,0.15)',
+                                                  background: wire.active ? originColor : 'rgba(255,255,255,0.15)',
                                                   display: 'inline-block', cursor: 'pointer',
-                                                  boxShadow: wire.active ? '0 0 6px rgba(167,139,250,0.5)' : 'none',
+                                                  boxShadow: wire.active ? `0 0 6px ${originColor}80` : 'none',
                                                 }}
                                                   title={wire.active ? 'Click to disable' : 'Click to enable'}
                                                   onClick={ev => { ev.stopPropagation(); toggleWireActive(wire.id); }}
                                                 />
-                                                {/* Signal route: sourceKey → targetKey */}
+                                                {/* Signal route: sourceKey → targetKey — bold white */}
                                                 <span style={{
                                                   fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 14,
                                                   color: wire.active ? '#fff' : 'rgba(255,255,255,0.35)',
                                                 }}>
-                                                  {wire.sourceKey}<span style={{ color: 'rgba(167,139,250,0.6)', margin: '0 4px' }}>{'\u2192'}</span>{wire.targetKey}
+                                                  {wire.sourceKey}<span style={{ color: `${originColor}90`, margin: '0 4px' }}>{'\u2192'}</span>{wire.targetKey}
                                                 </span>
                                               </div>
-                                              {/* Source card name — right aligned, smaller */}
+                                              {/* Source card name — right aligned, origin color */}
                                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                                                 <span style={{
                                                   fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 500,
                                                   color: 'rgba(255,255,255,0.3)',
                                                 }}>
-                                                  from <span style={{ color: 'rgba(167,139,250,0.7)', fontWeight: 600 }}>{srcName}</span>
+                                                  from <span style={{ color: originColor, fontWeight: 600 }}>{srcName}</span>
                                                 </span>
                                                 <button
                                                   onClick={ev => { ev.stopPropagation(); deleteWire(wire.id); }}
@@ -1373,20 +1381,20 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                                 </button>
                                               </div>
                                             </div>
-                                            {/* Row 2: amount slider */}
+                                            {/* Row 2: amount slider — origin color accent */}
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, paddingLeft: 14 }}>
                                               <input
                                                 type="range" min={0} max={1} step={0.01} value={amt}
                                                 onClick={ev => ev.stopPropagation()}
                                                 onChange={e => patchWireAmount(wire.id, parseFloat(e.target.value))}
                                                 style={{
-                                                  width: '100%', height: 3, accentColor: '#a78bfa',
+                                                  width: '100%', height: 3, accentColor: originColor,
                                                   cursor: 'pointer', opacity: wire.active ? 0.7 : 0.25,
                                                 }}
                                               />
                                               <span style={{
                                                 fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 600,
-                                                color: 'rgba(167,139,250,0.5)', minWidth: 28, textAlign: 'right',
+                                                color: `${originColor}80`, minWidth: 28, textAlign: 'right',
                                               }}>
                                                 {(amt * 100).toFixed(0)}%
                                               </span>
