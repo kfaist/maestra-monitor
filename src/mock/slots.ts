@@ -60,7 +60,9 @@ export function createInitialSlots(): FleetSlot[] {
       _frameTimes: [],
       _fpsSmooth: null,
     },
-    // Card 3: KFaist_Shapeshifters
+    // Card 3: KFaist_Shapeshifters — remote StreamDiffusion receiver
+    // Receives routed control signals from other .toe files / devices on the network.
+    // Primary role: listen for prompt, generation params, and trigger signals from elsewhere.
     {
       id: 'KFaist_Shapeshifters',
       label: 'KFaist Shapeshifters',
@@ -77,13 +79,18 @@ export function createInitialSlots(): FleetSlot[] {
       signalType: 'touchdesigner',
       nodeRole: 'two_way',
       stateSchema: {
-        morph_target: { type: 'string', direction: 'input', description: 'Target shape or form identifier for active morph' },
-        morph_progress: { type: 'float', direction: 'output', description: 'Current morph interpolation progress 0.0-1.0' },
-        active_form: { type: 'string', direction: 'output', description: 'Currently displayed form/shape identifier' },
-        trigger: { type: 'boolean', direction: 'input', description: 'Trigger next shape transition' },
-        transition_duration: { type: 'float', direction: 'input', default: 2.0, description: 'Duration of shape transition in seconds' },
+        // INPUTS — routable receive fields from other nodes / .toe files
+        prompt_text: { type: 'string', direction: 'input', default: null, description: 'SD prompt received from another node or .toe' },
+        negative_prompt: { type: 'string', direction: 'input', default: null, description: 'Negative prompt for SD generation filtering' },
+        denoise_strength: { type: 'float', direction: 'input', default: 0.6, description: 'StreamDiffusion denoising strength 0.0\u20131.0' },
+        seed: { type: 'number', direction: 'input', default: -1, description: 'RNG seed for SD generation (-1 = random)' },
+        trigger: { type: 'boolean', direction: 'input', default: false, description: 'Trigger a new generation cycle from remote' },
+        active: { type: 'boolean', direction: 'input', default: false, description: 'Enable/disable this SD instance from remote' },
+        // OUTPUTS — status signals this node broadcasts back
+        source_device: { type: 'string', direction: 'output', default: null, description: 'Hostname of the device running this SD instance' },
+        fps: { type: 'number', direction: 'output', default: 0, description: 'Current SD rendering frame rate' },
       },
-      suggestion: { title: 'KFaist Shapeshifters', desc: 'Generative shape-shifting installation pipeline.', tag: 'td' as const, tagLabel: 'TouchDesigner' },
+      suggestion: { title: 'KFaist Shapeshifters', desc: 'Remote StreamDiffusion receiver \u2014 accepts routed control from other .toe files.', tag: 'td' as const, tagLabel: 'TouchDesigner' },
       _frameTimes: [],
       _fpsSmooth: null,
     },
