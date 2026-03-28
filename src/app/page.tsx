@@ -805,16 +805,26 @@ export default function Home() {
         });
       }
 
-      // Update entityStates from server state
+      // Update entityStates from server state — MERGE, live sidecar wins.
+      // Precedence: 1. live sidecar/TD state  2. gallery state  3. schema default
+      // Gallery goes down first, then existing live values spread on top.
       entities.forEach(e => {
         const slug = (e.slug as string) || String(e.id);
         const eid = String(e.id);
         const state = (e.state as Record<string, unknown>) || {};
         const meta = (e.metadata as Record<string, unknown>) || {};
-        // Merge state + metadata — tops may be in either
-        const merged = { ...meta, ...state };
-        if (Object.keys(merged).length > 0) {
-          setEntityStates(prev => ({ ...prev, [slug]: merged as Record<string,string>, [eid]: merged as Record<string,string> }));
+        const incoming = { ...meta, ...state };
+        if (Object.keys(incoming).length > 0) {
+          setEntityStates(prev => {
+            // Existing live state (from sidecar) — keys already present win
+            const existSlug = prev[slug] || {};
+            const existEid = prev[eid] || {};
+            return {
+              ...prev,
+              [slug]: { ...incoming, ...existSlug } as Record<string,string>,
+              [eid]: { ...incoming, ...existEid } as Record<string,string>,
+            };
+          });
         }
       });
 
@@ -1438,10 +1448,10 @@ export default function Home() {
       }
     })();
 
-    // Auto-connect slot 1 on load — SD stream appears immediately, zero clicks needed.
-    // Other slots stay available — users connect them explicitly via the setup wizard.
+    // Auto-connect primary nodes on load — both come online immediately, zero clicks.
     setTimeout(() => {
       autoConnectSlot('KFaist_CineTech');
+      autoConnectSlot('KFaist_Ambient_Intelligence');
     }, 100);
 
     // ── State sidecar polling ──────────────────────────────────────
@@ -1471,15 +1481,18 @@ export default function Home() {
       }
     }, 5000); // Poll every 5s — lightweight, doesn't need to be fast
 
-    // SD feed watchdog — keep slot1 (CineTech) alive 24/7. If it drops, reconnect after 10s.
+    // Primary node watchdog — keep CineTech + Ambient Intelligence alive 24/7.
+    const AUTO_CONNECT_IDS = ['KFaist_CineTech', 'KFaist_Ambient_Intelligence'];
     const sdWatchdog = setInterval(() => {
-      const k1 = slotsRef.current.find(s => s.id === 'KFaist_CineTech');
-      if (!k1) return;
-      const conn = connectionsRef.current.get('KFaist_CineTech');
-      const isHealthy = k1.active && conn && k1.maestraStatus?.server === 'connected';
-      if (!isHealthy) {
-        console.log('[SD Watchdog] slot1 (CineTech) not healthy — reconnecting');
-        autoConnectSlot('KFaist_CineTech');
+      for (const nodeId of AUTO_CONNECT_IDS) {
+        const node = slotsRef.current.find(s => s.id === nodeId);
+        if (!node) continue;
+        const conn = connectionsRef.current.get(nodeId);
+        const isHealthy = node.active && conn && node.maestraStatus?.server === 'connected';
+        if (!isHealthy) {
+          console.log(`[Watchdog] ${nodeId} not healthy — reconnecting`);
+          autoConnectSlot(nodeId);
+        }
       }
     }, 10000);
 

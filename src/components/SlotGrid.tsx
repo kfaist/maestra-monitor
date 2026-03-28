@@ -214,6 +214,15 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   // ═══ Drag-and-drop wiring state ═══
   const [dragSource, setDragSource] = useState<{ slug: string; key: string; dir: 'output' | 'input' } | null>(null);
   const [dropTarget, setDropTarget] = useState<{ slug: string; key: string; dir: 'output' | 'input' } | null>(null);
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+
+  // Track cursor during drag for connection preview
+  useEffect(() => {
+    if (!dragSource) { setDragPos(null); return; }
+    const onMove = (e: DragEvent) => setDragPos({ x: e.clientX, y: e.clientY });
+    window.addEventListener('dragover', onMove);
+    return () => window.removeEventListener('dragover', onMove);
+  }, [dragSource]);
 
   // Lock state — derived from Maestra backend entity metadata
   const [lockedSlots, setLockedSlots] = useState<Set<string>>(new Set());
@@ -1047,11 +1056,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     const outputs = rows.filter(r => r.dir === 'output');
                     const inputs = rows.filter(r => r.dir === 'input');
 
-                    if (outputs.length === 0 && inputs.length === 0) return (
-                      <div style={{ padding: '10px 8px', fontSize: 11, color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>
-                        No signals defined — connect a .toe or register a schema
-                      </div>
-                    );
+                    const nodeRole = slot.nodeRole || 'send';
+                    const canReceive = nodeRole === 'receive' || nodeRole === 'two_way';
+                    const canSend = nodeRole === 'send' || nodeRole === 'two_way';
 
                     // Shared row style
                     const rowStyle = (dir: 'output'|'input', isDragSrc: boolean, isDropTgt: boolean): React.CSSProperties => ({
@@ -1059,19 +1066,21 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       gridTemplateColumns: '20px 1fr 52px 1fr auto',
                       gap: 0,
                       alignItems: 'center',
-                      padding: '4px 6px',
+                      padding: '5px 6px',
                       fontSize: 11,
                       fontFamily: 'var(--font-mono)',
-                      cursor: 'grab',
+                      cursor: dir === 'output' ? 'grab' : 'default',
                       borderBottom: '1px solid rgba(255,255,255,0.04)',
+                      borderLeft: dir === 'output' ? '3px solid #22c55e40' : '3px solid #5cc8ff30',
                       background: isDropTgt
-                        ? (dir === 'output' ? 'rgba(34,197,94,0.15)' : 'rgba(92,200,255,0.15)')
-                        : isDragSrc ? 'rgba(255,255,255,0.06)' : 'transparent',
+                        ? (dir === 'output' ? 'rgba(34,197,94,0.18)' : 'rgba(92,200,255,0.18)')
+                        : isDragSrc ? 'rgba(34,197,94,0.12)' : 'transparent',
                       outline: isDropTgt
                         ? `2px dashed ${dir === 'output' ? '#22c55e' : '#5cc8ff'}`
-                        : isDragSrc ? `1px solid ${dir === 'output' ? '#22c55e' : '#5cc8ff'}` : 'none',
-                      opacity: isDragSrc ? 0.6 : 1,
-                      transition: 'background 0.12s, outline 0.12s',
+                        : isDragSrc ? `1px solid #22c55e` : 'none',
+                      opacity: isDragSrc ? 0.5 : 1,
+                      transform: isDragSrc ? 'scale(0.97)' : 'none',
+                      transition: 'background 0.1s, outline 0.1s, transform 0.1s, box-shadow 0.1s, border-left 0.1s',
                     });
 
                     const formatLive = (row: SigRow) => {
@@ -1088,34 +1097,46 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     };
 
                     const renderRow = (row: SigRow) => {
-                      const slug = slot.entity_id || slot.id;
-                      const isDragSrc = dragSource?.slug === slug && dragSource?.key === row.key;
-                      const isDropTgt = dropTarget?.slug === slug && dropTarget?.key === row.key;
+                      const rSlug = slot.entity_id || slot.id;
+                      const isDragSrc = dragSource?.slug === rSlug && dragSource?.key === row.key;
+                      const isDropTgt = dropTarget?.slug === rSlug && dropTarget?.key === row.key;
                       return (
                         <div key={`${row.dir}-${row.key}`}
-                          draggable
-                          onDragStart={() => handleChipDragStart(slug, row.key, row.dir)}
+                          className={`sig-row ${row.dir === 'output' ? 'sig-row--output' : 'sig-row--input'}`}
+                          draggable={row.dir === 'output'}
+                          onDragStart={e => {
+                            handleChipDragStart(rSlug, row.key, row.dir);
+                            // Custom drag image: floating label
+                            const ghost = document.createElement('div');
+                            ghost.textContent = `+ ${row.key}`;
+                            ghost.style.cssText = 'position:fixed;top:-100px;left:-100px;padding:6px 14px;background:#22c55e;color:#000;font:700 12px monospace;border-radius:4px;white-space:nowrap;z-index:9999;';
+                            document.body.appendChild(ghost);
+                            e.dataTransfer.setDragImage(ghost, 0, 0);
+                            setTimeout(() => document.body.removeChild(ghost), 0);
+                          }}
                           onDragEnd={handleChipDragEnd}
-                          onDragOver={e => handleChipDragOver(e, slug, row.key, row.dir)}
+                          onDragOver={e => handleChipDragOver(e, rSlug, row.key, row.dir)}
                           onDragLeave={handleChipDragLeave}
-                          onDrop={e => handleChipDrop(e, slug, row.key, row.dir)}
+                          onDrop={e => handleChipDrop(e, rSlug, row.key, row.dir)}
                           style={rowStyle(row.dir, isDragSrc, isDropTgt)}
                           title={row.desc || `${row.dir}: ${row.key} (${row.type})`}
                         >
                           {/* Column 1: direction badge */}
-                          <span style={{
+                          <span className="sig-row__badge" style={{
                             fontWeight: 900, fontSize: 14, lineHeight: 1,
                             color: row.dir === 'output' ? '#22c55e' : '#5cc8ff',
                             textAlign: 'center',
+                            transition: 'transform 0.15s',
                           }}>
                             {row.dir === 'output' ? '+' : '\u2212'}
                           </span>
 
                           {/* Column 2: signal name */}
-                          <span style={{
+                          <span className="sig-row__name" style={{
                             color: row.dir === 'output' ? '#e2e8f0' : 'rgba(255,255,255,0.55)',
                             fontWeight: row.dir === 'output' ? 600 : 400,
                             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            transition: 'transform 0.15s, color 0.15s',
                           }}>
                             {row.key}
                           </span>
@@ -1127,7 +1148,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             {row.type}
                           </span>
 
-                          {/* Column 4: description (truncated) */}
+                          {/* Column 4: description */}
                           <span style={{
                             color: 'rgba(255,255,255,0.2)', fontSize: 10,
                             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -1147,14 +1168,17 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                       );
                     };
 
+                    const patchSlug = slot.entity_id || slot.id;
+                    const isCardDropTarget = canReceive && dragSource && dragSource.slug !== patchSlug;
+
                     return (
                       <div style={{
                         border: `1px solid ${slotColor}30`,
                         background: 'rgba(0,0,0,0.3)',
                         marginTop: 4,
                       }}>
-                        {/* OUTPUTS section */}
-                        {outputs.length > 0 && (
+                        {/* \u2500\u2500 OUTPUTS section \u2500\u2500 */}
+                        {canSend && (
                           <>
                             <div style={{
                               display: 'grid', gridTemplateColumns: '20px 1fr 52px 1fr auto',
@@ -1168,22 +1192,30 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               <span style={{ paddingLeft: 4, color: 'rgba(255,255,255,0.2)' }}>DESCRIPTION</span>
                               <span style={{ textAlign: 'right', color: 'rgba(255,255,255,0.2)', minWidth: 48, paddingLeft: 4 }}>LIVE</span>
                             </div>
-                            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', padding: '2px 6px 2px 26px', borderBottom: '1px solid rgba(255,255,255,0.03)', fontStyle: 'italic' }}>
-                              Drag + rows to broadcast to another node
-                            </div>
-                            {outputs.map(renderRow)}
+                            {outputs.length > 0 ? (
+                              <>
+                                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', padding: '2px 6px 2px 26px', borderBottom: '1px solid rgba(255,255,255,0.03)', fontStyle: 'italic' }}>
+                                  Drag + rows to broadcast to another node
+                                </div>
+                                {outputs.map(renderRow)}
+                              </>
+                            ) : (
+                              <div style={{ padding: '8px 6px 8px 26px', fontSize: 10, color: 'rgba(255,255,255,0.18)', fontStyle: 'italic' }}>
+                                No outputs yet \u2014 signals appear when a .toe connects
+                              </div>
+                            )}
                           </>
                         )}
 
-                        {/* INPUTS section */}
-                        {inputs.length > 0 && (
+                        {/* \u2500\u2500 INPUTS section \u2014 always visible for receive / two_way \u2500\u2500 */}
+                        {canReceive && (
                           <>
                             <div style={{
                               display: 'grid', gridTemplateColumns: '20px 1fr 52px 1fr auto',
                               padding: '5px 6px 3px', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
                               color: '#5cc8ff', borderBottom: `1px solid ${slotColor}20`,
                               background: 'rgba(92,200,255,0.06)',
-                              borderTop: outputs.length > 0 ? `1px solid ${slotColor}20` : 'none',
+                              borderTop: canSend ? `1px solid ${slotColor}20` : 'none',
                             }}>
                               <span></span>
                               <span>INPUTS (\u2212)</span>
@@ -1191,11 +1223,72 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               <span style={{ paddingLeft: 4, color: 'rgba(255,255,255,0.2)' }}>DESCRIPTION</span>
                               <span style={{ textAlign: 'right', color: 'rgba(255,255,255,0.2)', minWidth: 48, paddingLeft: 4 }}>LIVE</span>
                             </div>
-                            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', padding: '2px 6px 2px 26px', borderBottom: '1px solid rgba(255,255,255,0.03)', fontStyle: 'italic' }}>
-                              Drop another node&apos;s output here to listen/react
-                            </div>
-                            {inputs.map(renderRow)}
+                            {inputs.length > 0 ? (
+                              <>
+                                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', padding: '2px 6px 2px 26px', borderBottom: '1px solid rgba(255,255,255,0.03)', fontStyle: 'italic' }}>
+                                  Drop another node&apos;s output here to listen/react
+                                </div>
+                                {inputs.map(renderRow)}
+                              </>
+                            ) : (
+                              <div
+                                className="receive-dropzone"
+                                onDragOver={e => {
+                                  if (dragSource && dragSource.slug !== patchSlug && dragSource.dir === 'output') {
+                                    e.preventDefault();
+                                  }
+                                }}
+                                onDrop={e => {
+                                  e.preventDefault();
+                                  if (dragSource && dragSource.slug !== patchSlug && dragSource.dir === 'output') {
+                                    createWire(dragSource.slug, dragSource.key, patchSlug, dragSource.key);
+                                    setDragSource(null);
+                                    setDropTarget(null);
+                                  }
+                                }}
+                                style={{
+                                  padding: isCardDropTarget ? '28px 12px' : '24px 12px',
+                                  fontSize: isCardDropTarget ? 13 : 11,
+                                  fontWeight: 700,
+                                  fontFamily: 'var(--font-mono)',
+                                  color: isCardDropTarget ? '#5cc8ff' : 'rgba(92,200,255,0.4)',
+                                  fontStyle: 'normal',
+                                  border: isCardDropTarget ? '2px dashed #5cc8ff' : '2px dashed rgba(92,200,255,0.2)',
+                                  borderRadius: 4,
+                                  margin: '4px',
+                                  background: isCardDropTarget ? 'rgba(92,200,255,0.12)' : 'rgba(92,200,255,0.03)',
+                                  boxShadow: isCardDropTarget ? '0 0 20px rgba(92,200,255,0.15), inset 0 0 30px rgba(92,200,255,0.05)' : 'none',
+                                  transition: 'all 0.12s ease-out',
+                                  textAlign: 'center',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                }}
+                              >
+                                {isCardDropTarget ? (
+                                  <>
+                                    <span style={{ fontSize: 18, lineHeight: 1 }}>\u2212</span>
+                                    <span>{dragSource!.key} \u2192 {patchSlug}</span>
+                                    <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.6 }}>release to create route</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span style={{ fontSize: 16, opacity: 0.4, lineHeight: 1 }}>\u2212 \u2212 \u2212</span>
+                                    <span>Drop a signal here to route from another node</span>
+                                    <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.5 }}>This node receives signals from other .toe devices</span>
+                                  </>
+                                )}
+                              </div>
+                            )}
                           </>
+                        )}
+
+                        {/* send-only with no outputs */}
+                        {!canReceive && !canSend && (
+                          <div style={{ padding: '10px 8px', fontSize: 11, color: 'rgba(255,255,255,0.18)', fontStyle: 'italic' }}>
+                            No signals defined \u2014 connect a .toe or register a schema
+                          </div>
                         )}
                       </div>
                     );
@@ -1990,6 +2083,34 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
           </div>
         )}
       </div>
+
+      {/* ── Floating connection preview during drag ── */}
+      {dragSource && dragPos && (
+        <div style={{
+          position: 'fixed',
+          left: dragPos.x + 14,
+          top: dragPos.y - 10,
+          pointerEvents: 'none',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '5px 12px',
+          background: 'rgba(34,197,94,0.95)',
+          color: '#000',
+          fontFamily: 'var(--font-mono)',
+          fontSize: 11,
+          fontWeight: 700,
+          borderRadius: 4,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+          whiteSpace: 'nowrap',
+        }}>
+          <span style={{ fontSize: 14 }}>+</span>
+          <span>{dragSource.key}</span>
+          <span style={{ opacity: 0.5, fontSize: 10 }}>→</span>
+          <span style={{ opacity: 0.6, fontSize: 10 }}>{dropTarget ? dropTarget.slug : '...'}</span>
+        </div>
+      )}
     </>
   );
 }

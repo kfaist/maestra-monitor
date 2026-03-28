@@ -2711,3 +2711,47 @@ footer a:hover { text-decoration: underline; }
 
 
 /* -- deploy touch 1312 -- */
+
+/* ══ Signal Patch Table — interaction feedback ══ */
+
+/* OUTPUT rows: grabbable, hover lift with rightward motion hint */
+.sig-row--output {
+  position: relative;
+}
+.sig-row--output:hover {
+  background: rgba(34,197,94,0.08) !important;
+  transform: translateX(3px) scale(1.01);
+  box-shadow: -3px 0 0 #22c55e, 0 2px 8px rgba(34,197,94,0.12);
+  cursor: grab;
+  z-index: 2;
+}
+.sig-row--output:hover .sig-row__badge {
+  transform: translateX(2px);
+}
+.sig-row--output:hover .sig-row__name {
+  color: #4ade80 !important;
+  transform: translateX(2px);
+}
+.sig-row--output:active {
+  cursor: grabbing;
+  transform: scale(0.98);
+  opacity: 0.7;
+}
+
+/* INPUT rows: receptive glow on hover */
+.sig-row--input:hover {
+  background: rgba(92,200,255,0.06) !important;
+  box-shadow: -3px 0 0 #5cc8ff40;
+}
+
+/* Receive drop zone: pulse when idle, glow on drag-over */
+.receive-dropzone {
+  position: relative;
+}
+@keyframes dropzone-pulse {
+  0%, 100% { border-color: rgba(92,200,255,0.15); }
+  50% { border-color: rgba(92,200,255,0.3); }
+}
+.receive-dropzone:not(:hover) {
+  animation: dropzone-pulse 3s ease-in-out infinite;
+}
