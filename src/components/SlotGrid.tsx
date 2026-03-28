@@ -1215,7 +1215,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               OUTPUTS (+) :
                             </div>
                             {outputs.length > 0 ? (
-                              {outputs.map(renderRow)}
+                              <>{outputs.map(renderRow)}</>
                             ) : (
                               <div style={{ padding: '8px 6px 8px 26px', fontSize: 10, color: 'rgba(255,255,255,0.18)', fontStyle: 'italic' }}>
                                 No outputs yet {'\u2014'} signals appear when a .toe connects
@@ -1405,7 +1405,6 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                                 {'\u00d7'}
                                               </button>
                                             </div>
-                                          </div>
                                           </div>
                                         );
                                       })}
