@@ -1138,7 +1138,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           {/* Column 1: direction badge + drag grip */}
                           <span className="sig-row__badge" style={{
                             fontWeight: 900, fontSize: row.dir === 'output' ? 16 : 14, lineHeight: 1,
-                            color: slotColor,
+                            color: 'rgba(255,255,255,0.45)',
                             textAlign: 'center',
                             transition: 'transform 0.15s',
                             cursor: row.dir === 'output' ? 'grab' : 'default',
@@ -1198,12 +1198,12 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           <>
                             <div style={{
                               fontSize: 13, fontWeight: 800, letterSpacing: '0.1em',
-                              color: slotColor, padding: '5px 6px 4px',
+                              color: `color-mix(in srgb, ${slotColor} 50%, white)`, padding: '5px 6px 4px',
                               borderBottom: `2px solid ${slotColor}30`,
                               background: `${slotColor}0a`,
                               fontFamily: 'var(--font-mono)',
                             }}>
-                              OUTPUTS (+)
+                              OUTPUTS (+) :
                             </div>
                             {outputs.length > 0 ? (
                               {outputs.map(renderRow)}
@@ -1307,7 +1307,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                       {/* ROUTED IN header — card-colored, matches OUTPUTS header */}
                                       <div style={{
                                         fontSize: 13, fontWeight: 800, letterSpacing: '0.1em',
-                                        color: slotColor, textAlign: 'left', paddingLeft: 6, paddingBottom: 4,
+                                        color: `color-mix(in srgb, ${slotColor} 50%, white)`, textAlign: 'left', paddingLeft: 6, paddingBottom: 4,
                                         borderBottom: `2px solid ${slotColor}30`,
                                         marginBottom: 6,
                                         fontFamily: 'var(--font-mono)',
