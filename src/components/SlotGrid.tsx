@@ -1149,14 +1149,15 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               <span style={{ paddingLeft: 4, color: 'rgba(255,255,255,0.2)' }}>DESCRIPTION</span>
                               <span style={{ textAlign: 'right', color: 'rgba(255,255,255,0.2)', minWidth: 48, paddingLeft: 4 }}>LIVE</span>
                             </div>
-                            {inputs.length > 0 ? (
+                            {inputs.length > 0 && (
                               <>
                                 <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', padding: '2px 6px 2px 26px', borderBottom: '1px solid rgba(255,255,255,0.03)', fontStyle: 'italic' }}>
                                   Drop another node&apos;s output here to listen/react
                                 </div>
                                 {inputs.map(renderRow)}
                               </>
-                            ) : (
+                            )}
+                            {/* Drop zone — always shown for receive/two_way cards, even if they have existing inputs */}
                               <div
                                 className="receive-dropzone"
                                 onDragOver={e => {
@@ -1205,13 +1206,16 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                   </>
                                 ) : (
                                   <>
-                                    <span style={{ fontSize: 16, opacity: 0.4, lineHeight: 1 }}>{'\u2212 \u2212 \u2212'}</span>
-                                    <span>Drop a signal here to route from another node</span>
-                                    <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.5 }}>This node receives signals from other .toe devices</span>
+                                    <span style={{ fontSize: 22, opacity: 0.5, lineHeight: 1 }}>{'\u2212 \u2212 \u2212'}</span>
+                                    <span style={{ fontSize: 14, fontWeight: 800, fontStyle: 'italic', letterSpacing: '0.02em' }}>
+                                      Drop a signal here to route from another node
+                                    </span>
+                                    <span style={{ fontSize: 11, fontWeight: 600, fontStyle: 'italic', opacity: 0.5 }}>
+                                      This node receives signals from other .toe devices
+                                    </span>
                                   </>
                                 )}
                               </div>
-                            )}
                           </>
                         )}
 
