@@ -1440,7 +1440,7 @@ export default function Home() {
         const entityId = slot.entity_id;
         try {
           const res = await fetch(
-            `${API_BASE}/video/frame/${entityId}_state?t=${Date.now()}`,
+            `/api/td-state/${entityId}?t=${Date.now()}`,
             { cache: 'no-store', signal: AbortSignal.timeout(3000) }
           );
           if (!res.ok) continue;
