@@ -745,8 +745,29 @@ export default function Home() {
       const res = await fetch(`${base}/entities`, { signal: AbortSignal.timeout(6000) });
       if (!res.ok) { setServerConnected(false); return; }
       const data = await res.json();
-      const entities: Record<string, unknown>[] = Array.isArray(data) ? data : (data.entities ?? []);
+      const rawEntities: Record<string, unknown>[] = Array.isArray(data) ? data : (data.entities ?? []);
       setServerConnected(true);
+
+      // Filter: only create slots for entity types that represent live nodes
+      // Skip organizational entities (Installation, Room, Space, Zone, Group)
+      const SLOT_TYPES = new Set(['device', 'controller', 'sensor', 'actuator', 'media', 'light']);
+      const entities = rawEntities.filter(e => {
+        // Always keep entities that match existing active slots (scope, krista1_visual, etc.)
+        const slug = (e.slug as string) || (e.name as string) || String(e.id);
+        // Extract entity_type — could be a string or an object with .name
+        const rawType = e.entity_type;
+        const typeName = typeof rawType === 'string' ? rawType
+          : typeof rawType === 'object' && rawType !== null ? (rawType as Record<string, unknown>).name as string
+          : '';
+        const typeStr = (typeName || '').toLowerCase();
+        // Keep if it's a known device-like type, has state, or has no type (legacy)
+        return SLOT_TYPES.has(typeStr)
+          || !typeStr  // no type = legacy entity, keep it
+          || (e.state && Object.keys(e.state as object).length > 0)  // has live state
+          || (e.device_id != null);  // has a physical device
+      });
+
+      log(`[Server] ${entities.length}/${rawEntities.length} entities (filtered) from ${base.replace('https://','').replace('http://','').slice(0,30)}`, 'ok');
 
       // Hydrate slots from server entities — server is truth
       if (entities.length > 0) {
@@ -826,7 +847,7 @@ export default function Home() {
         }
       });
 
-      log(`[Server] ${entities.length} entities from ${base.replace('https://','').replace('http://','')}`, 'ok');
+      // (entity count logged above after filtering)
     } catch (err) {
       setServerConnected(false);
       log(`[Server] ${base.replace('https://','').replace('http://','')} unreachable`, 'warn');
