@@ -936,6 +936,89 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
               {slot.active ? (
                 <div className="live-node-panel">
 
+{/* ── 0. INLINE WIZARD (when setup button clicked on active card) ── */}
+                  {inSetup && (
+                    <div className="slot-inline-wizard" style={{ marginBottom: 8 }}>
+                      <div className="slot-wizard-steps">
+                        {(['connect','setup','slug','addState'] as InlineStage[]).map((s, i, arr) => (
+                          <span key={s} style={{ display: 'flex', alignItems: 'center' }}>
+                            <span className={`slot-wizard-dot ${
+                              setup.stage === s ? 'active' :
+                              arr.indexOf(setup.stage) > i ? 'done' : ''
+                            }`} />
+                            {i < arr.length - 1 && <span className="slot-wizard-line" />}
+                          </span>
+                        ))}
+                      </div>
+                      {setup.stage === 'connect' && (
+                        <div className="slot-wizard-content">
+                          <div className="slot-wizard-title" style={{ color: slotColor, letterSpacing: '0.15em' }}>
+                            CONNECT .TOE FILE
+                          </div>
+                          <label style={{ display: 'block', width: '100%', boxSizing: 'border-box',
+                            padding: '10px 12px', cursor: 'pointer', position: 'relative',
+                            border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}
+                            onClick={e => e.stopPropagation()}>
+                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 4, pointerEvents: 'none' }}>
+                              {setup.refFile ? `\uD83D\uDCC1 ${setup.refFile}` : 'Browse to your .toe file'}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', lineHeight: 1.7, pointerEvents: 'none' }}>
+                              Select the .toe project file for this slot.
+                            </div>
+                            <input type="file" accept=".toe,.tox"
+                              style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
+                              onChange={e => {
+                                const f = e.target.files?.[0];
+                                if (f) {
+                                  const derived = f.name.replace(/\.(toe|tox)$/i,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+                                  setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], refFile: f.name, slug: derived, stage: 'setup' } }));
+                                }
+                              }} />
+                          </label>
+                          <button
+                            onClick={e => { e.stopPropagation(); setSetupState(prev => { const n = { ...prev }; delete n[slot.id]; return n; }); }}
+                            style={{ fontSize: 10, padding: '4px 10px', cursor: 'pointer', marginTop: 4,
+                              fontFamily: 'var(--font-mono)', background: 'transparent',
+                              border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)' }}>
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+                      {setup.stage === 'setup' && (
+                        <div className="slot-wizard-content">
+                          <div className="slot-wizard-title" style={{ color: slotColor }}>FILE SELECTED</div>
+                          <div style={{ color: '#8892b0', fontSize: 11, textAlign: 'center', padding: '4px 0' }}>
+                            <span style={{ color: slotColor, fontWeight: 600 }}>{setup.refFile}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, width: '100%', marginTop: 4 }}>
+                            <button className="slot-wizard-btn" onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'connect' } })); }}
+                              style={{ flex: '0 0 auto', fontSize: 10, padding: '4px 8px', background: 'transparent', border: '1px solid #334155', color: '#8892b0', cursor: 'pointer' }}>
+                              {'\u2190'} Back
+                            </button>
+                            <button className="slot-wizard-btn slot-wizard-btn-primary"
+                              style={{ flex: 1, fontSize: 10, padding: '4px 8px', background: `${slotColor}20`, border: `1px solid ${slotColor}`, color: slotColor, cursor: 'pointer' }}
+                              onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'slug' } })); }}>
+                              Confirm {'\u2192'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {(setup.stage === 'slug' || setup.stage === 'addState') && (
+                        <div className="slot-wizard-content">
+                          <div style={{ color: '#8892b0', fontSize: 11, textAlign: 'center', padding: '4px 0' }}>
+                            Setup complete. File reference saved.
+                          </div>
+                          <button onClick={e => { e.stopPropagation(); setSetupState(prev => { const n = { ...prev }; delete n[slot.id]; return n; }); }}
+                            style={{ fontSize: 10, padding: '4px 10px', cursor: 'pointer',
+                              fontFamily: 'var(--font-mono)', background: `${slotColor}15`,
+                              border: `1px solid ${slotColor}40`, color: slotColor }}>
+                            Done
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
 {/* ── 1. SIGNAL PATCH TABLE — primary interaction surface ── */}
                   {(() => {
                     const eid = slot.entity_id || slot.id;
