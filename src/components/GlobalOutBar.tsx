@@ -33,9 +33,9 @@ export interface OutSignal {
 
 // mirrors-echo global outputs
 export const MIRRORS_ECHO_OUTS: OutSignal[] = [
-  { id: 'prompt_text',     label: 'prompt_text',     type: 'string',  color: '#00d4ff', icon: '✦', sourceSlotId: 'krista1' },
-  { id: 'audio_amplitude', label: 'audio_amplitude', type: 'float',   color: '#a78bfa', icon: '◈', sourceSlotId: 'krista1' },
-  { id: 'visitor_present', label: 'visitor_present', type: 'boolean', color: '#34d399', icon: '◉', sourceSlotId: 'krista1' },
+  { id: 'prompt_text',     label: 'prompt_text',     type: 'string',  color: '#00d4ff', icon: '✦', sourceSlotId: 'slot2' },
+  { id: 'audio_amplitude', label: 'audio_amplitude', type: 'float',   color: '#a78bfa', icon: '◈', sourceSlotId: 'slot2' },
+  { id: 'visitor_present', label: 'visitor_present', type: 'boolean', color: '#34d399', icon: '◉', sourceSlotId: 'slot2' },
 ];
 
 export const AUDIO_OUTS: OutSignal[] = [
@@ -79,7 +79,7 @@ export default function GlobalOutBar({ slots, sendTarget, onSendTargetChange, on
 
   useEffect(() => {
     async function poll() {
-      const [m, d] = await Promise.allSettled([fetchState('krista1_visual'), fetchState('dmx-lighting')]);
+      const [m, d] = await Promise.allSettled([fetchState('KFaist_Ambient_Intelligence'), fetchState('dmx-lighting')]);
       const v: Record<string, string | number | boolean> = {};
       if (m.status === 'fulfilled' && m.value) {
         const s = m.value as Record<string, unknown>;

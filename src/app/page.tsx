@@ -254,11 +254,11 @@ export default function Home() {
     connectionsRef.current.set(slotId, conn);
 
     // Set slot active immediately — derive endpoint from slot's suggestion tag
-    // For krista1: also mark stream as 'advertised' so fetchFrame starts pulling SD frames
+    // For slot1 (CineTech): also mark stream as 'advertised' so fetchFrame starts pulling SD frames
     setSlots(prev => prev.map(s => {
       if (s.id !== slotId) return s;
-      // Match wizard behavior: krista1 TD slot uses /video/frame/td
-      const isSDSlot = slotId === 'krista1';
+      // Match wizard behavior: slot1 (CineTech) TD slot uses /video/frame/td
+      const isSDSlot = slotId === 'slot1';
       const endpoint = s.endpoint || (isSDSlot ? '/video/frame/td' : `/video/frame/${entityId}`);
       return {
         ...s,
@@ -614,25 +614,7 @@ export default function Home() {
             if (_slug) setEntityStates(prev => ({ ...prev, [_slug]: { ...prev[_slug], ..._d as Record<string,string> } }));
           }
 
-          // Auto-claim: if entity pushed toe_name, claim first available slot
-          if (msg.data && typeof msg.data === 'object') {
-            const d = msg.data as Record<string, unknown>;
-            if (d.toe_name && msg.entity_id) {
-              const eid = msg.entity_id as string;
-              const toeName = String(d.toe_name);
-              setSlots(prev => {
-                // Already claimed?
-                if (prev.some(s => s.entity_id === eid)) return prev;
-                // Find first available slot
-                const idx = prev.findIndex(s => !s.active && !s.entity_id);
-                if (idx === -1) return prev;
-                const updated = [...prev];
-                updated[idx] = { ...updated[idx], label: toeName, entity_id: eid };
-                log(`Auto-claimed Slot ${idx + 1} for ${toeName} (${eid})`, 'ok');
-                return updated;
-              });
-            }
-          }
+          // Note: auto-claim removed — primary cards are fixed, discovered cards come from fetchEntities
           // Push to entity bus + accumulate entity state
           if (msg.data && typeof msg.data === 'object') {
             const eid = msg.entity_id as string;
@@ -748,72 +730,78 @@ export default function Home() {
       const rawEntities: Record<string, unknown>[] = Array.isArray(data) ? data : (data.entities ?? []);
       setServerConnected(true);
 
-      // Filter: only create slots for entity types that represent live nodes
-      // Skip organizational entities (Installation, Room, Space, Zone, Group)
-      const SLOT_TYPES = new Set(['device', 'controller', 'sensor', 'actuator', 'media', 'light']);
-      const entities = rawEntities.filter(e => {
-        // Always keep entities that match existing active slots (KFaist_Ambient_Intelligence, krista1_visual, etc.)
-        const slug = (e.slug as string) || (e.name as string) || String(e.id);
-        // Extract entity_type — could be a string or an object with .name
-        const rawType = e.entity_type;
-        const typeName = typeof rawType === 'string' ? rawType
-          : typeof rawType === 'object' && rawType !== null ? (rawType as Record<string, unknown>).name as string
-          : '';
-        const typeStr = (typeName || '').toLowerCase();
-        // Keep if it's a known device-like type, has state, or has no type (legacy)
-        return SLOT_TYPES.has(typeStr)
-          || !typeStr  // no type = legacy entity, keep it
-          || (e.state && Object.keys(e.state as object).length > 0)  // has live state
-          || (e.device_id != null);  // has a physical device
-      });
+      const entities = rawEntities;
+      log(`[Server] ${entities.length} entities from ${base.replace('https://','').replace('http://','').slice(0,30)}`, 'ok');
 
-      log(`[Server] ${entities.length}/${rawEntities.length} entities (filtered) from ${base.replace('https://','').replace('http://','').slice(0,30)}`, 'ok');
+      // Fixed primary card entity_ids — these are permanent and never altered
+      const PRIMARY_IDS = new Set(['KFaist_CineTech', 'KFaist_Ambient_Intelligence', 'KFaist_Shapeshifters']);
 
-      // Hydrate slots from server entities — server is truth
       if (entities.length > 0) {
         setSlots(prev => {
-          const bySlug = new Map(prev.map(s => [s.entity_id || s.id, s]));
-          const hydrated = entities.map((e, i) => {
-            const slug = (e.slug as string) || (e.name as string) || String(e.id);
-            const existing = bySlug.get(slug) || bySlug.get(String(e.id));
-            const state = (e.state as Record<string, unknown>) || {};
+          // 1. Populate the 3 primary cards with matching entity data
+          const primaries = prev.filter(c => PRIMARY_IDS.has(c.entity_id || '')).map(card => {
+            const match = entities.find(e =>
+              (e.slug as string) === card.entity_id
+              || (e.name as string) === card.entity_id
+              || String(e.id) === card.entity_id
+            );
+            if (!match) return card;
+            const state = (match.state as Record<string, unknown>) || {};
+            const serverSchema = (match.metadata as Record<string, unknown>)?.stateSchema as import('@/types').StateSchema | undefined;
             return {
-              ...(existing || {
-                id: slug,
-                label: (e.name as string) || slug,
-                endpoint: null,
-                cloudNode: false,
-                connection_status: 'disconnected' as const,
-                last_heartbeat: null,
-                active_stream: null,
-                state_summary: {},
-                _frameTimes: [],
-                _fpsSmooth: null,
-                fps: null,
-                frameUrl: null,
-                active: false,
-              }),
-              entity_id: slug,
-              entityId: String(e.id),      // UUID from server
-              slug,                          // human slug
-              label: (state.toe_name as string) || (e.name as string) || slug,
-              last_heartbeat: (e.last_heartbeat as number) || null,
+              ...card,
+              entityId: String(match.id),
               state_summary: state,
-              stateSchema: (e.metadata as Record<string, unknown>)?.stateSchema as Record<string, {type: string; direction: string}> | undefined,
-              active: !!(existing?.active),
-            } as import('@/types').FleetSlot;
+              stateSchema: serverSchema || card.stateSchema,
+              last_heartbeat: (match.last_heartbeat as number) || card.last_heartbeat,
+              // Identity is NEVER overwritten
+              entity_id: card.entity_id,
+              label: card.label,
+              id: card.id,
+            };
           });
-          // Keep any local-only active slots not yet on server
-          const serverSlugs = new Set(hydrated.map(s => s.entity_id));
-          const localOnly = prev.filter(s => s.active && !serverSlugs.has(s.entity_id || s.id));
-          const merged = [...hydrated, ...localOnly];
-          // Ensure KFaist slot is always present (HTTP-only frame polling, no WS registration)
-          if (!merged.some(s => s.entity_id === 'KFaist_Ambient_Intelligence')) {
-            const initial = createInitialSlots();
-            const kfaistSlot = initial.find(s => s.entity_id === 'KFaist_Ambient_Intelligence');
-            if (kfaistSlot) merged.push(kfaistSlot);
-          }
-          return merged;
+
+          // 2. Find entities not matched to any primary card
+          const matchedSlugs = new Set(entities
+            .filter(e => PRIMARY_IDS.has((e.slug as string) || '') || PRIMARY_IDS.has((e.name as string) || ''))
+            .map(e => (e.slug as string) || (e.name as string) || String(e.id)));
+          const existingDiscoveredIds = new Set(prev.filter(c => !PRIMARY_IDS.has(c.entity_id || '')).map(c => c.entity_id));
+
+          const discovered = entities
+            .filter(e => {
+              const slug = (e.slug as string) || (e.name as string) || String(e.id);
+              return !PRIMARY_IDS.has(slug) && !matchedSlugs.has(slug);
+            })
+            .map((e, i) => {
+              const slug = (e.slug as string) || (e.name as string) || String(e.id);
+              const existing = prev.find(c => c.entity_id === slug);
+              const state = (e.state as Record<string, unknown>) || {};
+              const serverSchema = (e.metadata as Record<string, unknown>)?.stateSchema as import('@/types').StateSchema | undefined;
+              return {
+                ...(existing || {
+                  id: `discovered-${slug}`,
+                  endpoint: null,
+                  cloudNode: false,
+                  connection_status: 'disconnected' as const,
+                  last_heartbeat: null,
+                  active_stream: null,
+                  _frameTimes: [] as number[],
+                  _fpsSmooth: null,
+                  fps: null,
+                  frameUrl: null,
+                  active: false,
+                }),
+                entity_id: slug,
+                entityId: String(e.id),
+                slug,
+                label: (e.name as string) || slug,
+                state_summary: state,
+                stateSchema: serverSchema || (existing?.stateSchema),
+                last_heartbeat: (e.last_heartbeat as number) || null,
+              } as import('@/types').FleetSlot;
+            });
+
+          return [...primaries, ...discovered];
         });
       }
 
@@ -949,7 +937,7 @@ export default function Home() {
   const webcamEntityStateRef = useRef(0);
 
   const handleWebcamFrame = useCallback((blobUrl: string, fps: number) => {
-    const currentSelected = selectedIdRef.current || 'krista1';
+    const currentSelected = selectedIdRef.current || 'slot1';
     // Lock webcam to the first slot that started it — don't follow selection changes
     if (!webcamSlotRef.current) webcamSlotRef.current = currentSelected;
     const slotId = webcamSlotRef.current;
@@ -1017,7 +1005,7 @@ export default function Home() {
   const webcamHttpErrCountRef = useRef(0);
 
   const handleWebcamFrameData = useCallback((base64: string) => {
-    const slotId = webcamSlotRef.current || selectedIdRef.current || 'krista1';
+    const slotId = webcamSlotRef.current || selectedIdRef.current || 'slot1';
     const conn = connectionsRef.current.get(slotId);
     const slot = slotsRef.current.find(s => s.id === slotId);
     const entityId = conn?.entityId || slot?.entity_id || slotId;
@@ -1118,9 +1106,9 @@ export default function Home() {
     setWebcamActive(active);
     if (active) {
       // Auto-select first slot if nothing is selected
-      if (!selectedIdRef.current) setSelectedId('krista1');
+      if (!selectedIdRef.current) setSelectedId('slot1');
       // Lock webcam to the currently selected slot
-      webcamSlotRef.current = selectedIdRef.current || 'krista1';
+      webcamSlotRef.current = selectedIdRef.current || 'slot1';
       const target = webcamSlotRef.current;
 
       // Auto-activate the target slot if it's inactive (so frames display in the card)
@@ -1165,7 +1153,7 @@ export default function Home() {
       log(`[Webcam] Started — streaming to ${target} (other slots still polling)`, 'ok');
       logEvent('stream', target, 'Webcam stream started');
     } else {
-      const target = webcamSlotRef.current || 'krista1';
+      const target = webcamSlotRef.current || 'slot1';
       const slot = slotsRef.current.find(s => s.id === target);
       const conn = connectionsRef.current.get(target);
       const entityId = conn?.entityId || slot?.entity_id || target;
@@ -1443,17 +1431,17 @@ export default function Home() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         log(`[SD Health] ✓ Frame endpoint live — ${blob.size} bytes (${res.headers.get('content-type')})`, 'ok');
-        logEvent('stream', 'krista1', `SD probe: ${blob.size}B frame OK`);
+        logEvent('stream', 'slot1', `SD probe: ${blob.size}B frame OK`);
       } catch (err) {
         log(`[SD Health] ✗ Frame endpoint failed: ${(err as Error).message}`, 'error');
-        logEvent('stream', 'krista1', `SD probe FAILED: ${(err as Error).message}`);
+        logEvent('stream', 'slot1', `SD probe FAILED: ${(err as Error).message}`);
       }
     })();
 
     // Auto-connect slot 1 on load — SD stream appears immediately, zero clicks needed.
     // Other slots stay available — users connect them explicitly via the setup wizard.
     setTimeout(() => {
-      autoConnectSlot('krista1');
+      autoConnectSlot('slot1');
     }, 100);
 
     // ── State sidecar polling ──────────────────────────────────────
@@ -1483,15 +1471,15 @@ export default function Home() {
       }
     }, 5000); // Poll every 5s — lightweight, doesn't need to be fast
 
-    // SD feed watchdog — keep krista1 alive 24/7. If it drops, reconnect after 10s.
+    // SD feed watchdog — keep slot1 (CineTech) alive 24/7. If it drops, reconnect after 10s.
     const sdWatchdog = setInterval(() => {
-      const k1 = slotsRef.current.find(s => s.id === 'krista1');
+      const k1 = slotsRef.current.find(s => s.id === 'slot1');
       if (!k1) return;
-      const conn = connectionsRef.current.get('krista1');
+      const conn = connectionsRef.current.get('slot1');
       const isHealthy = k1.active && conn && k1.maestraStatus?.server === 'connected';
       if (!isHealthy) {
-        console.log('[SD Watchdog] krista1 not healthy — reconnecting');
-        autoConnectSlot('krista1');
+        console.log('[SD Watchdog] slot1 (CineTech) not healthy — reconnecting');
+        autoConnectSlot('slot1');
       }
     }, 10000);
 
@@ -1562,7 +1550,7 @@ export default function Home() {
               slots={slots}
               selectedId={selectedId}
               onSelectSlot={setSelectedId}
-              onAddSlot={() => setSlots(prev => [...prev, { id: `slot-${Date.now()}`, slug: '', entityId: null, label: 'New Slot', entity_id: null, endpoint: null, cloudNode: false, connection_status: 'disconnected' as const, last_heartbeat: null, active_stream: null, state_summary: {}, _frameTimes: [], _fpsSmooth: null, fps: null, frameUrl: null, active: false }])}
+              onAddSlot={() => { /* Primary cards are fixed — no dynamic add */ }}
               onJoinNode={() => setJoinModalOpen(true)}
               onSlotSetupComplete={handleSlotSetupComplete}
               onInjectSignal={handleInjectSignal}

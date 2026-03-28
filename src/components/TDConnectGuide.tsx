@@ -85,7 +85,7 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
     nodeRole !== null ? 'signal' :
     nodeIsUp && waitingForNode ? 'role' :       // auto-advance: node connected!
     waitingForNode ? 'waiting' :
-    nodeIsUp ? 'role' :                          // already connected (e.g. krista1 auto-connect)
+    nodeIsUp ? 'role' :                          // already connected (e.g. CineTech auto-connect)
     'attach';
 
   // Track activity in live mode

@@ -98,7 +98,7 @@ export type ConnectionStatus = 'connected' | 'disconnected' | 'connecting' | 'di
 export interface MaestraEntity {
   entity_id: string;
   name: string;
-  type: 'touchdesigner' | 'browser' | 'max_msp' | 'arduino' | 'scope' | 'unknown';
+  type: 'touchdesigner' | 'browser' | 'max_msp' | 'arduino' | 'unknown';
   connection_status: ConnectionStatus;
   last_heartbeat: number | null;
   active_stream: string | null;
@@ -153,7 +153,7 @@ export interface FleetSlot {
 export interface SlotSuggestion {
   title: string;
   desc: string;
-  tag: 'td' | 'scope' | 'max' | 'browser';
+  tag: 'td' | 'max' | 'browser';
   tagLabel: string;
 }
 
