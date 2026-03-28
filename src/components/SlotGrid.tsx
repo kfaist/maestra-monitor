@@ -1118,7 +1118,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               </>
                             ) : (
                               <div style={{ padding: '8px 6px 8px 26px', fontSize: 10, color: 'rgba(255,255,255,0.18)', fontStyle: 'italic' }}>
-                                No outputs yet \u2014 signals appear when a .toe connects
+                                No outputs yet {'\u2014'} signals appear when a .toe connects
                               </div>
                             )}
                           </>
@@ -1135,7 +1135,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               borderTop: canSend ? `1px solid ${slotColor}20` : 'none',
                             }}>
                               <span></span>
-                              <span>INPUTS (\u2212)</span>
+                              <span>INPUTS ({'\u2212'})</span>
                               <span style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)' }}>TYPE</span>
                               <span style={{ paddingLeft: 4, color: 'rgba(255,255,255,0.2)' }}>DESCRIPTION</span>
                               <span style={{ textAlign: 'right', color: 'rgba(255,255,255,0.2)', minWidth: 48, paddingLeft: 4 }}>LIVE</span>
@@ -1185,13 +1185,13 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               >
                                 {isCardDropTarget ? (
                                   <>
-                                    <span style={{ fontSize: 18, lineHeight: 1 }}>\u2212</span>
+                                    <span style={{ fontSize: 18, lineHeight: 1 }}>{'\u2212'}</span>
                                     <span>{dragSource!.key} \u2192 {patchSlug}</span>
                                     <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.6 }}>release to create route</span>
                                   </>
                                 ) : (
                                   <>
-                                    <span style={{ fontSize: 16, opacity: 0.4, lineHeight: 1 }}>\u2212 \u2212 \u2212</span>
+                                    <span style={{ fontSize: 16, opacity: 0.4, lineHeight: 1 }}>{'\u2212 \u2212 \u2212'}</span>
                                     <span>Drop a signal here to route from another node</span>
                                     <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.5 }}>This node receives signals from other .toe devices</span>
                                   </>
@@ -1204,7 +1204,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         {/* send-only with no outputs */}
                         {!canReceive && !canSend && (
                           <div style={{ padding: '10px 8px', fontSize: 11, color: 'rgba(255,255,255,0.18)', fontStyle: 'italic' }}>
-                            No signals defined \u2014 connect a .toe or register a schema
+                            No signals defined {'\u2014'} connect a .toe or register a schema
                           </div>
                         )}
                       </div>

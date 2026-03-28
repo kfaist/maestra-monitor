@@ -51,7 +51,7 @@ const CORS = {
   'Cache-Control': 'no-store',
 };
 
-const MAX_AGE_MS = 2 * 60 * 1000; // 2 minutes
+const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours — seed data is always valid, push_gallery.py refreshes it when on-site
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS });
