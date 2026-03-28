@@ -12,8 +12,37 @@ import { NextRequest, NextResponse } from 'next/server';
  * Data expires after 2 minutes if no fresh POST arrives.
  */
 
-let cachedEntities: unknown[] = [];
-let lastUpdate = 0;
+/** Seed data — the 3 primary entities with frozen schemas.
+ *  Always available on server boot, no manual POST needed.
+ *  push_gallery.py overwrites with live gallery data when running on-site. */
+const SEED_ENTITIES = [
+  {
+    id: 1, slug: 'KFaist_CineTech', name: 'KFaist_CineTech', state: {},
+    metadata: { stateSchema: {
+      scene_id: { type: 'string', direction: 'output', description: 'Active scene identifier' },
+      playback_state: { type: 'string', direction: 'output', description: 'Transport state: playing, paused, stopped' },
+      timecode: { type: 'string', direction: 'output', description: 'Current timecode position HH:MM:SS:FF' },
+      media_path: { type: 'string', direction: 'input', description: 'Path to active media file or stream source' },
+      opacity: { type: 'float', direction: 'input', description: 'Master layer opacity 0.0-1.0' },
+    }},
+  },
+  {
+    id: 2, slug: 'KFaist_Ambient_Intelligence', name: 'KFaist_Ambient_Intelligence', state: {},
+    metadata: { stateSchema: {
+      prompt_text: { type: 'string', direction: 'output', default: null, description: 'Current active prompt being sent to StreamDiffusion' },
+      audio_amplitude: { type: 'float', direction: 'output', default: 0.0, description: 'Normalized audio amplitude 0.0-1.0 from audio analysis' },
+      visitor_present: { type: 'boolean', direction: 'output', default: false, description: 'True when webcam detects an active visitor' },
+      fps: { type: 'number', direction: 'output', default: 0, description: 'Current rendering / stream frame rate' },
+    }},
+  },
+  {
+    id: 3, slug: 'KFaist_Shapeshifters', name: 'KFaist_Shapeshifters', state: {},
+    metadata: { stateSchema: {} },
+  },
+];
+
+let cachedEntities: unknown[] = SEED_ENTITIES;
+let lastUpdate = Date.now();
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',

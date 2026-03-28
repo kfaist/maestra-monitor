@@ -2755,3 +2755,9 @@ footer a:hover { text-decoration: underline; }
 .receive-dropzone:not(:hover) {
   animation: dropzone-pulse 3s ease-in-out infinite;
 }
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+}

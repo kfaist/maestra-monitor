@@ -423,6 +423,10 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
     }, 300);
   }, []);
 
+  /** Wire-created flash: shows a brief confirmation toast */
+  const [wireFlash, setWireFlash] = useState<{ source: string; target: string; key: string } | null>(null);
+  const wireFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   /** Create a wire route */
   const createWire = useCallback(async (sourceSlug: string, sourceKey: string, targetSlug: string, targetKey: string) => {
     try {
@@ -437,8 +441,11 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
           if (prev.find(r => r.id === data.route.id)) return prev;
           return [...prev, data.route];
         });
-        // Default amount = 1.0
         setWireAmountOverrides(prev => ({ ...prev, [data.route.id]: 1.0 }));
+        // Flash confirmation
+        setWireFlash({ source: sourceSlug, target: targetSlug, key: sourceKey });
+        if (wireFlashTimer.current) clearTimeout(wireFlashTimer.current);
+        wireFlashTimer.current = setTimeout(() => setWireFlash(null), 2500);
       }
     } catch {}
   }, []);
@@ -695,6 +702,22 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
 
   return (
     <>
+      {/* ── Wire-created flash toast ── */}
+      {wireFlash && (
+        <div style={{
+          position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 9999, padding: '10px 20px', borderRadius: 6,
+          background: 'rgba(34,197,94,0.9)', color: '#000', fontWeight: 700,
+          fontSize: 13, fontFamily: 'var(--font-mono)',
+          boxShadow: '0 4px 20px rgba(34,197,94,0.4)',
+          animation: 'fadeInOut 2.5s ease-in-out',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 16 }}>✓</span>
+          <span>Route created: {wireFlash.source.replace('KFaist_','')}.{wireFlash.key} → {wireFlash.target.replace('KFaist_','')}</span>
+        </div>
+      )}
+
       <div className="panel-header">
         <div className="panel-title-sm">// Fleet Slots</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -912,114 +935,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
               {/* ═══════ ACTIVE SLOT: LIVE NODE PANEL ═══════ */}
               {slot.active ? (
                 <div className="live-node-panel">
-                  {/* Thumbnail frame at top — single stable source, no key remounts */}
-                  <div className="live-node-thumb">
-                    {(() => {
-                      // Use frameUrl (blob from polling) as sole source.
-                      // Fallback only shown as placeholder when no frames have arrived yet.
-                      const hasFrame = !!slot.frameUrl;
 
-                      return hasFrame ? (
-                        <img
-                          src={slot.frameUrl!}
-                          alt="stream"
-                          style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
-                        />
-                      ) : (
-                        <div className="live-node-thumb-placeholder">
-                          <span className="live-node-thumb-icon" style={{ fontSize: 24, opacity: 0.6 }}>
-                            {slot.signalType === 'audio_reactive' ? '♫'
-                              : slot.signalType === 'json_stream' ? '{}'
-                              : slot.signalType === 'osc' ? '~'
-                              : slot.signalType === 'touchdesigner' ? '◆'
-                              : slot.signalType === 'text' ? 'A'
-                              : '●'}
-                          </span>
-                          <span className="live-node-thumb-status" style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>
-                            {mStatus?.stream === 'live' ? 'LIVE — WAITING FOR FRAME'
-                              : mStatus?.stream === 'advertised' ? 'NO FRAME'
-                              : statusText}
-                          </span>
-                        </div>
-                      );
-                    })()}
-                    <div className={`live-node-badge ${statusCls}`}>
-                      {slot.frameUrl ? 'LIVE' : mStatus?.stream === 'advertised' ? 'ADVERTISED' : 'LIVE'}
-                    </div>
-                  </div>
-
-                  {/* -- Preview Info: entity slug + status + instruction -- */}
-                  <div style={{ padding: '6px 10px 4px', background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                      <span style={{ fontSize: 10, fontFamily: 'var(--font-display)', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)' }}>entity slug:</span>
-                      <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: slotColor, fontWeight: 700 }}>
-                        {(entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.toe_name as string || slot.entity_id || slot.id}
-                      </span>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: mStatus?.server === 'connected' ? '#4ade80' : mStatus?.server ? '#fbbf24' : 'rgba(255,255,255,0.2)' }} />
-                      {mStatus?.lastHeartbeatAt && (
-                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)', marginLeft: 'auto' }}>
-                          {mStatus.heartbeat === 'live' ? 'now' : `${formatAge(now - mStatus.lastHeartbeatAt)} ago`}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: 10, fontStyle: 'italic', fontWeight: 600, color: 'rgba(255,255,255,0.3)', lineHeight: 1.4 }}>
-                      drag <span style={{ color: '#22c55e' }}>+</span> and <span style={{ color: '#5cc8ff' }}>{'\u2212'}</span> chips below to broadcast to or listen to other slugs
-                    </div>
-                  </div>
-
-                  {/* ── Sidecar state chips: prompt_text, visitor_present, per-machine fps ── */}
-                  {(() => {
-                    const eid = slot.entity_id || slot.id;
-                    const eState = entityStates[eid] as Record<string, unknown> | undefined;
-                    if (!eState || eState._sidecar !== 'true') return null;
-                    const prompt = eState.prompt_text as string | null;
-                    const visitor = eState.visitor_present;
-                    const tdFps = eState.fps as number | string | null;
-                    const device = eState.device as string | null;
-                    const hasAny = prompt || visitor !== undefined || tdFps;
-                    if (!hasAny) return null;
-                    return (
-                      <div className="live-section" style={{ paddingBottom: 4 }}>
-                        <div className="live-section-head">TD State</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                          {tdFps != null && (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 3,
-                              background: 'rgba(49,130,206,0.15)', border: '1px solid rgba(49,130,206,0.4)',
-                              color: '#63b3ed', padding: '2px 7px', borderRadius: 10, fontSize: 10, fontWeight: 700,
-                            }}>{tdFps} fps</span>
-                          )}
-                          {visitor !== undefined && (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 3,
-                              background: visitor ? 'rgba(56,161,105,0.15)' : 'rgba(113,128,150,0.1)',
-                              border: `1px solid ${visitor ? 'rgba(56,161,105,0.4)' : 'rgba(113,128,150,0.2)'}`,
-                              color: visitor ? '#68d391' : '#718096',
-                              padding: '2px 7px', borderRadius: 10, fontSize: 10, fontWeight: 600,
-                            }}>{visitor ? '● VISITOR' : '○ no visitor'}</span>
-                          )}
-                          {device && (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center',
-                              background: 'rgba(213,163,25,0.1)', border: '1px solid rgba(213,163,25,0.3)',
-                              color: '#d5a319', padding: '2px 7px', borderRadius: 10, fontSize: 10, fontWeight: 600,
-                            }}>{device}</span>
-                          )}
-                          {prompt && (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center',
-                              background: 'rgba(128,90,213,0.12)', border: '1px solid rgba(128,90,213,0.35)',
-                              color: '#b794f4', padding: '2px 7px', borderRadius: 10, fontSize: 10, fontWeight: 500,
-                              maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            }} title={prompt}>{prompt.length > 50 ? prompt.slice(0, 50) + '…' : prompt}</span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-
-{/* ── SIGNAL PATCH TABLE ── */}
+{/* ── 1. SIGNAL PATCH TABLE — primary interaction surface ── */}
                   {(() => {
                     const eid = slot.entity_id || slot.id;
                     const eState = entityStates[eid] as Record<string,unknown> | undefined;
@@ -1294,9 +1211,97 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     );
                   })()}
 
-{/* sections 4-10 removed — streamlined layout */}
-                  
+                  {/* ── 2. TD STATE PILLS — live sidecar data ── */}
+                  {(() => {
+                    const eid = slot.entity_id || slot.id;
+                    const eState = entityStates[eid] as Record<string, unknown> | undefined;
+                    if (!eState || eState._sidecar !== 'true') return null;
+                    const prompt = eState.prompt_text as string | null;
+                    const visitor = eState.visitor_present;
+                    const tdFps = eState.fps as number | string | null;
+                    const device = eState.device as string | null;
+                    const hasAny = prompt || visitor !== undefined || tdFps;
+                    if (!hasAny) return null;
+                    return (
+                      <div style={{ padding: '4px 8px', display: 'flex', flexWrap: 'wrap', gap: 4, background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        {tdFps != null && (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 3,
+                            background: 'rgba(49,130,206,0.15)', border: '1px solid rgba(49,130,206,0.4)',
+                            color: '#63b3ed', padding: '2px 7px', borderRadius: 10, fontSize: 10, fontWeight: 700,
+                          }}>{tdFps} fps</span>
+                        )}
+                        {visitor !== undefined && (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 3,
+                            background: visitor ? 'rgba(56,161,105,0.15)' : 'rgba(113,128,150,0.1)',
+                            border: `1px solid ${visitor ? 'rgba(56,161,105,0.4)' : 'rgba(113,128,150,0.2)'}`,
+                            color: visitor ? '#68d391' : '#718096',
+                            padding: '2px 7px', borderRadius: 10, fontSize: 10, fontWeight: 600,
+                          }}>{visitor ? '● VISITOR' : '○ no visitor'}</span>
+                        )}
+                        {device && (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center',
+                            background: 'rgba(213,163,25,0.1)', border: '1px solid rgba(213,163,25,0.3)',
+                            color: '#d5a319', padding: '2px 7px', borderRadius: 10, fontSize: 10, fontWeight: 600,
+                          }}>{device}</span>
+                        )}
+                        {prompt && (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center',
+                            background: 'rgba(128,90,213,0.12)', border: '1px solid rgba(128,90,213,0.35)',
+                            color: '#b794f4', padding: '2px 7px', borderRadius: 10, fontSize: 10, fontWeight: 500,
+                            maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          }} title={prompt}>{prompt.length > 50 ? prompt.slice(0, 50) + '…' : prompt}</span>
+                        )}
+                      </div>
+                    );
+                  })()}
 
+                  {/* ── 3. THUMBNAIL — compact frame preview ── */}
+                  <div style={{ position: 'relative', height: 120, overflow: 'hidden', background: 'rgba(0,0,0,0.5)' }}>
+                    {(() => {
+                      const hasFrame = !!slot.frameUrl;
+                      return hasFrame ? (
+                        <img
+                          src={slot.frameUrl!}
+                          alt="stream"
+                          style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
+                        />
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 4 }}>
+                          <span style={{ fontSize: 20, opacity: 0.4 }}>
+                            {slot.signalType === 'audio_reactive' ? '♫'
+                              : slot.signalType === 'touchdesigner' ? '◆'
+                              : '●'}
+                          </span>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)' }}>
+                            {mStatus?.stream === 'advertised' ? 'NO FRAME' : 'WAITING'}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                    <div className={`live-node-badge ${statusCls}`} style={{ position: 'absolute', top: 6, left: 6 }}>
+                      {slot.frameUrl ? 'LIVE' : mStatus?.stream === 'advertised' ? 'ADVERTISED' : 'LIVE'}
+                    </div>
+                  </div>
+
+                  {/* ── 4. SLUG / IDENTITY — secondary info ── */}
+                  <div style={{ padding: '5px 10px 4px', background: 'rgba(0,0,0,0.35)', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 10, fontFamily: 'var(--font-display)', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)' }}>entity slug:</span>
+                      <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: slotColor, fontWeight: 700 }}>
+                        {(entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.toe_name as string || slot.entity_id || slot.id}
+                      </span>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: mStatus?.server === 'connected' ? '#4ade80' : mStatus?.server ? '#fbbf24' : 'rgba(255,255,255,0.2)' }} />
+                      {mStatus?.lastHeartbeatAt && (
+                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)', marginLeft: 'auto' }}>
+                          {mStatus.heartbeat === 'live' ? 'now' : `${formatAge(now - mStatus.lastHeartbeatAt)} ago`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
 </div>
               ) : (

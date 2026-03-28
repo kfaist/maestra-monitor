@@ -752,9 +752,13 @@ export default function Home() {
 
     if (entities.length === 0) {
       setServerConnected(false);
+      setResolvedServerUrl(resolveActiveBase());
       return;
     }
     setServerConnected(true);
+    if (source === 'gallery-cache') {
+      setResolvedServerUrl('gallery-cache (seeded)');
+    }
     log(`[Server] ${entities.length} entities from ${source}`, 'ok');
 
       // Fixed primary card entity_ids — these are permanent and never altered

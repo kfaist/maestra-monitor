@@ -22,7 +22,7 @@ export function createInitialSlots(): FleetSlot[] {
       active_stream: null,
       state_summary: {},
       signalType: 'touchdesigner',
-      nodeRole: 'send',
+      nodeRole: 'two_way',
       stateSchema: {
         scene_id: { type: 'string', direction: 'output', description: 'Active scene identifier' },
         playback_state: { type: 'string', direction: 'output', description: 'Transport state: playing, paused, stopped' },
@@ -49,7 +49,7 @@ export function createInitialSlots(): FleetSlot[] {
       active_stream: 'sd_output',
       state_summary: {},
       signalType: 'touchdesigner',
-      nodeRole: 'send',
+      nodeRole: 'two_way',
       stateSchema: {
         prompt_text: { type: 'string', direction: 'output', default: null, description: 'Current active prompt being sent to StreamDiffusion' },
         audio_amplitude: { type: 'float', direction: 'output', default: 0.0, description: 'Normalized audio amplitude 0.0–1.0 from audio analysis' },
