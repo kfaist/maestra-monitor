@@ -937,20 +937,23 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     </div>
                   </div>
 
-                  {/* -- Preview Info: compact entity bar + TD state -- */}
-                  <div style={{ padding: '6px 10px', background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: slotColor, fontWeight: 700 }}>
-                      {(entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.toe_name as string || slot.entity_id || slot.id}
-                    </span>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: mStatus?.server === 'connected' ? '#4ade80' : mStatus?.server ? '#fbbf24' : 'rgba(255,255,255,0.2)' }} />
-                    <span style={{ fontSize: 10, color: mStatus?.server === 'connected' ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-mono)' }}>
-                      {mStatus?.server === 'connected' ? 'connected' : mStatus?.server || 'offline'}
-                    </span>
-                    {mStatus?.lastHeartbeatAt && (
-                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', fontFamily: 'var(--font-mono)', marginLeft: 'auto' }}>
-                        {mStatus.heartbeat === 'live' ? 'now' : `${formatAge(now - mStatus.lastHeartbeatAt)} ago`}
+                  {/* -- Preview Info: entity slug + status + instruction -- */}
+                  <div style={{ padding: '6px 10px 4px', background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                      <span style={{ fontSize: 10, fontFamily: 'var(--font-display)', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)' }}>entity slug:</span>
+                      <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: slotColor, fontWeight: 700 }}>
+                        {(entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.toe_name as string || slot.entity_id || slot.id}
                       </span>
-                    )}
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: mStatus?.server === 'connected' ? '#4ade80' : mStatus?.server ? '#fbbf24' : 'rgba(255,255,255,0.2)' }} />
+                      {mStatus?.lastHeartbeatAt && (
+                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)', marginLeft: 'auto' }}>
+                          {mStatus.heartbeat === 'live' ? 'now' : `${formatAge(now - mStatus.lastHeartbeatAt)} ago`}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 10, fontStyle: 'italic', fontWeight: 600, color: 'rgba(255,255,255,0.3)', lineHeight: 1.4 }}>
+                      drag <span style={{ color: '#22c55e' }}>+</span> and <span style={{ color: '#5cc8ff' }}>{'\u2212'}</span> chips below to broadcast to or listen to other slugs
+                    </div>
                   </div>
 
                   {/* ── Sidecar state chips: prompt_text, visitor_present, per-machine fps ── */}
@@ -1053,12 +1056,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     );
                   })()}
 
-                  {/* -- Drag-and-drop instruction -- */}
-                  <div style={{ padding: '4px 10px 2px', fontSize: 11, fontStyle: 'italic', color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-mono)', letterSpacing: '0.02em' }}>
-                    drag <span style={{ color: '#22c55e', fontWeight: 700 }}>+</span> output and <span style={{ color: '#5cc8ff', fontWeight: 700 }}>−</span> input chips to wire your entity slot
-                  </div>
-
-{/* ── Section 2: Signals ── */}
+                  {/* ── Section 2: Signals ── */}
                   <div className="live-section">
                     <div className="live-section-head">Signals</div>
                     {publishing.length > 0 && (
