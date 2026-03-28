@@ -1225,7 +1225,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         )}
 
                         {/* ── COMPACT STREAM PREVIEW — right after outputs ── */}
-                        <div style={{ position: 'relative', height: 50, overflow: 'hidden', background: 'rgba(0,0,0,0.4)', margin: '1px 0' }}>
+                        <div style={{ position: 'relative', height: 120, overflow: 'hidden', background: 'rgba(0,0,0,0.4)', margin: '1px 0' }}>
                           {slot.frameUrl ? (
                             <img
                               src={slot.frameUrl}
