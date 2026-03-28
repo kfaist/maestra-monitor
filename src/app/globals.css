@@ -493,9 +493,9 @@ header {
 .slot.selected { border-color: var(--accent); border-width: 2px; box-shadow: 0 0 0 1px var(--accent), 0 0 24px rgba(0,212,255,0.3), inset 0 0 40px rgba(0,212,255,0.04); }
 .slot { border-color: var(--slot-color, var(--border)); border-width: 1px; }
 .slot:not(.active-slot) { border-color: color-mix(in srgb, var(--slot-color, var(--border)) 30%, transparent); }
-.slot.active-slot { border-color: var(--slot-color, var(--active)); box-shadow: 0 0 18px color-mix(in srgb, var(--slot-color, var(--active)) 50%, transparent), 0 0 0 1px var(--slot-color, var(--active)); }
-.slot.active-slot:hover { box-shadow: 0 0 28px color-mix(in srgb, var(--slot-color, var(--active)) 70%, transparent), 0 0 0 1px var(--slot-color, var(--active)); }
-.slot.active-slot.selected { border-width: 2px; box-shadow: 0 0 28px color-mix(in srgb, var(--slot-color, var(--active)) 60%, transparent), 0 0 0 2px var(--slot-color, var(--active)), inset 0 0 40px color-mix(in srgb, var(--slot-color, var(--active)) 5%, transparent); }
+.slot.active-slot { border-color: color-mix(in srgb, var(--slot-color, var(--active)) 45%, transparent); box-shadow: 0 0 8px color-mix(in srgb, var(--slot-color, var(--active)) 18%, transparent); }
+.slot.active-slot:hover { box-shadow: 0 0 14px color-mix(in srgb, var(--slot-color, var(--active)) 30%, transparent); }
+.slot.active-slot.selected { border-width: 2px; box-shadow: 0 0 14px color-mix(in srgb, var(--slot-color, var(--active)) 25%, transparent), 0 0 0 1px color-mix(in srgb, var(--slot-color, var(--active)) 40%, transparent); }
 .slot.active-slot .slot-label { color: var(--slot-color, var(--active)); }
 .slot.locked-slot { cursor: default; }
 .slot.locked-slot::after { content: ''; position: absolute; inset: 0; border: 2px solid var(--slot-color, var(--active)); border-radius: 4px; pointer-events: none; opacity: 0.6; animation: lockPulse 2s ease-in-out infinite; }
@@ -593,26 +593,26 @@ header {
 .slot:not(.active-slot):hover .slot-label { color: var(--accent); }
 .slot.selected .slot-label { color: var(--accent); }
 
-/* Signal-type colored borders — glow in the signal's color */
-.slot[data-signal="touchdesigner"] { border-color: rgba(217,70,239,0.5); box-shadow: 0 0 16px rgba(217,70,239,0.2), 0 0 0 1px rgba(217,70,239,0.3); }
-.slot[data-signal="touchdesigner"] .slot-label-name { color: var(--sig-visual); }
-.slot[data-signal="audio_reactive"] { border-color: rgba(245,158,11,0.5); box-shadow: 0 0 16px rgba(245,158,11,0.2), 0 0 0 1px rgba(245,158,11,0.3); }
-.slot[data-signal="audio_reactive"] .slot-label-name { color: var(--sig-audio); }
-.slot[data-signal="json_stream"] { border-color: rgba(56,189,248,0.5); box-shadow: 0 0 16px rgba(56,189,248,0.2), 0 0 0 1px rgba(56,189,248,0.3); }
-.slot[data-signal="json_stream"] .slot-label-name { color: var(--sig-json); }
-.slot[data-signal="text"] { border-color: rgba(34,197,94,0.5); box-shadow: 0 0 16px rgba(34,197,94,0.2), 0 0 0 1px rgba(34,197,94,0.3); }
-.slot[data-signal="text"] .slot-label-name { color: var(--sig-text); }
-.slot[data-signal="osc"] { border-color: rgba(20,184,166,0.5); box-shadow: 0 0 16px rgba(20,184,166,0.2), 0 0 0 1px rgba(20,184,166,0.3); }
-.slot[data-signal="osc"] .slot-label-name { color: var(--sig-osc); }
-.slot[data-signal="test_signal"] { border-color: rgba(107,114,128,0.4); box-shadow: 0 0 10px rgba(107,114,128,0.15); }
-.slot[data-signal="test_signal"] .slot-label-name { color: var(--sig-test); }
-/* Override entity ID color to match signal */
-.slot[data-signal="touchdesigner"] .slot-entity-id { color: var(--sig-visual); }
-.slot[data-signal="audio_reactive"] .slot-entity-id { color: var(--sig-audio); }
-.slot[data-signal="json_stream"] .slot-entity-id { color: var(--sig-json); }
-.slot[data-signal="text"] .slot-entity-id { color: var(--sig-text); }
-.slot[data-signal="osc"] .slot-entity-id { color: var(--sig-osc); }
-.slot[data-signal="test_signal"] .slot-entity-id { color: var(--sig-test); }
+/* Signal-type borders — defers to per-card --slot-color, slim & subtle */
+.slot[data-signal="touchdesigner"] { border-color: color-mix(in srgb, var(--slot-color, rgba(217,70,239,1)) 30%, transparent); box-shadow: 0 0 6px color-mix(in srgb, var(--slot-color, rgba(217,70,239,1)) 12%, transparent); }
+.slot[data-signal="touchdesigner"] .slot-label-name { color: var(--slot-color, var(--sig-visual)); }
+.slot[data-signal="audio_reactive"] { border-color: color-mix(in srgb, var(--slot-color, rgba(245,158,11,1)) 30%, transparent); box-shadow: 0 0 6px color-mix(in srgb, var(--slot-color, rgba(245,158,11,1)) 12%, transparent); }
+.slot[data-signal="audio_reactive"] .slot-label-name { color: var(--slot-color, var(--sig-audio)); }
+.slot[data-signal="json_stream"] { border-color: color-mix(in srgb, var(--slot-color, rgba(56,189,248,1)) 30%, transparent); box-shadow: 0 0 6px color-mix(in srgb, var(--slot-color, rgba(56,189,248,1)) 12%, transparent); }
+.slot[data-signal="json_stream"] .slot-label-name { color: var(--slot-color, var(--sig-json)); }
+.slot[data-signal="text"] { border-color: color-mix(in srgb, var(--slot-color, rgba(34,197,94,1)) 30%, transparent); box-shadow: 0 0 6px color-mix(in srgb, var(--slot-color, rgba(34,197,94,1)) 12%, transparent); }
+.slot[data-signal="text"] .slot-label-name { color: var(--slot-color, var(--sig-text)); }
+.slot[data-signal="osc"] { border-color: color-mix(in srgb, var(--slot-color, rgba(20,184,166,1)) 30%, transparent); box-shadow: 0 0 6px color-mix(in srgb, var(--slot-color, rgba(20,184,166,1)) 12%, transparent); }
+.slot[data-signal="osc"] .slot-label-name { color: var(--slot-color, var(--sig-osc)); }
+.slot[data-signal="test_signal"] { border-color: color-mix(in srgb, var(--slot-color, rgba(107,114,128,1)) 25%, transparent); box-shadow: 0 0 4px color-mix(in srgb, var(--slot-color, rgba(107,114,128,1)) 8%, transparent); }
+.slot[data-signal="test_signal"] .slot-label-name { color: var(--slot-color, var(--sig-test)); }
+/* Override entity ID color to match slot color */
+.slot[data-signal="touchdesigner"] .slot-entity-id { color: var(--slot-color, var(--sig-visual)); }
+.slot[data-signal="audio_reactive"] .slot-entity-id { color: var(--slot-color, var(--sig-audio)); }
+.slot[data-signal="json_stream"] .slot-entity-id { color: var(--slot-color, var(--sig-json)); }
+.slot[data-signal="text"] .slot-entity-id { color: var(--slot-color, var(--sig-text)); }
+.slot[data-signal="osc"] .slot-entity-id { color: var(--slot-color, var(--sig-osc)); }
+.slot[data-signal="test_signal"] .slot-entity-id { color: var(--slot-color, var(--sig-test)); }
 
 .slot.cloud-node { border-color: rgba(0,212,255,0.45); box-shadow: inset 3px 0 0 var(--accent), 0 0 18px rgba(0,212,255,0.08); }
 .slot.cloud-node .slot-label { color: var(--accent); }

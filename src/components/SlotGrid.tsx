@@ -1138,7 +1138,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           {/* Column 1: direction badge + drag grip */}
                           <span className="sig-row__badge" style={{
                             fontWeight: 900, fontSize: row.dir === 'output' ? 16 : 14, lineHeight: 1,
-                            color: '#fff',
+                            color: slotColor,
                             textAlign: 'center',
                             transition: 'transform 0.15s',
                             cursor: row.dir === 'output' ? 'grab' : 'default',
