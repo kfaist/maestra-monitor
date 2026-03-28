@@ -298,6 +298,47 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
                 </div>
               </button>
 
+              {/* Option 2: Browse to local .toe file */}
+              <label className="td-onboard-action-btn" style={{ cursor: 'pointer', position: 'relative' }}>
+                <span className="td-onboard-action-icon">📂</span>
+                <div className="td-onboard-action-text">
+                  <span className="td-onboard-action-title">{tdProjectPath !== 'project1/' ? tdProjectPath : 'Browse to .toe File'}</span>
+                  <span className="td-onboard-action-desc">Select your TouchDesigner project from disk</span>
+                </div>
+                <input type="file" accept=".toe,.tox"
+                  style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
+                  onClick={e => e.stopPropagation()}
+                  onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      setTdProjectPath(f.name);
+                      setWaitingForNode(true);
+                      onConnect?.();
+                    }
+                  }} />
+              </label>
+
+              {/* Option 3: Paste a local path */}
+              <div style={{ width: '100%' }}>
+                <input type="text" placeholder="Or paste local path  e.g. C:\project\my-show.toe"
+                  style={{
+                    width: '100%', boxSizing: 'border-box', padding: '8px 10px',
+                    fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)',
+                    color: '#c8d8e8', outline: 'none', borderRadius: 4, letterSpacing: '0.02em',
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      const val = (e.target as HTMLInputElement).value.trim();
+                      if (!val) return;
+                      setTdProjectPath(val);
+                      setWaitingForNode(true);
+                      onConnect?.();
+                    }
+                  }}
+                />
+              </div>
+
               {/* Option 2: Need the connector? */}
               <div className="td-onboard-divider">
                 <span>or</span>
