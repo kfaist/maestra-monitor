@@ -1010,174 +1010,196 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   })()}
 
 
-{/* ── State Schema: ↑output + ↓input chips with live values ── */}
+{/* ── SIGNAL PATCH TABLE ── */}
                   {(() => {
                     const eid = slot.entity_id || slot.id;
                     const eState = entityStates[eid] as Record<string,unknown> | undefined;
-                    const schema = eState?.stateSchema as Record<string, {type:string; direction:string}> | undefined;
-                    const entries = schema
-                      ? Object.entries(schema)
-                      : Object.entries(eState || {})
-                          .filter(([k]) => !['toe_name','tops','server','active','metadata','stateSchema','publishing','listening'].includes(k))
-                          .map(([k]) => [k, { type: 'string', direction: 'output' }] as [string, {type:string;direction:string}]);
-                    if (!entries.length) return null;
-                    const outs = entries.filter(([,v]) => v.direction !== 'input');
-                    const ins  = entries.filter(([,v]) => v.direction === 'input');
-                    return (
-                      <div className="live-section">
-                        <div className="live-section-head">State</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                          {outs.map(([key, varDef]) => {
-                            const lv = eState?.[key] != null ? String(eState[key]).slice(0, 16) : null;
-                            return (
-                              <div key={key} style={{
-                                display: 'inline-flex', alignItems: 'center', gap: 3,
-                                background: `${slotColor}12`, border: `1px solid ${slotColor}40`,
-                                padding: '2px 5px', fontSize: 10,
-                              }}>
-                                <span style={{ color: slotColor, fontSize: 10, fontWeight: 700 }}>=</span>
-                                <span style={{ fontFamily: 'var(--font-mono)', color: slotColor }}>{key}</span>
-                                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10 }}>{varDef.type}</span>
-                                {lv && <span style={{ color: 'var(--text-dim)', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: 3 }}>{lv}</span>}
-                              </div>
-                            );
-                          })}
-                          {ins.map(([key, varDef]) => (
-                            <div key={key} style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 3,
-                              background: 'rgba(255,255,255,0.03)', border: `1px solid ${slotColor}20`,
-                              padding: '2px 5px', fontSize: 10,
-                            }}>
-                              <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10, fontWeight: 700 }}>−</span>
-                              <span style={{ fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,0.4)' }}>{key}</span>
-                              <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: 10 }}>{varDef.type}</span>
-                            </div>
-                          ))}
+
+                    // Build signal rows from authored schema + live state
+                    const schema = slot.stateSchema || {};
+                    const schemaKeys = Object.keys(schema);
+
+                    // Also pick up live state keys not in schema
+                    const liveKeys = eState ? Object.keys(eState).filter(k =>
+                      !INTERNAL_STATE_KEYS.has(k) && !schemaKeys.includes(k)
+                    ) : [];
+
+                    type SigRow = { key: string; dir: 'output'|'input'; type: string; desc: string; dflt: unknown; live: unknown };
+                    const rows: SigRow[] = [
+                      ...schemaKeys.map(k => ({
+                        key: k,
+                        dir: (schema[k].direction || 'output') as 'output'|'input',
+                        type: schema[k].type || 'string',
+                        desc: schema[k].description || '',
+                        dflt: (schema[k] as unknown as Record<string,unknown>).default ?? null,
+                        live: eState?.[k] ?? null,
+                      })),
+                      ...liveKeys.map(k => ({
+                        key: k,
+                        dir: 'output' as const,
+                        type: typeof eState![k] === 'boolean' ? 'boolean' : typeof eState![k] === 'number' ? 'float' : 'string',
+                        desc: '',
+                        dflt: null,
+                        live: eState![k],
+                      })),
+                    ];
+
+                    const outputs = rows.filter(r => r.dir === 'output');
+                    const inputs = rows.filter(r => r.dir === 'input');
+
+                    if (outputs.length === 0 && inputs.length === 0) return (
+                      <div style={{ padding: '10px 8px', fontSize: 11, color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>
+                        No signals defined — connect a .toe or register a schema
+                      </div>
+                    );
+
+                    // Shared row style
+                    const rowStyle = (dir: 'output'|'input', isDragSrc: boolean, isDropTgt: boolean): React.CSSProperties => ({
+                      display: 'grid',
+                      gridTemplateColumns: '20px 1fr 52px 1fr auto',
+                      gap: 0,
+                      alignItems: 'center',
+                      padding: '4px 6px',
+                      fontSize: 11,
+                      fontFamily: 'var(--font-mono)',
+                      cursor: 'grab',
+                      borderBottom: '1px solid rgba(255,255,255,0.04)',
+                      background: isDropTgt
+                        ? (dir === 'output' ? 'rgba(34,197,94,0.15)' : 'rgba(92,200,255,0.15)')
+                        : isDragSrc ? 'rgba(255,255,255,0.06)' : 'transparent',
+                      outline: isDropTgt
+                        ? `2px dashed ${dir === 'output' ? '#22c55e' : '#5cc8ff'}`
+                        : isDragSrc ? `1px solid ${dir === 'output' ? '#22c55e' : '#5cc8ff'}` : 'none',
+                      opacity: isDragSrc ? 0.6 : 1,
+                      transition: 'background 0.12s, outline 0.12s',
+                    });
+
+                    const formatLive = (row: SigRow) => {
+                      if (row.live === null || row.live === undefined) return <span style={{ color: 'rgba(255,255,255,0.15)' }}>{row.dflt != null ? String(row.dflt) : '\u2014'}</span>;
+                      if (row.type === 'boolean' || typeof row.live === 'boolean') {
+                        return row.live
+                          ? <span style={{ color: '#4ade80', fontWeight: 700 }}>\u25CF true</span>
+                          : <span style={{ color: 'rgba(255,255,255,0.3)' }}>\u25CB false</span>;
+                      }
+                      if (row.type === 'float' || row.type === 'number' || typeof row.live === 'number') {
+                        return <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>{Number(row.live).toFixed(3)}</span>;
+                      }
+                      return <span style={{ color: 'rgba(255,255,255,0.7)' }}>{String(row.live).slice(0, 32)}</span>;
+                    };
+
+                    const renderRow = (row: SigRow) => {
+                      const slug = slot.entity_id || slot.id;
+                      const isDragSrc = dragSource?.slug === slug && dragSource?.key === row.key;
+                      const isDropTgt = dropTarget?.slug === slug && dropTarget?.key === row.key;
+                      return (
+                        <div key={`${row.dir}-${row.key}`}
+                          draggable
+                          onDragStart={() => handleChipDragStart(slug, row.key, row.dir)}
+                          onDragEnd={handleChipDragEnd}
+                          onDragOver={e => handleChipDragOver(e, slug, row.key, row.dir)}
+                          onDragLeave={handleChipDragLeave}
+                          onDrop={e => handleChipDrop(e, slug, row.key, row.dir)}
+                          style={rowStyle(row.dir, isDragSrc, isDropTgt)}
+                          title={row.desc || `${row.dir}: ${row.key} (${row.type})`}
+                        >
+                          {/* Column 1: direction badge */}
+                          <span style={{
+                            fontWeight: 900, fontSize: 14, lineHeight: 1,
+                            color: row.dir === 'output' ? '#22c55e' : '#5cc8ff',
+                            textAlign: 'center',
+                          }}>
+                            {row.dir === 'output' ? '+' : '\u2212'}
+                          </span>
+
+                          {/* Column 2: signal name */}
+                          <span style={{
+                            color: row.dir === 'output' ? '#e2e8f0' : 'rgba(255,255,255,0.55)',
+                            fontWeight: row.dir === 'output' ? 600 : 400,
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          }}>
+                            {row.key}
+                          </span>
+
+                          {/* Column 3: type */}
+                          <span style={{
+                            color: 'rgba(255,255,255,0.25)', fontSize: 10, textAlign: 'center',
+                          }}>
+                            {row.type}
+                          </span>
+
+                          {/* Column 4: description (truncated) */}
+                          <span style={{
+                            color: 'rgba(255,255,255,0.2)', fontSize: 10,
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            paddingLeft: 4,
+                          }}>
+                            {row.desc}
+                          </span>
+
+                          {/* Column 5: live value */}
+                          <span style={{
+                            fontSize: 11, textAlign: 'right', minWidth: 48,
+                            paddingLeft: 4,
+                          }}>
+                            {formatLive(row)}
+                          </span>
                         </div>
+                      );
+                    };
+
+                    return (
+                      <div style={{
+                        border: `1px solid ${slotColor}30`,
+                        background: 'rgba(0,0,0,0.3)',
+                        marginTop: 4,
+                      }}>
+                        {/* OUTPUTS section */}
+                        {outputs.length > 0 && (
+                          <>
+                            <div style={{
+                              display: 'grid', gridTemplateColumns: '20px 1fr 52px 1fr auto',
+                              padding: '5px 6px 3px', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
+                              color: '#22c55e', borderBottom: `1px solid ${slotColor}20`,
+                              background: 'rgba(34,197,94,0.06)',
+                            }}>
+                              <span></span>
+                              <span>OUTPUTS (+)</span>
+                              <span style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)' }}>TYPE</span>
+                              <span style={{ paddingLeft: 4, color: 'rgba(255,255,255,0.2)' }}>DESCRIPTION</span>
+                              <span style={{ textAlign: 'right', color: 'rgba(255,255,255,0.2)', minWidth: 48, paddingLeft: 4 }}>LIVE</span>
+                            </div>
+                            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', padding: '2px 6px 2px 26px', borderBottom: '1px solid rgba(255,255,255,0.03)', fontStyle: 'italic' }}>
+                              Drag + rows to broadcast to another node
+                            </div>
+                            {outputs.map(renderRow)}
+                          </>
+                        )}
+
+                        {/* INPUTS section */}
+                        {inputs.length > 0 && (
+                          <>
+                            <div style={{
+                              display: 'grid', gridTemplateColumns: '20px 1fr 52px 1fr auto',
+                              padding: '5px 6px 3px', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
+                              color: '#5cc8ff', borderBottom: `1px solid ${slotColor}20`,
+                              background: 'rgba(92,200,255,0.06)',
+                              borderTop: outputs.length > 0 ? `1px solid ${slotColor}20` : 'none',
+                            }}>
+                              <span></span>
+                              <span>INPUTS (\u2212)</span>
+                              <span style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)' }}>TYPE</span>
+                              <span style={{ paddingLeft: 4, color: 'rgba(255,255,255,0.2)' }}>DESCRIPTION</span>
+                              <span style={{ textAlign: 'right', color: 'rgba(255,255,255,0.2)', minWidth: 48, paddingLeft: 4 }}>LIVE</span>
+                            </div>
+                            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', padding: '2px 6px 2px 26px', borderBottom: '1px solid rgba(255,255,255,0.03)', fontStyle: 'italic' }}>
+                              Drop another node&apos;s output here to listen/react
+                            </div>
+                            {inputs.map(renderRow)}
+                          </>
+                        )}
                       </div>
                     );
                   })()}
-
-                  {/* ── Section 2: Signals ── */}
-                  <div className="live-section">
-                    <div className="live-section-head">Signals</div>
-                    {publishing.length > 0 && (
-                      <div className="live-signal-group">
-                        <span className="live-signal-dir" style={{ color: '#22c55e' }}>+ Publishing</span>
-                        <div className="live-signal-list">
-                          {publishing.map(s => {
-                            const eid = slot.entity_id || slot.id;
-                            const liveVal = (entityStates[eid] as Record<string,unknown>|undefined)?.[s];
-                            const setup = setupState[slot.id];
-                            const sigDef = (setup?.outputSignals||[]).find(o => o.key === s);
-                            const isNum = sigDef?.type === 'number' || typeof liveVal === 'number';
-                            const isBool = sigDef?.type === 'boolean' || typeof liveVal === 'boolean';
-                            return (
-                              <span key={s} className="live-signal-tag pub"
-                                draggable
-                                onDragStart={() => handleChipDragStart(slot.entity_id || slot.id, s, 'output')}
-                                onDragEnd={handleChipDragEnd}
-                                onDragOver={e => handleChipDragOver(e, slot.entity_id || slot.id, s, 'output')}
-                                onDragLeave={handleChipDragLeave}
-                                onDrop={e => handleChipDrop(e, slot.entity_id || slot.id, s, 'output')}
-                                style={{
-                                  display:'inline-flex', alignItems:'center', gap:5,
-                                  cursor: dragSource?.dir === 'input' ? 'copy' : 'grab',
-                                  opacity: dragSource?.slug === (slot.entity_id || slot.id) && dragSource?.key === s ? 0.5 : 1,
-                                  outline: dragSource?.slug === (slot.entity_id || slot.id) && dragSource?.key === s ? '2px solid #22c55e'
-                                    : dropTarget?.slug === (slot.entity_id || slot.id) && dropTarget?.key === s ? '2px dashed #22c55e' : 'none',
-                                  background: dropTarget?.slug === (slot.entity_id || slot.id) && dropTarget?.key === s
-                                    ? 'rgba(34,197,94,0.2)' : undefined,
-                                  transition: 'all 0.15s',
-                                }}>
-                                <span style={{ color: '#22c55e', fontWeight: 700, fontSize: 11 }}>+</span>{s}
-                                {liveVal !== undefined && liveVal !== null && (
-                                  <span style={{
-                                    fontSize: 10, fontFamily: 'var(--font-mono)',
-                                    color: isBool
-                                      ? (liveVal ? '#4ade80' : 'rgba(255,255,255,0.3)')
-                                      : 'rgba(255,255,255,0.6)',
-                                    fontWeight: 700,
-                                    background: isBool && liveVal ? 'rgba(74,222,128,0.12)' : 'rgba(255,255,255,0.06)',
-                                    padding: '0 4px', borderRadius: 2,
-                                  }}>
-                                    {isBool
-                                      ? (liveVal ? '● ON' : '○ off')
-                                      : isNum
-                                        ? Number(liveVal).toFixed(3)
-                                        : String(liveVal).slice(0,24)}
-                                  </span>
-                                )}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                    {listening.length > 0 && (
-                      <div className="live-signal-group">
-                        <span className="live-signal-dir" style={{ color: '#5cc8ff' }}>− Listening</span>
-                        <div className="live-signal-list">
-                          {listening.map(s => {
-                            const eid = slot.entity_id || slot.id;
-                            const liveVal = (entityStates[eid] as Record<string,unknown>|undefined)?.[s];
-                            return (
-                              <span key={s} className="live-signal-tag sub"
-                                draggable
-                                onDragStart={() => handleChipDragStart(slot.entity_id || slot.id, s, 'input')}
-                                onDragEnd={handleChipDragEnd}
-                                onDragOver={e => handleChipDragOver(e, slot.entity_id || slot.id, s, 'input')}
-                                onDragLeave={handleChipDragLeave}
-                                onDrop={e => handleChipDrop(e, slot.entity_id || slot.id, s, 'input')}
-                                style={{
-                                  display:'inline-flex', alignItems:'center', gap:5,
-                                  cursor: dragSource?.dir === 'output' ? 'copy' : 'grab',
-                                  background: dropTarget?.slug === (slot.entity_id || slot.id) && dropTarget?.key === s
-                                    ? 'rgba(92,200,255,0.2)' : undefined,
-                                  outline: dropTarget?.slug === (slot.entity_id || slot.id) && dropTarget?.key === s
-                                    ? '2px dashed #5cc8ff' : 'none',
-                                  transition: 'all 0.15s',
-                                }}>
-                                <span style={{ color: '#5cc8ff', fontWeight: 700, fontSize: 11 }}>−</span>{s}
-                                {liveVal !== undefined && liveVal !== null && (
-                                  <span style={{ fontSize: 10, fontFamily:'var(--font-mono)', color:'rgba(255,255,255,0.5)', fontWeight:700 }}>
-                                    {typeof liveVal === 'boolean' ? (liveVal ? '● ON' : '○ off') : String(liveVal).slice(0,24)}
-                                  </span>
-                                )}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                    {publishing.length === 0 && listening.length === 0 && (
-                      <span className="live-empty" style={{ fontSize: 10 }}>No signals configured</span>
-                    )}
-                    {/* Add output / input buttons when unlocked */}
-                    {!isLocked(slot.id) && (
-                      <div style={{ display: 'flex', gap: 5, marginTop: 6, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                        <button
-                          onClick={e => { e.stopPropagation();
-                            setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], direction: 'send' as NodeRole, stage: 'addState' } }));
-                          }}
-                          style={{ fontSize: 10, padding: '2px 8px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
-                            background: `${slotColor}12`, border: `1px solid ${slotColor}40`, color: slotColor,
-                            letterSpacing: '0.05em' }}>
-                          + output
-                        </button>
-                        <button
-                          onClick={e => { e.stopPropagation();
-                            const key = prompt('State key to listen to (e.g. prompt_text):');
-                            if (key?.trim()) onInjectSignal?.(slot.id, '__subscribe__', key.trim());
-                          }}
-                          style={{ fontSize: 10, padding: '2px 8px', cursor: 'pointer', fontFamily: 'var(--font-mono)',
-                            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)',
-                            color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em' }}>
-                          + input
-                        </button>
-                      </div>
-                    )}
-                  </div>
 
 {/* sections 4-10 removed — streamlined layout */}
                   
