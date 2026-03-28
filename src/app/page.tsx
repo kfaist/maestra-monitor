@@ -857,6 +857,7 @@ export default function Home() {
 
       // Fan-out: for each entity with state, trigger route-based forwarding
       // (runs server-side via /api/fanout — lightweight, no client-side CORS issues)
+      const fanoutBase = resolveActiveBase();
       entities.forEach(e => {
         const slug = (e.slug as string) || String(e.id);
         const state = (e.state as Record<string, unknown>) || {};
@@ -864,27 +865,10 @@ export default function Home() {
           fetch('/api/fanout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sourceSlug: slug, state, serverUrl: base }),
+            body: JSON.stringify({ sourceSlug: slug, state, serverUrl: fanoutBase }),
           }).catch(() => {}); // fire and forget
         }
       });
-
-      // (entity count logged above after filtering)
-    } catch (err) {
-      setServerConnected(false);
-      log(`[Server] ${base.replace('https://','').replace('http://','')} unreachable`, 'warn');
-      // Auto mode: if gallery failed, try Railway
-      if (serverModeRef.current === 'auto') {
-        try {
-          const res2 = await fetch(`${RAILWAY_URL}/entities`, { signal: AbortSignal.timeout(6000) });
-          if (res2.ok) {
-            setResolvedServerUrl(RAILWAY_URL);
-            setServerConnected(true);
-            log('[Server] Fell back to Railway', 'ok');
-          }
-        } catch { /* both failed */ }
-      }
-    }
   }, [log]);
 
   // Send a message via WS to all connected entities
