@@ -68,18 +68,29 @@ export default function DetailPanel({
   const isSlotActive = slot?.active ?? false;
 
   // For inactive slots: show the connect guide immediately, skip other panels
-  if (slot && !isSlotActive) {
+  if (!slot || (slot && !isSlotActive)) {
+    // Use slot if selected, otherwise build a minimal placeholder for the connect guide
+    const connectSlot: FleetSlot = slot || {
+      id: 'slot_3', label: 'Connect .toe', entity_id: '', endpoint: '',
+      active: false, fps: null, frameUrl: null, cloudNode: false,
+      connection_status: 'disconnected', last_heartbeat: null,
+      active_stream: null, state_summary: {}, signalType: 'touchdesigner',
+      nodeRole: 'two_way', stateSchema: {},
+      suggestion: { title: 'Connect .toe', desc: 'Link a local TouchDesigner project.', tag: 'td' as const, tagLabel: 'TouchDesigner' },
+      _frameTimes: [], _fpsSmooth: null,
+    };
+
     return (
       <div className="detail-panel">
-        {/* Compact header for the slot */}
+        {/* Compact header */}
         <div className="detail-inactive-header">
-          <div className="detail-inactive-title">{slot.label}</div>
-          <span className="detail-inactive-badge">Available</span>
+          <div className="detail-inactive-title">{connectSlot.label}</div>
+          <span className="detail-inactive-badge">{slot ? 'Available' : 'Connect a Node'}</span>
         </div>
 
         {/* Connect guide — front and center */}
         <TDConnectGuide
-          slot={slot}
+          slot={connectSlot}
           onConnect={onAutoConnect}
           onReconnect={onAutoConnect}
           onDisconnect={onDisconnect}
