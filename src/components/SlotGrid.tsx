@@ -1695,6 +1695,83 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                             current={setup.slug}
                             onSelect={slug => setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], slug } }))}
                           />
+                          {/* Troubleshooting: if nodes don't appear */}
+                          <details style={{ width: '100%', marginTop: 6 }} onClick={e => e.stopPropagation()}>
+                            <summary style={{
+                              fontSize: 10, color: '#fbbf24', cursor: 'pointer',
+                              fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
+                              padding: '6px 8px', background: 'rgba(251,191,36,0.06)',
+                              border: '1px solid rgba(251,191,36,0.2)', listStyle: 'none',
+                              display: 'flex', alignItems: 'center', gap: 6,
+                            }}>
+                              <span style={{ fontSize: 13 }}>&#x26A0;</span>
+                              <span>Nodes not appearing? Open Textport and run this fix</span>
+                            </summary>
+                            <div style={{
+                              padding: '10px', background: 'rgba(0,0,0,0.5)',
+                              border: '1px solid rgba(251,191,36,0.15)', borderTop: 'none',
+                              fontSize: 10, lineHeight: 1.7, color: 'rgba(255,255,255,0.6)',
+                            }}>
+                              <div style={{ marginBottom: 8, color: 'rgba(255,255,255,0.8)' }}>
+                                Inside your <span style={{ color: slotColor }}>.toe</span> file, open Textport
+                                (<span style={{ color: '#fbbf24', fontWeight: 700 }}>Alt + T</span>) and paste:
+                              </div>
+                              <pre style={{
+                                padding: '8px 10px', background: 'rgba(0,0,0,0.6)',
+                                border: '1px solid rgba(255,255,255,0.08)',
+                                fontFamily: 'var(--font-mono)', fontSize: 10,
+                                color: '#c8d8e8', overflowX: 'auto', whiteSpace: 'pre-wrap',
+                                lineHeight: 1.6, cursor: 'text', userSelect: 'all',
+                              }}>{`comp = op('YOUR_TOX_NAME')  # replace with your component name
+# Force cook
+comp.cook(force=True)
+# Reinitialize Maestra (if available)
+try:
+    comp.ext.Maestra.reinit()
+except:
+    pass
+# Nudge parameters to trigger updates
+for p in comp.pars():
+    try:
+        p.val = p.eval()
+    except:
+        pass
+print("Component refreshed")`}</pre>
+                              <div style={{ marginTop: 8, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                                <button
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(`comp = op('YOUR_TOX_NAME')  # replace with your component name\n# Force cook\ncomp.cook(force=True)\n# Reinitialize Maestra (if available)\ntry:\n    comp.ext.Maestra.reinit()\nexcept:\n    pass\n# Nudge parameters to trigger updates\nfor p in comp.pars():\n    try:\n        p.val = p.eval()\n    except:\n        pass\nprint("Component refreshed")`);
+                                    const btn = e.currentTarget;
+                                    btn.textContent = '\u2713 Copied!';
+                                    setTimeout(() => { btn.textContent = 'Copy Script'; }, 2000);
+                                  }}
+                                  style={{
+                                    fontSize: 10, padding: '4px 10px', cursor: 'pointer',
+                                    fontFamily: 'var(--font-mono)', background: 'rgba(251,191,36,0.1)',
+                                    border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24',
+                                  }}>
+                                  Copy Script
+                                </button>
+                                <a
+                                  href="/build_maestra_tox.py"
+                                  download="build_maestra_tox.py"
+                                  onClick={e => e.stopPropagation()}
+                                  style={{
+                                    fontSize: 10, padding: '4px 10px', textDecoration: 'none',
+                                    fontFamily: 'var(--font-mono)', background: 'rgba(0,212,255,0.08)',
+                                    border: '1px solid rgba(0,212,255,0.3)', color: '#00d4ff',
+                                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                                  }}>
+                                  &#x2193; build_maestra_tox.py
+                                </a>
+                              </div>
+                              <div style={{ marginTop: 8, fontSize: 9, color: 'rgba(255,255,255,0.3)', lineHeight: 1.5 }}>
+                                Replace <code style={{ color: '#fbbf24' }}>YOUR_TOX_NAME</code> with your actual maestra component name (e.g. <code style={{ color: slotColor }}>maestra</code> or <code style={{ color: slotColor }}>maestra_fleet</code>).
+                                After running, nodes should appear in the dropdown above.
+                              </div>
+                            </div>
+                          </details>
                           <div style={{ display: 'flex', gap: 6, width: '100%', marginTop: 4 }}>
                             <button className="slot-wizard-btn slot-wizard-btn-ghost"
                               onClick={e => { e.stopPropagation(); setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'setup' } })); }}>
