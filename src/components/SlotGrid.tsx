@@ -1268,7 +1268,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                   }
                                 }}
                                 style={{
-                                  padding: isCardDropTarget ? '16px 6px' : '10px 6px',
+                                  padding: isCardDropTarget ? '10px 6px' : '4px 6px',
                                   fontSize: isCardDropTarget ? 14 : 12,
                                   fontWeight: 700,
                                   fontFamily: 'var(--font-mono)',
@@ -1288,7 +1288,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                   display: 'flex',
                                   flexDirection: 'column',
                                   alignItems: 'center',
-                                  gap: 6,
+                                  gap: 3,
                                   cursor: isCardDropTarget ? 'copy' : 'default',
                                 }}
                               >
@@ -1300,12 +1300,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                   </>
                                 ) : (
                                   <>
-                                    <span style={{ fontSize: 22, opacity: 0.5, lineHeight: 1 }}>{'\u2212 \u2212 \u2212'}</span>
-                                    <span style={{ fontSize: 13, fontWeight: 800, fontStyle: 'italic', letterSpacing: '0.02em' }}>
+                                    <span style={{ fontSize: 15, fontWeight: 800, fontStyle: 'italic', letterSpacing: '0.02em' }}>
                                       Drop an Output (+) signal from another node here to route in
-                                    </span>
-                                    <span style={{ fontSize: 10, fontWeight: 600, fontStyle: 'italic', opacity: 0.4 }}>
-                                      state in {'\u00b7'} event in
                                     </span>
                                   </>
                                 )}
