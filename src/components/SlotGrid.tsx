@@ -991,6 +991,30 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 }
                               }} />
                           </label>
+                          <div style={{ width: '100%' }} onClick={e => e.stopPropagation()}>
+                            <input type="text" placeholder="Or paste local path  e.g. C:\project\show.toe"
+                              style={{ width: '100%', boxSizing: 'border-box', padding: '6px 8px',
+                                fontSize: 10, fontFamily: 'var(--font-mono)',
+                                background: 'rgba(255,255,255,0.03)', border: `1px solid ${slotColor}25`,
+                                color: 'var(--text)', outline: 'none' }}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  const val = (e.target as HTMLInputElement).value.trim();
+                                  if (!val) return;
+                                  const fname = val.replace(/\\/g,'/').split('/').pop() || val;
+                                  const derived = fname.replace(/\.(toe|tox)$/i,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'node';
+                                  setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], refFile: val, slug: derived, stage: 'slug' } }));
+                                }
+                              }}
+                              onBlur={e => {
+                                const val = e.target.value.trim();
+                                if (!val) return;
+                                const fname = val.replace(/\\/g,'/').split('/').pop() || val;
+                                const derived = fname.replace(/\.(toe|tox)$/i,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'node';
+                                setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], refFile: val, slug: derived, stage: 'slug' } }));
+                              }}
+                            />
+                          </div>
                           <button
                             onClick={e => { e.stopPropagation(); setSetupState(prev => { const n = { ...prev }; delete n[slot.id]; return n; }); }}
                             style={{ fontSize: 9, padding: '2px 8px', cursor: 'pointer',
@@ -1579,6 +1603,38 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 }
                               }} />
                           </label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+                            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+                            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em' }}>OR</span>
+                            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+                          </div>
+                          <div style={{ width: '100%' }} onClick={e => e.stopPropagation()}>
+                            <input type="text" placeholder="Paste local path  e.g. C:\project\my-show.toe"
+                              style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px',
+                                fontSize: 11, fontFamily: 'var(--font-mono)',
+                                background: 'rgba(255,255,255,0.03)', border: `1px solid ${slotColor}30`,
+                                color: 'var(--text)', outline: 'none', letterSpacing: '0.02em' }}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  const val = (e.target as HTMLInputElement).value.trim();
+                                  if (!val) return;
+                                  const fname = val.replace(/\\/g,'/').split('/').pop() || val;
+                                  const derived = fname.replace(/\.(toe|tox)$/i,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'node';
+                                  setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], refFile: val, slug: derived, stage: 'slug' } }));
+                                }
+                              }}
+                              onBlur={e => {
+                                const val = e.target.value.trim();
+                                if (!val) return;
+                                const fname = val.replace(/\\/g,'/').split('/').pop() || val;
+                                const derived = fname.replace(/\.(toe|tox)$/i,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'node';
+                                setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], refFile: val, slug: derived, stage: 'slug' } }));
+                              }}
+                            />
+                            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', marginTop: 3 }}>
+                              Type a path and press Enter -- skips straight to naming
+                            </div>
+                          </div>
                         </div>
                       )}
 

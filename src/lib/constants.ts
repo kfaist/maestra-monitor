@@ -19,14 +19,22 @@ export const STOP_WORDS = new Set([
 ]);
 
 export const PALETTE_COLORS = [
-  { hue: 280, name: 'Purple' },
-  { hue: 320, name: 'Pink' },
-  { hue: 15, name: 'Coral' },
-  { hue: 45, name: 'Gold' },
-  { hue: 120, name: 'Green' },
-  { hue: 180, name: 'Cyan' },
-  { hue: 220, name: 'Blue' },
+  { hue: 280, name: 'Violet' },
+  { hue: 310, name: 'Orchid' },
+  { hue: 340, name: 'Rose' },
   { hue: 0, name: 'Red' },
+  { hue: 15, name: 'Coral' },
+  { hue: 30, name: 'Tangerine' },
+  { hue: 45, name: 'Gold' },
+  { hue: 60, name: 'Lemon' },
+  { hue: 90, name: 'Lime' },
+  { hue: 120, name: 'Green' },
+  { hue: 155, name: 'Jade' },
+  { hue: 180, name: 'Cyan' },
+  { hue: 200, name: 'Sky' },
+  { hue: 220, name: 'Blue' },
+  { hue: 245, name: 'Indigo' },
+  { hue: 265, name: 'Purple' },
 ];
 
 export const AUDIO_SOURCE_COLORS: Record<string, string> = {
