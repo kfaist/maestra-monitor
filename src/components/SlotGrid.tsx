@@ -958,19 +958,28 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         ))}
                       </div>
                       {setup.stage === 'connect' && (
-                        <div className="slot-wizard-content">
-                          <div className="slot-wizard-title" style={{ color: slotColor, letterSpacing: '0.15em' }}>
-                            CONNECT .TOE FILE
+                        <div className="slot-wizard-content" style={{ gap: 6 }}>
+                          <div className="slot-wizard-title" style={{ color: slotColor, letterSpacing: '0.15em', fontSize: 11 }}>
+                            SETUP
                           </div>
-                          <label style={{ display: 'block', width: '100%', boxSizing: 'border-box',
-                            padding: '10px 12px', cursor: 'pointer', position: 'relative',
-                            border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}
+                          <a href="/maestra.tox" download="maestra.tox"
+                            onClick={e => e.stopPropagation()}
+                            style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%',
+                              padding: '6px 10px', textDecoration: 'none', fontSize: 10,
+                              border: `1px solid ${slotColor}30`, background: `${slotColor}06`, color: slotColor }}>
+                            <span style={{ fontSize: 13 }}>\u2193</span>
+                            <span><strong>Download maestra.tox</strong> \u2014 drag into your .toe project</span>
+                          </a>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', boxSizing: 'border-box',
+                            padding: '8px 10px', cursor: 'pointer', position: 'relative',
+                            border: `1px solid ${slotColor}40`, background: `${slotColor}10` }}
                             onClick={e => e.stopPropagation()}>
-                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 4, pointerEvents: 'none' }}>
-                              {setup.refFile ? `\uD83D\uDCC1 ${setup.refFile}` : 'Browse to your .toe file'}
-                            </div>
-                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', lineHeight: 1.7, pointerEvents: 'none' }}>
-                              Select the .toe project file for this slot.
+                            <span style={{ fontSize: 16, color: slotColor }}>\uD83D\uDCC2</span>
+                            <div style={{ pointerEvents: 'none' }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: slotColor }}>
+                                {setup.refFile ? setup.refFile : 'Browse to .toe file'}
+                              </div>
+                              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)' }}>Select the .toe project for this slot</div>
                             </div>
                             <input type="file" accept=".toe,.tox"
                               style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
@@ -984,10 +993,10 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           </label>
                           <button
                             onClick={e => { e.stopPropagation(); setSetupState(prev => { const n = { ...prev }; delete n[slot.id]; return n; }); }}
-                            style={{ fontSize: 10, padding: '4px 10px', cursor: 'pointer', marginTop: 4,
+                            style={{ fontSize: 9, padding: '2px 8px', cursor: 'pointer',
                               fontFamily: 'var(--font-mono)', background: 'transparent',
-                              border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)' }}>
-                            Cancel
+                              border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.3)' }}>
+                            cancel
                           </button>
                         </div>
                       )}
@@ -1216,7 +1225,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         )}
 
                         {/* ── COMPACT STREAM PREVIEW — right after outputs ── */}
-                        <div style={{ position: 'relative', height: 70, overflow: 'hidden', background: 'rgba(0,0,0,0.4)', margin: '2px 0' }}>
+                        <div style={{ position: 'relative', height: 50, overflow: 'hidden', background: 'rgba(0,0,0,0.4)', margin: '1px 0' }}>
                           {slot.frameUrl ? (
                             <img
                               src={slot.frameUrl}
@@ -1260,7 +1269,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                   }
                                 }}
                                 style={{
-                                  padding: isCardDropTarget ? '10px 6px' : '4px 6px',
+                                  padding: isCardDropTarget ? '8px 6px' : '3px 6px',
                                   fontSize: isCardDropTarget ? 14 : 12,
                                   fontWeight: 700,
                                   fontFamily: 'var(--font-mono)',
@@ -1429,7 +1438,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     const hasAny = prompt || visitor !== undefined || tdFps;
                     if (!hasAny) return null;
                     return (
-                      <div style={{ padding: '4px 8px', display: 'flex', flexWrap: 'wrap', gap: 4, background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div style={{ padding: '2px 8px', display: 'flex', flexWrap: 'wrap', gap: 3, background: 'rgba(0,0,0,0.15)' }}>
                         {tdFps != null && (
                           <span style={{
                             display: 'inline-flex', alignItems: 'center', gap: 3,
@@ -1466,7 +1475,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                   })()}
 
                   {/* ── 3. SLUG / IDENTITY — secondary info ── */}
-                  <div style={{ padding: '5px 10px 4px', background: 'rgba(0,0,0,0.35)', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                  <div style={{ padding: '3px 8px 2px', background: 'rgba(0,0,0,0.25)', borderTop: '1px solid rgba(255,255,255,0.03)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ fontSize: 10, fontFamily: 'var(--font-display)', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)' }}>entity slug:</span>
                       <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: slotColor, fontWeight: 700 }}>
