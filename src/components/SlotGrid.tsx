@@ -2023,18 +2023,40 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                         <option value="raspberry_pi" style={{ background: '#0a0a14', color: '#fff' }}>Raspberry Pi</option>
                       </select>
                     )}
-                  {/* Edit Signals button — only when unlocked */}
+                  {/* Edit Signals + Setup buttons — only when unlocked */}
                   {slot.active && !isLocked(slot.id) && (
-                    <button
-                      onClick={e => { e.stopPropagation();
-                        setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'addState' } }));
-                      }}
-                      style={{ fontSize: 10, padding: '1px 6px', cursor: 'pointer',
-                        fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
-                        background: `${slotColor}10`, border: `1px solid ${slotColor}30`,
-                        color: slotColor, opacity: 0.7, marginBottom: 3 }}>
-                      + edit signals
-                    </button>
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 3 }}>
+                      <button
+                        onClick={e => { e.stopPropagation();
+                          setSetupState(prev => ({ ...prev, [slot.id]: { ...prev[slot.id], stage: 'addState' } }));
+                        }}
+                        style={{ fontSize: 10, padding: '1px 6px', cursor: 'pointer',
+                          fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
+                          background: `${slotColor}10`, border: `1px solid ${slotColor}30`,
+                          color: slotColor, opacity: 0.7 }}>
+                        + edit signals
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation();
+                          setSetupState(prev => ({
+                            ...prev,
+                            [slot.id]: {
+                              stage: 'connect' as InlineStage,
+                              slug: slot.entity_id || slot.slug || '',
+                              refFile: null,
+                              direction: (slot.nodeRole || 'two_way') as NodeRole,
+                              selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '',
+                              outputSignals: [], streamType: '', selectedNode: '', nodeSearch: '', opSearch: '',
+                            },
+                          }));
+                        }}
+                        style={{ fontSize: 10, padding: '1px 6px', cursor: 'pointer',
+                          fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
+                          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.12)',
+                          color: 'rgba(255,255,255,0.45)' }}>
+                        {'\u2699'} setup
+                      </button>
+                    </div>
                   )}
                   {/* Lock + controls — show on hover */}
                   {slot.active && (
