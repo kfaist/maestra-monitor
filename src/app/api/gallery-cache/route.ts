@@ -36,7 +36,7 @@ const SEED_ENTITIES = [
     }},
   },
   {
-    id: 3, slug: 'KFaist_Shapeshifters', name: 'KFaist_Shapeshifters', state: {},
+    id: 3, slug: 'slot_3', name: 'Connect .toe', state: {},
     metadata: { stateSchema: {} },
   },
 ];

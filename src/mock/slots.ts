@@ -60,13 +60,13 @@ export function createInitialSlots(): FleetSlot[] {
       _frameTimes: [],
       _fpsSmooth: null,
     },
-    // Card 3: KFaist_Shapeshifters — receive-ready, no invented fields
+    // Card 3: Open slot — connect your .toe
     {
-      id: 'KFaist_Shapeshifters',
-      label: 'KFaist Shapeshifters',
-      entity_id: 'KFaist_Shapeshifters',
-      endpoint: '/video/frame/KFaist_Shapeshifters',
-      active: true,
+      id: 'slot_3',
+      label: 'Connect .toe',
+      entity_id: '',
+      endpoint: '',
+      active: false,
       fps: null,
       frameUrl: null,
       cloudNode: false,
@@ -77,7 +77,7 @@ export function createInitialSlots(): FleetSlot[] {
       signalType: 'touchdesigner',
       nodeRole: 'two_way',
       stateSchema: {},
-      suggestion: { title: 'KFaist Shapeshifters', desc: 'Shapeshifters installation node.', tag: 'td' as const, tagLabel: 'TouchDesigner' },
+      suggestion: { title: 'Connect .toe', desc: 'Link a local TouchDesigner project to this slot.', tag: 'td' as const, tagLabel: 'TouchDesigner' },
       _frameTimes: [],
       _fpsSmooth: null,
     },
