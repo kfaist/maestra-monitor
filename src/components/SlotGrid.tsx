@@ -1474,16 +1474,41 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     );
                   })()}
 
-                  {/* ── 3. SLUG / IDENTITY — secondary info ── */}
-                  <div style={{ padding: '3px 8px 2px', background: 'rgba(0,0,0,0.25)', borderTop: '1px solid rgba(255,255,255,0.03)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 10, fontFamily: 'var(--font-display)', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)' }}>entity slug:</span>
-                      <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: slotColor, fontWeight: 700 }}>
-                        {(entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.toe_name as string || slot.entity_id || slot.id}
-                      </span>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: mStatus?.server === 'connected' ? '#4ade80' : mStatus?.server ? '#fbbf24' : 'rgba(255,255,255,0.2)' }} />
+                  {/* ── 3. FILE PATH + CONNECT — assign local .toe ── */}
+                  <div style={{ padding: '3px 8px 3px', background: 'rgba(0,0,0,0.25)', borderTop: `1px solid ${slotColor}10` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                        background: mStatus?.server === 'connected' ? '#4ade80' : mStatus?.server ? '#fbbf24' : 'rgba(255,255,255,0.15)' }} />
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, cursor: 'pointer',
+                        position: 'relative', overflow: 'hidden', minWidth: 0 }}
+                        onClick={e => e.stopPropagation()}>
+                        <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: slotColor, fontWeight: 600,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {(entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.toe_name as string || slot.entity_id || slot.id || 'no .toe assigned'}
+                        </span>
+                        <span style={{ fontSize: 9, color: `${slotColor}60`, flexShrink: 0 }}>\u270E</span>
+                        <input type="file" accept=".toe,.tox"
+                          style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%' }}
+                          onChange={e => {
+                            const f = e.target.files?.[0];
+                            if (f) {
+                              const derived = f.name.replace(/\.(toe|tox)$/i,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+                              setSetupState(prev => ({
+                                ...prev,
+                                [slot.id]: {
+                                  stage: 'setup' as InlineStage,
+                                  slug: derived,
+                                  refFile: f.name,
+                                  direction: (slot.nodeRole || 'two_way') as NodeRole,
+                                  selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '',
+                                  outputSignals: [], streamType: '', selectedNode: '', nodeSearch: '', opSearch: '',
+                                },
+                              }));
+                            }
+                          }} />
+                      </label>
                       {mStatus?.lastHeartbeatAt && (
-                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontFamily: 'var(--font-mono)', marginLeft: 'auto' }}>
+                        <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.18)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
                           {mStatus.heartbeat === 'live' ? 'now' : `${formatAge(now - mStatus.lastHeartbeatAt)} ago`}
                         </span>
                       )}
