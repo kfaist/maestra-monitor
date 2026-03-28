@@ -1423,6 +1423,33 @@ export default function Home() {
       autoConnectSlot('krista1');
     }, 100);
 
+    // ── State sidecar polling ──────────────────────────────────────
+    // For HTTP-only slots (no WebSocket), fetch state from /video/frame/{entityId}_state
+    // This provides prompt_text, visitor_present, per-machine fps, device name
+    const stateSidecarInterval = setInterval(async () => {
+      const currentSlots = slotsRef.current;
+      for (const slot of currentSlots) {
+        if (!slot.active || !slot.entity_id) continue;
+        const entityId = slot.entity_id;
+        try {
+          const res = await fetch(
+            `${API_BASE}/video/frame/${entityId}_state?t=${Date.now()}`,
+            { cache: 'no-store', signal: AbortSignal.timeout(3000) }
+          );
+          if (!res.ok) continue;
+          const text = await res.text();
+          if (!text || text.length < 2) continue;
+          const state = JSON.parse(text) as Record<string, string>;
+          setEntityStates(prev => ({
+            ...prev,
+            [entityId]: { ...prev[entityId], ...state, _sidecar: 'true' },
+          }));
+        } catch {
+          // Sidecar not available for this entity — skip silently
+        }
+      }
+    }, 5000); // Poll every 5s — lightweight, doesn't need to be fast
+
     // SD feed watchdog — keep krista1 alive 24/7. If it drops, reconnect after 10s.
     const sdWatchdog = setInterval(() => {
       const k1 = slotsRef.current.find(s => s.id === 'krista1');
@@ -1442,6 +1469,7 @@ export default function Home() {
       if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
       clearInterval(entityInterval);
       clearInterval(sdWatchdog);
+      clearInterval(stateSidecarInterval);
       connectionsRef.current.forEach(conn => conn.destroy());
       connectionsRef.current.clear();
     };

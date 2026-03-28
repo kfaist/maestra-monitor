@@ -1027,7 +1027,58 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     );
                   })()}
 
-{/* ── Section 2: Signals ── */}
+{/* ── Sidecar state chips: prompt_text, visitor_present, per-machine fps ── */}
+                  {(() => {
+                    const eid = slot.entity_id || slot.id;
+                    const eState = entityStates[eid] as Record<string, unknown> | undefined;
+                    if (!eState || eState._sidecar !== 'true') return null;
+                    const prompt = eState.prompt_text as string | null;
+                    const visitor = eState.visitor_present;
+                    const tdFps = eState.fps as number | string | null;
+                    const device = eState.device as string | null;
+                    const hasAny = prompt || visitor !== undefined || tdFps;
+                    if (!hasAny) return null;
+                    return (
+                      <div className="live-section" style={{ paddingBottom: 4 }}>
+                        <div className="live-section-head">TD State</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {tdFps != null && (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 3,
+                              background: 'rgba(49,130,206,0.15)', border: '1px solid rgba(49,130,206,0.4)',
+                              color: '#63b3ed', padding: '2px 7px', borderRadius: 10, fontSize: 10, fontWeight: 700,
+                            }}>{tdFps} fps</span>
+                          )}
+                          {visitor !== undefined && (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 3,
+                              background: visitor ? 'rgba(56,161,105,0.15)' : 'rgba(113,128,150,0.1)',
+                              border: `1px solid ${visitor ? 'rgba(56,161,105,0.4)' : 'rgba(113,128,150,0.2)'}`,
+                              color: visitor ? '#68d391' : '#718096',
+                              padding: '2px 7px', borderRadius: 10, fontSize: 10, fontWeight: 600,
+                            }}>{visitor ? '● VISITOR' : '○ no visitor'}</span>
+                          )}
+                          {device && (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center',
+                              background: 'rgba(213,163,25,0.1)', border: '1px solid rgba(213,163,25,0.3)',
+                              color: '#d5a319', padding: '2px 7px', borderRadius: 10, fontSize: 10, fontWeight: 600,
+                            }}>{device}</span>
+                          )}
+                          {prompt && (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center',
+                              background: 'rgba(128,90,213,0.12)', border: '1px solid rgba(128,90,213,0.35)',
+                              color: '#b794f4', padding: '2px 7px', borderRadius: 10, fontSize: 10, fontWeight: 500,
+                              maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            }} title={prompt}>{prompt.length > 50 ? prompt.slice(0, 50) + '…' : prompt}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* ── Section 2: Signals ── */}
                   <div className="live-section">
                     <div className="live-section-head">Signals</div>
                     {publishing.length > 0 && (
@@ -2334,7 +2385,13 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                 </div>
                 <div className="slot-meta">
                   <span className="slot-fps">
-                    {slot.fps != null ? `${slot.fps}fps` : ''}
+                    {(() => {
+                      const eid = slot.entity_id || slot.id;
+                      const sidecar = entityStates[eid] as Record<string, unknown> | undefined;
+                      const tdFps = sidecar?._sidecar === 'true' && sidecar?.fps != null ? sidecar.fps : null;
+                      const displayFps = tdFps != null ? tdFps : slot.fps;
+                      return displayFps != null ? `${displayFps}fps` : '';
+                    })()}
                     {slot.fps != null && lastEventStr ? ' · ' : ''}
                     {lastEventStr}
                   </span>

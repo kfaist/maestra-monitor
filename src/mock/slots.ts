@@ -12,6 +12,7 @@ const SLOT_DESCRIPTORS: { label: string; entityId: string; suggestion: typeof SU
 
 export function createInitialSlots(): FleetSlot[] {
   return [
+    // Slot 1: krista1_visual — native WebSocket connection via maestra.tox
     {
       id: 'krista1',
       label: 'Visual Engine',
@@ -29,8 +30,30 @@ export function createInitialSlots(): FleetSlot[] {
       _frameTimes: [],
       _fpsSmooth: null,
     },
-    ...SLOT_DESCRIPTORS.map((desc, i) => ({
-      id: `slot${i + 2}`,
+    // Slot 2: scope — HTTP-only frame polling from TD's post_frames_slot.py
+    // Pre-configured so it auto-polls /video/frame/scope without needing WebSocket
+    {
+      id: 'scope1',
+      label: 'Scope · SD',
+      entity_id: 'scope',
+      endpoint: '/video/frame/scope',
+      active: true,
+      fps: null,
+      frameUrl: null,
+      cloudNode: false,
+      connection_status: 'disconnected',
+      last_heartbeat: null,
+      active_stream: 'sd_output',
+      state_summary: {},
+      signalType: 'touchdesigner',
+      nodeRole: 'send',
+      suggestion: { title: 'StreamDiffusion Scope', desc: 'Live SD output from TouchDesigner via HTTP frame posting.', tag: 'scope' as const, tagLabel: 'Scope' },
+      _frameTimes: [],
+      _fpsSmooth: null,
+    },
+    // Remaining slots from descriptors (skip Scope since we pre-configured it above)
+    ...SLOT_DESCRIPTORS.filter(d => d.label !== 'Scope').map((desc, i) => ({
+      id: `slot${i + 3}`,
       label: desc.label,
       entity_id: null as string | null,
       endpoint: null,
