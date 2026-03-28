@@ -1223,32 +1223,35 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           </>
                         )}
 
-                        {/* \u2500\u2500 INPUTS section \u2014 always visible for receive / two_way \u2500\u2500 */}
+                        {/* ── COMPACT STREAM PREVIEW — right after outputs ── */}
+                        <div style={{ position: 'relative', height: 70, overflow: 'hidden', background: 'rgba(0,0,0,0.4)', margin: '2px 0' }}>
+                          {slot.frameUrl ? (
+                            <img
+                              src={slot.frameUrl}
+                              alt="stream"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                            />
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 6 }}>
+                              <span style={{ fontSize: 14, opacity: 0.3 }}>
+                                {slot.signalType === 'audio_reactive' ? '\u266B' : '\u25C6'}
+                              </span>
+                              <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em' }}>
+                                {mStatus?.stream === 'advertised' ? 'NO FRAME' : 'WAITING'}
+                              </span>
+                            </div>
+                          )}
+                          {(slot.frameUrl || mStatus?.stream === 'advertised' || mStatus?.stream === 'live') && (
+                            <div className={`live-node-badge ${statusCls}`} style={{ position: 'absolute', top: 4, left: 4, fontSize: 8, padding: '1px 5px' }}>
+                              {slot.frameUrl ? 'LIVE' : mStatus?.stream === 'advertised' ? 'ADV' : 'LIVE'}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* ── DROP ZONE — always shown for receive/two_way, replaces old INPUTS section ── */}
                         {canReceive && (
                           <>
-                            <div style={{
-                              display: 'grid', gridTemplateColumns: '20px 1fr 52px 1fr auto',
-                              padding: '5px 6px 3px', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
-                              color: slotColor, borderBottom: `1px solid ${slotColor}20`,
-                              background: `${slotColor}0a`,
-                              borderTop: canSend ? `1px solid ${slotColor}20` : 'none',
-                            }}>
-                              <span></span>
-                              <span>INPUTS ({'\u2212'})</span>
-                              <span style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)' }}>TYPE</span>
-                              <span style={{ paddingLeft: 4, color: 'rgba(255,255,255,0.2)' }}>DESCRIPTION</span>
-                              <span style={{ textAlign: 'right', color: 'rgba(255,255,255,0.2)', minWidth: 48, paddingLeft: 4 }}>LIVE</span>
-                            </div>
-                            {inputs.length > 0 && (
-                              <>
-                                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', padding: '2px 6px 2px 26px', borderBottom: '1px solid rgba(255,255,255,0.03)', fontStyle: 'italic' }}>
-                                  Drop another node&apos;s output here to listen/react
-                                </div>
-                                {inputs.map(renderRow)}
-                              </>
-                            )}
-
-                            {/* Drop zone — always shown for receive/two_way cards, with routed signals inside */}
+                            {/* Drop zone — with routed signals inside */}
                               <div
                                 className="receive-dropzone"
                                 onDragOver={e => {
@@ -1467,35 +1470,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     );
                   })()}
 
-                  {/* ── 3. THUMBNAIL — compact frame preview ── */}
-                  <div style={{ position: 'relative', height: 120, overflow: 'hidden', background: 'rgba(0,0,0,0.5)' }}>
-                    {(() => {
-                      const hasFrame = !!slot.frameUrl;
-                      return hasFrame ? (
-                        <img
-                          src={slot.frameUrl!}
-                          alt="stream"
-                          style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
-                        />
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 4 }}>
-                          <span style={{ fontSize: 20, opacity: 0.4 }}>
-                            {slot.signalType === 'audio_reactive' ? '♫'
-                              : slot.signalType === 'touchdesigner' ? '◆'
-                              : '●'}
-                          </span>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)' }}>
-                            {mStatus?.stream === 'advertised' ? 'NO FRAME' : 'WAITING'}
-                          </span>
-                        </div>
-                      );
-                    })()}
-                    <div className={`live-node-badge ${statusCls}`} style={{ position: 'absolute', top: 6, left: 6 }}>
-                      {slot.frameUrl ? 'LIVE' : mStatus?.stream === 'advertised' ? 'ADVERTISED' : 'LIVE'}
-                    </div>
-                  </div>
-
-                  {/* ── 4. SLUG / IDENTITY — secondary info ── */}
+                  {/* ── 3. SLUG / IDENTITY — secondary info ── */}
                   <div style={{ padding: '5px 10px 4px', background: 'rgba(0,0,0,0.35)', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ fontSize: 10, fontFamily: 'var(--font-display)', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)' }}>entity slug:</span>
