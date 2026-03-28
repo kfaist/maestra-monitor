@@ -780,7 +780,14 @@ export default function Home() {
           // Keep any local-only active slots not yet on server
           const serverSlugs = new Set(hydrated.map(s => s.entity_id));
           const localOnly = prev.filter(s => s.active && !serverSlugs.has(s.entity_id || s.id));
-          return [...hydrated, ...localOnly];
+          const merged = [...hydrated, ...localOnly];
+          // Ensure scope slot is always present (HTTP-only frame polling, no WS registration)
+          if (!merged.some(s => s.entity_id === 'scope')) {
+            const initial = createInitialSlots();
+            const scopeSlot = initial.find(s => s.entity_id === 'scope');
+            if (scopeSlot) merged.push(scopeSlot);
+          }
+          return merged;
         });
       }
 
