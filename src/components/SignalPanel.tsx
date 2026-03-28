@@ -28,7 +28,7 @@ function getLiveValue(
 ): string {
   // mirrors-echo signals
   const mirrorSlug = 'KFaist_Ambient_Intelligence';
-  const mirrorSlot = slots.find(s => s.entity_id === mirrorSlug || s.id === 'slot2');
+  const mirrorSlot = slots.find(s => s.entity_id === mirrorSlug || s.id === 'KFaist_Ambient_Intelligence');
   const mirrorState = entityStates[mirrorSlug] || entityStates[mirrorSlot?.entity_id || ''] || {};
   if (sigId === 'prompt_text') return String(mirrorState.prompt_text ?? mirrorState.p6 ?? mirrorState.prompt ?? '');
   if (sigId === 'audio_amplitude') return parseFloat(String(mirrorState.audio_amplitude ?? mirrorState.audio_level ?? 0)).toFixed(2);

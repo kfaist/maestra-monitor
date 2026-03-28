@@ -345,7 +345,7 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
                 </button>
               </div>
               <div className="td-connect-row" style={{ marginTop: 4 }}>
-                <span className="td-connect-label">Slot</span>
+                <span className="td-connect-label">Node</span>
                 <code className="td-connect-value">{slot.label}</code>
               </div>
             </div>
@@ -418,7 +418,7 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
 
               <div className="td-waiting-details">
                 <div className="td-waiting-detail-row">
-                  <span className="td-waiting-detail-label">Slot</span>
+                  <span className="td-waiting-detail-label">Node</span>
                   <span style={{ color: 'var(--text)' }}>{slot.label}</span>
                 </div>
                 <div className="td-waiting-detail-row">

@@ -84,37 +84,32 @@ const SIGNALS: { value: SignalSource; label: string; icon: string; color: string
 /** Internal keys to hide from signal chips */
 const INTERNAL_STATE_KEYS = new Set(['_sidecar', 'toe_name', 'tops', 'server', 'active', 'metadata', 'stateSchema', 'publishing', 'listening', 'streamType']);
 
-/** Derive publishing signals from REAL entity state when available, else fall back to defaults */
+/** Derive publishing (output) signals: authored schema first, then live state keys */
 function getPublishingSignals(slot: FleetSlot, entityState?: Record<string, unknown>): string[] {
   const role = slot.nodeRole;
   if (role === 'receive') return [];
-  // Prefer real state keys from sidecar/server data
+  // 1. Authored schema — output keys only
+  if (slot.stateSchema && Object.keys(slot.stateSchema).length > 0) {
+    return Object.keys(slot.stateSchema).filter(k => slot.stateSchema![k].direction === 'output');
+  }
+  // 2. Live state keys from sidecar/server
   if (entityState && Object.keys(entityState).length > 0) {
     return Object.keys(entityState).filter(k => !INTERNAL_STATE_KEYS.has(k));
   }
-  // Fallback to hardcoded defaults
-  const sig = slot.signalType;
-  if (sig === 'audio_reactive') return ['sub', 'bass', 'mid', 'high', 'rms', 'bpm'];
-  if (sig === 'touchdesigner') return ['prompt_text', 'visitor_present', 'fps', 'device', 'audio_amplitude'];
-  if (sig === 'json_stream') return ['data.payload'];
-  if (sig === 'osc') return ['osc.msg'];
-  if (sig === 'text') return ['text.content'];
-  if (sig === 'test_signal') return ['test.ping'];
-  return ['frame'];
+  // 3. No signals — card has no schema and no live state
+  return [];
 }
 
-/** Derive listening signals from signal type */
+/** Derive listening (input) signals: authored schema first */
 function getListeningSignals(slot: FleetSlot): string[] {
   const role = slot.nodeRole;
   if (role === 'send') return [];
-  const sig = slot.signalType;
-  if (sig === 'audio_reactive') return ['lighting.scene', 'visual.palette'];
-  if (sig === 'touchdesigner') return ['prompt_text', 'visual.palette', 'lighting.scene'];
-  if (sig === 'json_stream') return ['data.config'];
-  if (sig === 'osc') return ['osc.control'];
-  if (sig === 'text') return ['prompt_text'];
-  if (sig === 'test_signal') return ['test.pong'];
-  return ['prompt_text', 'lighting.scene'];
+  // Authored schema — input keys only
+  if (slot.stateSchema && Object.keys(slot.stateSchema).length > 0) {
+    return Object.keys(slot.stateSchema).filter(k => slot.stateSchema![k].direction === 'input');
+  }
+  // No authored schema — no inputs
+  return [];
 }
 
 
@@ -705,7 +700,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
             }}>
             {showBootstrap ? '✕ CLOSE' : '? HELP'}
           </button>
-          <button className="btn-add" onClick={onAddSlot}>+ Add Slot</button>
+          {/* Primary cards are fixed — no dynamic add */}
         </div>
       </div>
 
@@ -1291,7 +1286,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                 )}
                 {setup.stage === 'slug' && (
                         <div className="slot-wizard-content">
-                          <div className="slot-wizard-title" style={{ color: slotColor }}>Name Your Slot</div>
+                          <div className="slot-wizard-title" style={{ color: slotColor }}>Name Your Node</div>
                           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 6, textAlign: 'center' }}>
                             {setup.slug ? 'Confirm or edit the slug for this slot' : 'Pick an existing entity or type a new slug'}
                           </div>

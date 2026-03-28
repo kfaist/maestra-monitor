@@ -152,7 +152,7 @@ export default function EntityPatchBay({ slots, entityStates, liveValues, onAppl
         ))}
       </div>
 
-      {/* ── SLOT PATCH ROWS ── */}
+      {/* ── NODE PATCH ROWS ── */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>

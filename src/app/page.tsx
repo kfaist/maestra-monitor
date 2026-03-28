@@ -258,7 +258,7 @@ export default function Home() {
     setSlots(prev => prev.map(s => {
       if (s.id !== slotId) return s;
       // Match wizard behavior: slot1 (CineTech) TD slot uses /video/frame/td
-      const isSDSlot = slotId === 'slot1';
+      const isSDSlot = slotId === 'KFaist_CineTech';
       const endpoint = s.endpoint || (isSDSlot ? '/video/frame/td' : `/video/frame/${entityId}`);
       return {
         ...s,
@@ -937,7 +937,7 @@ export default function Home() {
   const webcamEntityStateRef = useRef(0);
 
   const handleWebcamFrame = useCallback((blobUrl: string, fps: number) => {
-    const currentSelected = selectedIdRef.current || 'slot1';
+    const currentSelected = selectedIdRef.current || 'KFaist_CineTech';
     // Lock webcam to the first slot that started it — don't follow selection changes
     if (!webcamSlotRef.current) webcamSlotRef.current = currentSelected;
     const slotId = webcamSlotRef.current;
@@ -1005,7 +1005,7 @@ export default function Home() {
   const webcamHttpErrCountRef = useRef(0);
 
   const handleWebcamFrameData = useCallback((base64: string) => {
-    const slotId = webcamSlotRef.current || selectedIdRef.current || 'slot1';
+    const slotId = webcamSlotRef.current || selectedIdRef.current || 'KFaist_CineTech';
     const conn = connectionsRef.current.get(slotId);
     const slot = slotsRef.current.find(s => s.id === slotId);
     const entityId = conn?.entityId || slot?.entity_id || slotId;
@@ -1106,9 +1106,9 @@ export default function Home() {
     setWebcamActive(active);
     if (active) {
       // Auto-select first slot if nothing is selected
-      if (!selectedIdRef.current) setSelectedId('slot1');
+      if (!selectedIdRef.current) setSelectedId('KFaist_CineTech');
       // Lock webcam to the currently selected slot
-      webcamSlotRef.current = selectedIdRef.current || 'slot1';
+      webcamSlotRef.current = selectedIdRef.current || 'KFaist_CineTech';
       const target = webcamSlotRef.current;
 
       // Auto-activate the target slot if it's inactive (so frames display in the card)
@@ -1153,7 +1153,7 @@ export default function Home() {
       log(`[Webcam] Started — streaming to ${target} (other slots still polling)`, 'ok');
       logEvent('stream', target, 'Webcam stream started');
     } else {
-      const target = webcamSlotRef.current || 'slot1';
+      const target = webcamSlotRef.current || 'KFaist_CineTech';
       const slot = slotsRef.current.find(s => s.id === target);
       const conn = connectionsRef.current.get(target);
       const entityId = conn?.entityId || slot?.entity_id || target;
@@ -1431,17 +1431,17 @@ export default function Home() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         log(`[SD Health] ✓ Frame endpoint live — ${blob.size} bytes (${res.headers.get('content-type')})`, 'ok');
-        logEvent('stream', 'slot1', `SD probe: ${blob.size}B frame OK`);
+        logEvent('stream', 'KFaist_CineTech', `SD probe: ${blob.size}B frame OK`);
       } catch (err) {
         log(`[SD Health] ✗ Frame endpoint failed: ${(err as Error).message}`, 'error');
-        logEvent('stream', 'slot1', `SD probe FAILED: ${(err as Error).message}`);
+        logEvent('stream', 'KFaist_CineTech', `SD probe FAILED: ${(err as Error).message}`);
       }
     })();
 
     // Auto-connect slot 1 on load — SD stream appears immediately, zero clicks needed.
     // Other slots stay available — users connect them explicitly via the setup wizard.
     setTimeout(() => {
-      autoConnectSlot('slot1');
+      autoConnectSlot('KFaist_CineTech');
     }, 100);
 
     // ── State sidecar polling ──────────────────────────────────────
@@ -1473,13 +1473,13 @@ export default function Home() {
 
     // SD feed watchdog — keep slot1 (CineTech) alive 24/7. If it drops, reconnect after 10s.
     const sdWatchdog = setInterval(() => {
-      const k1 = slotsRef.current.find(s => s.id === 'slot1');
+      const k1 = slotsRef.current.find(s => s.id === 'KFaist_CineTech');
       if (!k1) return;
-      const conn = connectionsRef.current.get('slot1');
+      const conn = connectionsRef.current.get('KFaist_CineTech');
       const isHealthy = k1.active && conn && k1.maestraStatus?.server === 'connected';
       if (!isHealthy) {
         console.log('[SD Watchdog] slot1 (CineTech) not healthy — reconnecting');
-        autoConnectSlot('slot1');
+        autoConnectSlot('KFaist_CineTech');
       }
     }, 10000);
 

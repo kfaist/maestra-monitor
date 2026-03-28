@@ -33,9 +33,9 @@ export interface OutSignal {
 
 // mirrors-echo global outputs
 export const MIRRORS_ECHO_OUTS: OutSignal[] = [
-  { id: 'prompt_text',     label: 'prompt_text',     type: 'string',  color: '#00d4ff', icon: '✦', sourceSlotId: 'slot2' },
-  { id: 'audio_amplitude', label: 'audio_amplitude', type: 'float',   color: '#a78bfa', icon: '◈', sourceSlotId: 'slot2' },
-  { id: 'visitor_present', label: 'visitor_present', type: 'boolean', color: '#34d399', icon: '◉', sourceSlotId: 'slot2' },
+  { id: 'prompt_text',     label: 'prompt_text',     type: 'string',  color: '#00d4ff', icon: '✦', sourceSlotId: 'KFaist_Ambient_Intelligence' },
+  { id: 'audio_amplitude', label: 'audio_amplitude', type: 'float',   color: '#a78bfa', icon: '◈', sourceSlotId: 'KFaist_Ambient_Intelligence' },
+  { id: 'visitor_present', label: 'visitor_present', type: 'boolean', color: '#34d399', icon: '◉', sourceSlotId: 'KFaist_Ambient_Intelligence' },
 ];
 
 export const AUDIO_OUTS: OutSignal[] = [

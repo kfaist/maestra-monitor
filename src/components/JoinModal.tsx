@@ -401,7 +401,7 @@ export default function JoinModal({ open, onClose, onJoin }: JoinModalProps) {
                 <span className="success-value">{serverUrl}</span>
               </div>
               <div className="success-info-row">
-                <span className="success-label">Slot</span>
+                <span className="success-label">Node</span>
                 <span className="success-value">{slotId}</span>
               </div>
               <div className="success-info-row">
