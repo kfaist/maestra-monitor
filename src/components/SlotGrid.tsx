@@ -937,97 +937,23 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     </div>
                   </div>
 
-                                    {/* ── Entity Identity + Live Status ── */}
-                  <div className="live-section">
-                    <div className="live-section-head">Entity</div>
-                    <div className="live-kv-grid">
-                      {/* entity name / toe_name */}
-                      <span className="live-kv-key">name</span>
-                      <span className="live-kv-val" style={{ color: slotColor, fontWeight: 700 }}>
-                        {(entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.toe_name as string
-                          || slot.entity_id || slot.id}
+                  {/* -- Preview Info: compact entity bar + TD state -- */}
+                  <div style={{ padding: '6px 10px', background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: slotColor, fontWeight: 700 }}>
+                      {(entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.toe_name as string || slot.entity_id || slot.id}
+                    </span>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: mStatus?.server === 'connected' ? '#4ade80' : mStatus?.server ? '#fbbf24' : 'rgba(255,255,255,0.2)' }} />
+                    <span style={{ fontSize: 10, color: mStatus?.server === 'connected' ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-mono)' }}>
+                      {mStatus?.server === 'connected' ? 'connected' : mStatus?.server || 'offline'}
+                    </span>
+                    {mStatus?.lastHeartbeatAt && (
+                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', fontFamily: 'var(--font-mono)', marginLeft: 'auto' }}>
+                        {mStatus.heartbeat === 'live' ? 'now' : `${formatAge(now - mStatus.lastHeartbeatAt)} ago`}
                       </span>
-                      {/* slug */}
-                      <span className="live-kv-key">slug</span>
-                      <span className="live-kv-val" style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>
-                        {slot.entity_id || slot.id}
-                      </span>
-                      {/* server */}
-                      <span className="live-kv-key">server</span>
-                      <span className="live-kv-val" style={{ fontSize: 10, opacity: 0.55 }}>
-                        {(() => {
-                          const s = (entityStates[slot.entity_id || slot.id] as Record<string,unknown>|undefined)?.server as string | undefined;
-                          if (!s) return '—';
-                          if (s.includes('192.168')) return '⚡ Local · ' + s.replace('http://','').replace('https://','');
-                          if (s.includes('railway')) return '☁ Railway';
-                          return s.replace('https://','').replace('http://','').slice(0,28);
-                        })()}
-                      </span>
-                      {/* connection status */}
-                      <span className="live-kv-key">status</span>
-                      <span className={`live-kv-val ${mStatus?.server === 'connected' ? 'val-ok' : 'val-warn'}`}
-                        style={{ color: mStatus?.server === 'connected' ? slotColor : undefined }}>
-                        {mStatus?.server === 'connected' ? 'connected' : mStatus?.server || 'offline'}
-                      </span>
-                      {/* last seen */}
-                      <span className="live-kv-key">last seen</span>
-                      <span className={`live-kv-val ${mStatus?.heartbeat === 'live' ? 'val-ok' : mStatus?.heartbeat === 'stale' ? 'val-warn' : 'val-dim'}`}>
-                        {mStatus?.heartbeat === 'live' ? 'now'
-                          : mStatus?.lastHeartbeatAt ? `${formatAge(now - mStatus.lastHeartbeatAt)} ago`
-                          : 'waiting'}
-                      </span>
-                    </div>
+                    )}
                   </div>
 
-                  {/* ── State Schema: ↑output + ↓input chips with live values ── */}
-                  {(() => {
-                    const eid = slot.entity_id || slot.id;
-                    const eState = entityStates[eid] as Record<string,unknown> | undefined;
-                    const schema = eState?.stateSchema as Record<string, {type:string; direction:string}> | undefined;
-                    const entries = schema
-                      ? Object.entries(schema)
-                      : Object.entries(eState || {})
-                          .filter(([k]) => !['toe_name','tops','server','active','metadata','stateSchema','publishing','listening'].includes(k))
-                          .map(([k]) => [k, { type: 'string', direction: 'output' }] as [string, {type:string;direction:string}]);
-                    if (!entries.length) return null;
-                    const outs = entries.filter(([,v]) => v.direction !== 'input');
-                    const ins  = entries.filter(([,v]) => v.direction === 'input');
-                    return (
-                      <div className="live-section">
-                        <div className="live-section-head">State</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                          {outs.map(([key, varDef]) => {
-                            const lv = eState?.[key] != null ? String(eState[key]).slice(0, 16) : null;
-                            return (
-                              <div key={key} style={{
-                                display: 'inline-flex', alignItems: 'center', gap: 3,
-                                background: `${slotColor}12`, border: `1px solid ${slotColor}40`,
-                                padding: '2px 5px', fontSize: 10,
-                              }}>
-                                <span style={{ color: slotColor, fontSize: 10 }}>↑</span>
-                                <span style={{ fontFamily: 'var(--font-mono)', color: slotColor }}>{key}</span>
-                                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10 }}>{varDef.type}</span>
-                                {lv && <span style={{ color: 'var(--text-dim)', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: 3 }}>{lv}</span>}
-                              </div>
-                            );
-                          })}
-                          {ins.map(([key, varDef]) => (
-                            <div key={key} style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 3,
-                              background: 'rgba(255,255,255,0.03)', border: `1px solid ${slotColor}20`,
-                              padding: '2px 5px', fontSize: 10,
-                            }}>
-                              <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>↓</span>
-                              <span style={{ fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,0.4)' }}>{key}</span>
-                              <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: 10 }}>{varDef.type}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-{/* ── Sidecar state chips: prompt_text, visitor_present, per-machine fps ── */}
+                  {/* ── Sidecar state chips: prompt_text, visitor_present, per-machine fps ── */}
                   {(() => {
                     const eid = slot.entity_id || slot.id;
                     const eState = entityStates[eid] as Record<string, unknown> | undefined;
@@ -1078,7 +1004,61 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     );
                   })()}
 
-                  {/* ── Section 2: Signals ── */}
+
+{/* ── State Schema: ↑output + ↓input chips with live values ── */}
+                  {(() => {
+                    const eid = slot.entity_id || slot.id;
+                    const eState = entityStates[eid] as Record<string,unknown> | undefined;
+                    const schema = eState?.stateSchema as Record<string, {type:string; direction:string}> | undefined;
+                    const entries = schema
+                      ? Object.entries(schema)
+                      : Object.entries(eState || {})
+                          .filter(([k]) => !['toe_name','tops','server','active','metadata','stateSchema','publishing','listening'].includes(k))
+                          .map(([k]) => [k, { type: 'string', direction: 'output' }] as [string, {type:string;direction:string}]);
+                    if (!entries.length) return null;
+                    const outs = entries.filter(([,v]) => v.direction !== 'input');
+                    const ins  = entries.filter(([,v]) => v.direction === 'input');
+                    return (
+                      <div className="live-section">
+                        <div className="live-section-head">State</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                          {outs.map(([key, varDef]) => {
+                            const lv = eState?.[key] != null ? String(eState[key]).slice(0, 16) : null;
+                            return (
+                              <div key={key} style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 3,
+                                background: `${slotColor}12`, border: `1px solid ${slotColor}40`,
+                                padding: '2px 5px', fontSize: 10,
+                              }}>
+                                <span style={{ color: slotColor, fontSize: 10, fontWeight: 700 }}>=</span>
+                                <span style={{ fontFamily: 'var(--font-mono)', color: slotColor }}>{key}</span>
+                                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10 }}>{varDef.type}</span>
+                                {lv && <span style={{ color: 'var(--text-dim)', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: 3 }}>{lv}</span>}
+                              </div>
+                            );
+                          })}
+                          {ins.map(([key, varDef]) => (
+                            <div key={key} style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 3,
+                              background: 'rgba(255,255,255,0.03)', border: `1px solid ${slotColor}20`,
+                              padding: '2px 5px', fontSize: 10,
+                            }}>
+                              <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10, fontWeight: 700 }}>−</span>
+                              <span style={{ fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,0.4)' }}>{key}</span>
+                              <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: 10 }}>{varDef.type}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* -- Drag-and-drop instruction -- */}
+                  <div style={{ padding: '4px 10px 2px', fontSize: 11, fontStyle: 'italic', color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-mono)', letterSpacing: '0.02em' }}>
+                    drag <span style={{ color: '#22c55e', fontWeight: 700 }}>+</span> output and <span style={{ color: '#5cc8ff', fontWeight: 700 }}>−</span> input chips to wire your entity slot
+                  </div>
+
+{/* ── Section 2: Signals ── */}
                   <div className="live-section">
                     <div className="live-section-head">Signals</div>
                     {publishing.length > 0 && (
@@ -1199,33 +1179,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     )}
                   </div>
 
-                  {/* ── Section 3: Entity State ── */}
-                  {(() => {
-                    const eid = slot.entity_id || slot.id;
-                    const stateObj = entityStates[eid];
-                    const entries = stateObj ? Object.entries(stateObj) : [];
-                    return entries.length > 0 ? (
-                      <div className="live-section">
-                        <div className="live-section-head">State</div>
-                        <div className="live-state-table">
-                          {entries.slice(0, 8).map(([k, v]) => (
-                            <div key={k} className="live-state-row">
-                              <span className="live-state-key">{k}</span>
-                              <span className="live-state-val">{v}</span>
-                            </div>
-                          ))}
-                          {entries.length > 8 && (
-                            <div className="live-state-row">
-                              <span className="live-state-key live-state-more">+{entries.length - 8} more</span>
-                              <span className="live-state-val" />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ) : null;
-                  })()}
-
-                  {/* ── Section 4: Signal Injection ── */}
+{/* ── Section 4: Signal Injection ── */}
                   
 
 

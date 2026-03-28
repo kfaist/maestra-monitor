@@ -451,7 +451,12 @@ export default function Home() {
             }
           }
           // Auto-activate slot when frames arrive — makes the live node panel visible
-          return { ...s, frameUrl: url, fps, active: true, connection_status: 'connected', _frameTimes: times, _fpsSmooth: smooth };
+          // For HTTP-only slots (no WS), synthesise maestraStatus so the UI shows "connected" / "live"
+          const prevM = s.maestraStatus;
+          const httpMaestra = (!prevM || prevM.server !== 'connected')
+            ? { ...(prevM || {}), server: 'connected' as const, entity: 'registered' as const, heartbeat: 'live' as const, stream: 'live' as const, stateSync: 'active' as const, lastStreamFrameAt: Date.now() }
+            : { ...prevM, stream: 'live' as const, lastStreamFrameAt: Date.now() };
+          return { ...s, frameUrl: url, fps, active: true, connection_status: 'connected', maestraStatus: httpMaestra as typeof prevM, _frameTimes: times, _fpsSmooth: smooth };
         }));
       } catch (err) {
         frameErrorCountRef.current++;

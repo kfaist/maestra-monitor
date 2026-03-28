@@ -34,7 +34,7 @@ export function createInitialSlots(): FleetSlot[] {
     // Pre-configured so it auto-polls /video/frame/scope without needing WebSocket
     {
       id: 'scope1',
-      label: 'Scope · SD',
+      label: 'KFaist_Ambient_Intelligence',
       entity_id: 'scope',
       endpoint: '/video/frame/scope',
       active: true,
@@ -47,7 +47,7 @@ export function createInitialSlots(): FleetSlot[] {
       state_summary: {},
       signalType: 'touchdesigner',
       nodeRole: 'send',
-      suggestion: { title: 'StreamDiffusion Scope', desc: 'Live SD output from TouchDesigner via HTTP frame posting.', tag: 'scope' as const, tagLabel: 'Scope' },
+      suggestion: { title: 'KFaist Ambient Intelligence', desc: 'Live SD output from TouchDesigner via HTTP frame posting.', tag: 'scope' as const, tagLabel: 'Scope' },
       _frameTimes: [],
       _fpsSmooth: null,
     },
