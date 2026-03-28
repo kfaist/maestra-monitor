@@ -752,7 +752,7 @@ export default function Home() {
       // Skip organizational entities (Installation, Room, Space, Zone, Group)
       const SLOT_TYPES = new Set(['device', 'controller', 'sensor', 'actuator', 'media', 'light']);
       const entities = rawEntities.filter(e => {
-        // Always keep entities that match existing active slots (scope, krista1_visual, etc.)
+        // Always keep entities that match existing active slots (KFaist_Ambient_Intelligence, krista1_visual, etc.)
         const slug = (e.slug as string) || (e.name as string) || String(e.id);
         // Extract entity_type — could be a string or an object with .name
         const rawType = e.entity_type;
@@ -807,11 +807,11 @@ export default function Home() {
           const serverSlugs = new Set(hydrated.map(s => s.entity_id));
           const localOnly = prev.filter(s => s.active && !serverSlugs.has(s.entity_id || s.id));
           const merged = [...hydrated, ...localOnly];
-          // Ensure scope slot is always present (HTTP-only frame polling, no WS registration)
-          if (!merged.some(s => s.entity_id === 'scope')) {
+          // Ensure KFaist slot is always present (HTTP-only frame polling, no WS registration)
+          if (!merged.some(s => s.entity_id === 'KFaist_Ambient_Intelligence')) {
             const initial = createInitialSlots();
-            const scopeSlot = initial.find(s => s.entity_id === 'scope');
-            if (scopeSlot) merged.push(scopeSlot);
+            const kfaistSlot = initial.find(s => s.entity_id === 'KFaist_Ambient_Intelligence');
+            if (kfaistSlot) merged.push(kfaistSlot);
           }
           return merged;
         });
@@ -1196,7 +1196,7 @@ export default function Home() {
 
   // Cycle to cloud nodes
   const cycleStreamSource = useCallback(() => {
-    setActiveTab('scope');
+    setActiveTab('KFaist_Ambient_Intelligence');
   }, []);
 
   // Handle auto-connect button

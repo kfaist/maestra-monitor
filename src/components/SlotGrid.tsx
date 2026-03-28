@@ -81,13 +81,21 @@ const SIGNALS: { value: SignalSource; label: string; icon: string; color: string
   { value: 'test_signal', label: 'Test', icon: '▶', color: '#6b7280', refHint: 'No operator needed — test pattern generated' },
 ];
 
-/** Derive publishing signals from signal type */
-function getPublishingSignals(slot: FleetSlot): string[] {
+/** Internal keys to hide from signal chips */
+const INTERNAL_STATE_KEYS = new Set(['_sidecar', 'toe_name', 'tops', 'server', 'active', 'metadata', 'stateSchema', 'publishing', 'listening', 'streamType']);
+
+/** Derive publishing signals from REAL entity state when available, else fall back to defaults */
+function getPublishingSignals(slot: FleetSlot, entityState?: Record<string, unknown>): string[] {
   const role = slot.nodeRole;
   if (role === 'receive') return [];
+  // Prefer real state keys from sidecar/server data
+  if (entityState && Object.keys(entityState).length > 0) {
+    return Object.keys(entityState).filter(k => !INTERNAL_STATE_KEYS.has(k));
+  }
+  // Fallback to hardcoded defaults
   const sig = slot.signalType;
   if (sig === 'audio_reactive') return ['sub', 'bass', 'mid', 'high', 'rms', 'bpm'];
-  if (sig === 'touchdesigner') return ['frame', 'render.state', 'cue', 'sequence', 'step', 'progress'];
+  if (sig === 'touchdesigner') return ['prompt_text', 'visitor_present', 'fps', 'device', 'audio_amplitude'];
   if (sig === 'json_stream') return ['data.payload'];
   if (sig === 'osc') return ['osc.msg'];
   if (sig === 'text') return ['text.content'];
@@ -101,12 +109,12 @@ function getListeningSignals(slot: FleetSlot): string[] {
   if (role === 'send') return [];
   const sig = slot.signalType;
   if (sig === 'audio_reactive') return ['lighting.scene', 'visual.palette'];
-  if (sig === 'touchdesigner') return ['prompt.keyword', 'visual.palette', 'lighting.scene'];
+  if (sig === 'touchdesigner') return ['prompt_text', 'visual.palette', 'lighting.scene'];
   if (sig === 'json_stream') return ['data.config'];
   if (sig === 'osc') return ['osc.control'];
-  if (sig === 'text') return ['prompt.keyword'];
+  if (sig === 'text') return ['prompt_text'];
   if (sig === 'test_signal') return ['test.pong'];
-  return ['prompt.keyword', 'lighting.scene'];
+  return ['prompt_text', 'lighting.scene'];
 }
 
 
@@ -348,7 +356,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
       const toeName = entityState?.toe_name as string | undefined;
       const toolTag = slot.signalType === 'audio_reactive' ? 'Max/MSP'
         : slot.signalType === 'osc' ? 'Max/MSP'
-        : slot.cloudNode ? 'Scope'
+        : slot.cloudNode ? 'Cloud'
         : 'TouchDesigner';
       const shortName = toeName || entityId.replace(/_/g, ' ').replace(/\w/g, l => l.toUpperCase());
       setLockedLabels(p => ({ ...p, [slotId]: `${toolTag} · ${shortName}` }));
@@ -670,7 +678,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
       });
       // From live publishing signals
       if (s.active) {
-        getPublishingSignals(s).forEach(key => {
+        const eId = s.entity_id || s.id;
+        getPublishingSignals(s, entityStates[eId] as Record<string, unknown> | undefined).forEach(key => {
           if (!results.find(r => r.slug === slug && r.key === key)) {
             results.push({ slug, key, type: 'string', slotLabel: slug, color });
           }
@@ -801,11 +810,9 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
           const source = sourceState[slot.id] || { path: 'project1/', fileName: null };
 
           // Publishing / listening signals
-          const publishing = slot.active ? getPublishingSignals(slot) : [];
-          const listening = slot.active ? getListeningSignals(slot) : [];
-
-          // Derive stream type from entity metadata
           const entityId = slot.entity_id || slot.id;
+          const publishing = slot.active ? getPublishingSignals(slot, entityStates[entityId] as Record<string, unknown> | undefined) : [];
+          const listening = slot.active ? getListeningSignals(slot) : [];
           const slotStreamType = (entityStates[entityId] as Record<string, unknown>)?.streamType as string | undefined;
           const streamTypeLabel = slotStreamType ? slotStreamType.toUpperCase() : '';
 
