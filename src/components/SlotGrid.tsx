@@ -977,26 +977,33 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     const canReceive = nodeRole === 'receive' || nodeRole === 'two_way';
                     const canSend = nodeRole === 'send' || nodeRole === 'two_way';
 
+                    // Is ANY drag currently active?
+                    const anyDragActive = !!dragSource;
+
                     // Shared row style
                     const rowStyle = (dir: 'output'|'input', isDragSrc: boolean, isDropTgt: boolean): React.CSSProperties => ({
                       display: 'grid',
-                      gridTemplateColumns: '20px 1fr 52px 1fr auto',
+                      gridTemplateColumns: '28px 1fr 52px 1fr auto',
                       gap: 0,
                       alignItems: 'center',
-                      padding: '5px 6px',
+                      padding: dir === 'output' ? '8px 8px' : '6px 8px',
                       fontSize: 11,
                       fontFamily: 'var(--font-mono)',
-                      cursor: dir === 'output' ? 'grab' : 'default',
+                      cursor: dir === 'output' ? 'grab' : (anyDragActive && dir === 'input' ? 'copy' : 'default'),
                       borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      borderLeft: dir === 'output' ? '3px solid #22c55e40' : '3px solid #5cc8ff30',
+                      borderLeft: dir === 'output' ? '4px solid #22c55e60' : '4px solid #5cc8ff40',
                       background: isDropTgt
-                        ? (dir === 'output' ? 'rgba(34,197,94,0.18)' : 'rgba(92,200,255,0.18)')
-                        : isDragSrc ? 'rgba(34,197,94,0.12)' : 'transparent',
+                        ? (dir === 'output' ? 'rgba(34,197,94,0.25)' : 'rgba(92,200,255,0.25)')
+                        : isDragSrc ? 'rgba(34,197,94,0.15)'
+                        : (anyDragActive && dir === 'input') ? 'rgba(92,200,255,0.06)'
+                        : 'transparent',
                       outline: isDropTgt
                         ? `2px dashed ${dir === 'output' ? '#22c55e' : '#5cc8ff'}`
-                        : isDragSrc ? `1px solid #22c55e` : 'none',
+                        : isDragSrc ? '1px solid #22c55e'
+                        : (anyDragActive && dir === 'input') ? '1px dashed rgba(92,200,255,0.3)'
+                        : 'none',
                       opacity: isDragSrc ? 0.5 : 1,
-                      transform: isDragSrc ? 'scale(0.97)' : 'none',
+                      transform: isDragSrc ? 'scale(0.97)' : isDropTgt ? 'scale(1.02)' : 'none',
                       transition: 'background 0.1s, outline 0.1s, transform 0.1s, box-shadow 0.1s, border-left 0.1s',
                     });
 
@@ -1038,14 +1045,16 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                           style={rowStyle(row.dir, isDragSrc, isDropTgt)}
                           title={row.desc || `${row.dir}: ${row.key} (${row.type})`}
                         >
-                          {/* Column 1: direction badge */}
+                          {/* Column 1: direction badge + drag grip */}
                           <span className="sig-row__badge" style={{
-                            fontWeight: 900, fontSize: 14, lineHeight: 1,
+                            fontWeight: 900, fontSize: row.dir === 'output' ? 16 : 14, lineHeight: 1,
                             color: row.dir === 'output' ? '#22c55e' : '#5cc8ff',
                             textAlign: 'center',
                             transition: 'transform 0.15s',
+                            cursor: row.dir === 'output' ? 'grab' : 'default',
+                            userSelect: 'none',
                           }}>
-                            {row.dir === 'output' ? '+' : '\u2212'}
+                            {row.dir === 'output' ? '⠿' : '\u2212'}
                           </span>
 
                           {/* Column 2: signal name */}
@@ -1164,23 +1173,28 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                   }
                                 }}
                                 style={{
-                                  padding: isCardDropTarget ? '28px 12px' : '24px 12px',
-                                  fontSize: isCardDropTarget ? 13 : 11,
+                                  padding: isCardDropTarget ? '32px 12px' : '26px 12px',
+                                  fontSize: isCardDropTarget ? 14 : 12,
                                   fontWeight: 700,
                                   fontFamily: 'var(--font-mono)',
-                                  color: isCardDropTarget ? '#5cc8ff' : 'rgba(92,200,255,0.4)',
+                                  color: isCardDropTarget ? '#fff' : 'rgba(92,200,255,0.5)',
                                   fontStyle: 'normal',
-                                  border: isCardDropTarget ? '2px dashed #5cc8ff' : '2px dashed rgba(92,200,255,0.2)',
-                                  borderRadius: 4,
-                                  margin: '4px',
-                                  background: isCardDropTarget ? 'rgba(92,200,255,0.12)' : 'rgba(92,200,255,0.03)',
-                                  boxShadow: isCardDropTarget ? '0 0 20px rgba(92,200,255,0.15), inset 0 0 30px rgba(92,200,255,0.05)' : 'none',
-                                  transition: 'all 0.12s ease-out',
+                                  border: isCardDropTarget ? '3px dashed #5cc8ff' : '2px dashed rgba(92,200,255,0.25)',
+                                  borderRadius: 6,
+                                  margin: '6px',
+                                  background: isCardDropTarget
+                                    ? 'rgba(92,200,255,0.2)'
+                                    : 'rgba(92,200,255,0.04)',
+                                  boxShadow: isCardDropTarget
+                                    ? '0 0 30px rgba(92,200,255,0.3), inset 0 0 40px rgba(92,200,255,0.08), 0 0 60px rgba(92,200,255,0.15)'
+                                    : 'none',
+                                  transition: 'all 0.15s ease-out',
                                   textAlign: 'center',
                                   display: 'flex',
                                   flexDirection: 'column',
                                   alignItems: 'center',
-                                  gap: 6,
+                                  gap: 8,
+                                  cursor: isCardDropTarget ? 'copy' : 'default',
                                 }}
                               >
                                 {isCardDropTarget ? (
