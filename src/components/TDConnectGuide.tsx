@@ -56,6 +56,41 @@ export default function TDConnectGuide({ slot, onRoleChange, onSignalSourceChang
   const [signalSource, setSignalSource] = useState<SignalSource | null>(null);
   const [tdProjectPath, setTdProjectPath] = useState('project1/');
 
+  // Live node list from backend
+  const [liveNodes, setLiveNodes] = useState<{slug:string; name:string; status:string}[]>([]);
+  const [nodesLoading, setNodesLoading] = useState(true);
+  const [nodeSearch, setNodeSearch] = useState('');
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+
+  // Fetch registered entities on mount
+  useEffect(() => {
+    fetch('https://maestra-backend-v2-production.up.railway.app/entities')
+      .then(r => r.json())
+      .then((data: unknown[]) => {
+        const seen = new Set<string>();
+        const list = data
+          .filter((e: unknown) => {
+            const en = e as Record<string,unknown>;
+            if (!en.slug || seen.has(String(en.slug))) return false;
+            seen.add(String(en.slug));
+            return true;
+          })
+          .map((e: unknown) => {
+            const en = e as Record<string,unknown>;
+            return { slug: String(en.slug), name: String(en.name||en.slug), status: String(en.status||'offline') };
+          })
+          .sort((a,b) => {
+            if (a.status === 'online' && b.status !== 'online') return -1;
+            if (b.status === 'online' && a.status !== 'online') return 1;
+            return a.slug.localeCompare(b.slug);
+          })
+          .slice(0, 100);
+        setLiveNodes(list);
+        setNodesLoading(false);
+      })
+      .catch(() => setNodesLoading(false));
+  }, []);
+
   // Activity log (live mode)
   const activityRef = useRef<{ time: string; msg: string }[]>([]);
   const [activityTick, setActivityTick] = useState(0);
