@@ -1448,10 +1448,11 @@ export default function Home() {
       }
     })();
 
-    // Auto-connect primary nodes on load — both come online immediately, zero clicks.
+    // Auto-connect all three primary nodes on load — zero clicks.
     setTimeout(() => {
       autoConnectSlot('KFaist_CineTech');
       autoConnectSlot('KFaist_Ambient_Intelligence');
+      autoConnectSlot('KFaist_Shapeshifters');
     }, 100);
 
     // ── State sidecar polling ──────────────────────────────────────
@@ -1482,7 +1483,7 @@ export default function Home() {
     }, 5000); // Poll every 5s — lightweight, doesn't need to be fast
 
     // Primary node watchdog — keep CineTech + Ambient Intelligence alive 24/7.
-    const AUTO_CONNECT_IDS = ['KFaist_CineTech', 'KFaist_Ambient_Intelligence'];
+    const AUTO_CONNECT_IDS = ['KFaist_CineTech', 'KFaist_Ambient_Intelligence', 'KFaist_Shapeshifters'];
     const sdWatchdog = setInterval(() => {
       for (const nodeId of AUTO_CONNECT_IDS) {
         const node = slotsRef.current.find(s => s.id === nodeId);
