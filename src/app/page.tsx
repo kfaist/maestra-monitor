@@ -721,17 +721,41 @@ export default function Home() {
 
   // API polling
   const fetchEntities = useCallback(async () => {
-    const base = resolveActiveBase();
-    setResolvedServerUrl(base);
+    // Try gallery-cache on monitor first (works from any network),
+    // fall back to direct local gallery if cache is empty/stale
+    let entities: Record<string, unknown>[] = [];
+    let source = '';
     try {
-      const res = await fetch(`${base}/entities`, { signal: AbortSignal.timeout(6000) });
-      if (!res.ok) { setServerConnected(false); return; }
-      const data = await res.json();
-      const rawEntities: Record<string, unknown>[] = Array.isArray(data) ? data : (data.entities ?? []);
-      setServerConnected(true);
+      const cacheRes = await fetch('/api/gallery-cache', { signal: AbortSignal.timeout(4000) });
+      if (cacheRes.ok) {
+        const cacheData = await cacheRes.json();
+        if (cacheData.entities?.length > 0 && !cacheData.stale) {
+          entities = cacheData.entities;
+          source = 'gallery-cache';
+        }
+      }
+    } catch { /* cache unavailable, fall through */ }
 
-      const entities = rawEntities;
-      log(`[Server] ${entities.length} entities from ${base.replace('https://','').replace('http://','').slice(0,30)}`, 'ok');
+    // Fallback: direct gallery (only works on local network)
+    if (entities.length === 0) {
+      const base = resolveActiveBase();
+      setResolvedServerUrl(base);
+      try {
+        const res = await fetch(`${base}/entities`, { signal: AbortSignal.timeout(6000) });
+        if (res.ok) {
+          const data = await res.json();
+          entities = Array.isArray(data) ? data : (data.entities ?? []);
+          source = base.replace('https://','').replace('http://','').slice(0,30);
+        }
+      } catch { /* gallery unreachable */ }
+    }
+
+    if (entities.length === 0) {
+      setServerConnected(false);
+      return;
+    }
+    setServerConnected(true);
+    log(`[Server] ${entities.length} entities from ${source}`, 'ok');
 
       // Fixed primary card entity_ids — these are permanent and never altered
       const PRIMARY_IDS = new Set(['KFaist_CineTech', 'KFaist_Ambient_Intelligence', 'KFaist_Shapeshifters']);
