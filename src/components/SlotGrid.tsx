@@ -2240,11 +2240,28 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                     </div>
                   )}
                   </div>
-                  {/* Entity ID tag */}
-                  {(slot.entity_id || slot.active) && (
+                  {/* Entity ID tag — or connect .toe for unconnected */}
+                  {slot.active ? (
                     <div className="slot-entity-tag">
                       <span className="slot-entity-label">ENTITY</span>
                       <span className="slot-entity-id">{slot.entity_id || slot.id}</span>
+                    </div>
+                  ) : (
+                    <div className="slot-entity-tag" style={{ cursor: 'pointer', background: `${slotColor}08`, borderColor: `${slotColor}30` }}
+                      onClick={e => { e.stopPropagation();
+                        setSetupState(prev => ({
+                          ...prev,
+                          [slot.id]: {
+                            stage: 'connect' as InlineStage,
+                            slug: '', refFile: null,
+                            direction: 'send' as NodeRole,
+                            selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '',
+                            outputSignals: [], streamType: '', selectedNode: '', nodeSearch: '', opSearch: '',
+                          },
+                        }));
+                      }}>
+                      <span className="slot-entity-label" style={{ color: slotColor }}>CONNECT</span>
+                      <span className="slot-entity-id" style={{ color: slotColor, opacity: 0.7 }}>link a .toe to this slot</span>
                     </div>
                   )}
                 </div>
