@@ -1157,6 +1157,106 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                 {inputs.map(renderRow)}
                               </>
                             )}
+
+                            {/* ── ACTIVE WIRE ROUTES — inbound routes targeting this card ── */}
+                            {(() => {
+                              const inboundWires = wireRoutes.filter(r => r.targetSlug === patchSlug);
+                              if (inboundWires.length === 0) return null;
+                              return (
+                                <>
+                                  <div style={{
+                                    display: 'grid', gridTemplateColumns: '20px 1fr auto',
+                                    padding: '5px 6px 3px', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
+                                    color: '#a78bfa', borderBottom: `1px solid rgba(167,139,250,0.15)`,
+                                    background: 'rgba(167,139,250,0.06)',
+                                    borderTop: `1px solid rgba(167,139,250,0.15)`,
+                                  }}>
+                                    <span></span>
+                                    <span>ROUTED SIGNALS ({inboundWires.length})</span>
+                                    <span style={{ textAlign: 'right', color: 'rgba(255,255,255,0.2)', paddingRight: 4 }}>CTRL</span>
+                                  </div>
+                                  {inboundWires.map(wire => {
+                                    const srcShort = wire.sourceSlug.replace('KFaist_', '');
+                                    const amt = getWireAmount(wire);
+                                    return (
+                                      <div key={wire.id} style={{
+                                        display: 'grid', gridTemplateColumns: '20px 1fr auto',
+                                        padding: '6px 6px', fontSize: 11,
+                                        borderBottom: '1px solid rgba(167,139,250,0.08)',
+                                        background: wire.active ? 'rgba(167,139,250,0.08)' : 'rgba(255,255,255,0.02)',
+                                        alignItems: 'center',
+                                        transition: 'background 0.15s',
+                                      }}>
+                                        {/* Col 1: active indicator */}
+                                        <span style={{
+                                          width: 10, height: 10, borderRadius: '50%',
+                                          background: wire.active ? '#a78bfa' : 'rgba(255,255,255,0.15)',
+                                          display: 'inline-block',
+                                          cursor: 'pointer',
+                                          boxShadow: wire.active ? '0 0 8px rgba(167,139,250,0.5)' : 'none',
+                                          transition: 'all 0.15s',
+                                        }}
+                                          title={wire.active ? 'Click to disable' : 'Click to enable'}
+                                          onClick={() => toggleWireActive(wire.id)}
+                                        />
+                                        {/* Col 2: source info + amount slider */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            <span style={{
+                                              fontFamily: 'var(--font-mono)', fontWeight: 700,
+                                              color: wire.active ? '#a78bfa' : 'rgba(255,255,255,0.3)',
+                                            }}>
+                                              {srcShort}<span style={{ opacity: 0.4 }}>.{wire.sourceKey}</span>
+                                            </span>
+                                            <span style={{ fontSize: 10, opacity: 0.3 }}>{'\u2192'}</span>
+                                            <span style={{
+                                              fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600,
+                                              color: 'rgba(92,200,255,0.6)',
+                                            }}>
+                                              {wire.targetKey}
+                                            </span>
+                                          </div>
+                                          {/* Amount slider */}
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 8 }}>
+                                            <input
+                                              type="range" min={0} max={1} step={0.01} value={amt}
+                                              onChange={e => patchWireAmount(wire.id, parseFloat(e.target.value))}
+                                              style={{
+                                                width: '100%', height: 4, accentColor: '#a78bfa',
+                                                cursor: 'pointer', opacity: wire.active ? 0.8 : 0.3,
+                                              }}
+                                            />
+                                            <span style={{
+                                              fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 600,
+                                              color: 'rgba(167,139,250,0.6)', minWidth: 30, textAlign: 'right',
+                                            }}>
+                                              {(amt * 100).toFixed(0)}%
+                                            </span>
+                                          </div>
+                                        </div>
+                                        {/* Col 3: delete button */}
+                                        <button
+                                          onClick={() => deleteWire(wire.id)}
+                                          title="Remove route"
+                                          style={{
+                                            background: 'none', border: '1px solid rgba(239,68,68,0.3)',
+                                            color: 'rgba(239,68,68,0.6)', cursor: 'pointer',
+                                            borderRadius: 4, padding: '2px 6px', fontSize: 10,
+                                            fontFamily: 'var(--font-mono)', fontWeight: 700,
+                                            transition: 'all 0.15s',
+                                          }}
+                                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.15)'; e.currentTarget.style.color = '#ef4444'; }}
+                                          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'rgba(239,68,68,0.6)'; }}
+                                        >
+                                          {'\u00d7'}
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </>
+                              );
+                            })()}
+
                             {/* Drop zone — always shown for receive/two_way cards, even if they have existing inputs */}
                               <div
                                 className="receive-dropzone"
