@@ -826,6 +826,23 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
             + Add Your TD Node
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={e => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(`import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/build_maestra_tox.py').read().decode())`);
+                const btn = e.currentTarget;
+                btn.textContent = '\u2713 Copied to clipboard!';
+                setTimeout(() => { btn.textContent = 'Copy Textport Command'; }, 2500);
+              }}
+              style={{
+                background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.4)',
+                color: '#fbbf24', padding: '4px 10px', fontSize: 10,
+                fontFamily: 'var(--font-display)', fontWeight: 700,
+                letterSpacing: '0.06em', cursor: 'pointer', borderRadius: 2,
+                transition: 'all 0.15s',
+              }}>
+              Copy Textport Command
+            </button>
             <span className="entity-count">{activeCount} active / {slots.length} slots</span>
             <button
               onClick={e => { e.stopPropagation(); setShowBootstrap(prev => !prev); }}
