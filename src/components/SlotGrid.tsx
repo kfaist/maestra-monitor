@@ -1521,7 +1521,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                             }}>
                                               ⠿
                                             </span>
-                                            {/* Col 2: signal name + slider */}
+                                            {/* Col 2: signal name + live value + slider */}
                                             <div style={{ overflow: 'hidden' }}>
                                               <span style={{
                                                 fontWeight: 600, fontSize: 11,
@@ -1531,6 +1531,29 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                               }}>
                                                 {wire.sourceKey}<span style={{ color: `${originColor}60`, margin: '0 3px' }}>{'\u2192'}</span>{wire.targetKey}
                                               </span>
+                                              {/* Live value from source entity */}
+                                              {(() => {
+                                                const srcState = entityStates[wire.sourceSlug] as Record<string, unknown> | undefined;
+                                                const rawVal = srcState?.[wire.sourceKey];
+                                                if (rawVal === undefined) return (
+                                                  <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.15)', fontStyle: 'italic', display: 'block', marginTop: 1 }}>
+                                                    waiting...
+                                                  </span>
+                                                );
+                                                const displayVal = typeof rawVal === 'number'
+                                                  ? (rawVal * amt).toFixed(typeof rawVal === 'number' && rawVal % 1 !== 0 ? 2 : 0)
+                                                  : String(rawVal).slice(0, 40);
+                                                return (
+                                                  <span style={{
+                                                    fontSize: 10, fontFamily: 'var(--font-mono)',
+                                                    color: wire.active ? '#e2e8f0' : 'rgba(255,255,255,0.2)',
+                                                    display: 'block', marginTop: 1,
+                                                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                                  }}>
+                                                    {displayVal}
+                                                  </span>
+                                                );
+                                              })()}
                                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
                                                 <input
                                                   type="range" min={0} max={1} step={0.01} value={amt}
