@@ -22,7 +22,7 @@ import { DmxState, defaultDmxState, SCENE_CUE_MAP } from '@/components/LightingP
 import { FleetSlot, LogEntry, EventEntry, AudioAnalysisData, SlotConnectionInfo, MaestraSlotStatus, defaultSlotStatus } from '@/types';
 import { createInitialSlots, SUGGESTIONS } from '@/mock';
 import { WSSimulator } from '@/mock/ws-simulator';
-import { createInitialGpuNodes } from '@/mock/gpu-nodes';
+// gpu-nodes import removed — endpoints now route through resolveActiveBase()
 import { GALLERY_URL, RAILWAY_URL } from '@/lib/maestra-client';
 import { formatTimestamp } from '@/lib/audio-utils';
 import { FRAME_FETCH_INTERVAL } from '@/lib/constants';
