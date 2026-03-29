@@ -33,15 +33,14 @@ function loadRoutes(): RouteStore {
   catch { return { routes: [] }; }
 }
 
-/** GET existing entity state from backend, returns {} if not found */
-async function getEntityState(serverUrl: string, targetSlug: string): Promise<Record<string, unknown>> {
+/** Look up entity by slug, return { id, state } */
+async function resolveEntity(serverUrl: string, targetSlug: string): Promise<{ id: string; state: Record<string, unknown> } | null> {
   try {
     const res = await fetch(`${serverUrl}/entities`, {
       signal: AbortSignal.timeout(4000),
     });
-    if (!res.ok) return {};
+    if (!res.ok) return null;
     const entities = await res.json() as Array<Record<string, unknown>>;
-    // Find entity by slug (normalize spaces/underscores)
     const norm = (s: string) => s.replace(/[\s_]+/g, '_').toLowerCase();
     const target = norm(targetSlug);
     const match = entities.find(e => {
@@ -49,10 +48,13 @@ async function getEntityState(serverUrl: string, targetSlug: string): Promise<Re
       const name = norm(String(e.name || ''));
       return slug === target || name === target;
     });
-    if (!match) return {};
-    return (match.state as Record<string, unknown>) || {};
+    if (!match) return null;
+    return {
+      id: String(match.id),
+      state: (match.state as Record<string, unknown>) || {},
+    };
   } catch {
-    return {};
+    return null;
   }
 }
 
@@ -113,38 +115,61 @@ export async function POST(req: NextRequest) {
       targetUpdates.set(route.targetSlug, existing);
     }
 
-    // Deliver to each target entity via POST upsert (merge state)
+    // Deliver to each target entity via PATCH /entities/:entityId/state
+    // Jordan confirmed: use entityID (UUID), not slug. PATCH merges keys without overwriting.
+    // Fallback to POST upsert if PATCH fails or entity not found.
     for (const [targetSlug, newKeys] of targetUpdates) {
       try {
-        // Step 1: GET current state so we can merge (not overwrite)
-        const currentState = await getEntityState(serverUrl, targetSlug);
+        const entity = await resolveEntity(serverUrl, targetSlug);
+        let delivered = false;
 
-        // Step 2: Merge — new keys win, existing keys preserved
-        const mergedState = { ...currentState, ...newKeys };
+        // Try PATCH first (incremental, safe)
+        if (entity?.id) {
+          const patchRes = await fetch(`${serverUrl}/entities/${entity.id}/state`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newKeys),
+            signal: AbortSignal.timeout(5000),
+          });
+          if (patchRes.ok) {
+            delivered = true;
+            const keys = Object.keys(newKeys);
+            results.push({
+              route: `${body.sourceSlug} → ${targetSlug} [${keys.join(', ')}]`,
+              ok: true,
+              delivered: newKeys,
+            });
+            console.log(`[fanout] PATCH: ${body.sourceSlug} → ${targetSlug} [${keys.join(', ')}]`);
+          }
+        }
 
-        // Step 3: POST upsert with merged state
-        const res = await fetch(`${serverUrl}/entities`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: targetSlug,
-            slug: targetSlug,
-            state: mergedState,
-            tags: ['fanout'],
-          }),
-          signal: AbortSignal.timeout(5000),
-        });
+        // Fallback: POST upsert with merged state
+        if (!delivered) {
+          const currentState = entity?.state || {};
+          const mergedState = { ...currentState, ...newKeys };
+          const res = await fetch(`${serverUrl}/entities`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: targetSlug,
+              slug: targetSlug,
+              state: mergedState,
+              tags: ['fanout'],
+            }),
+            signal: AbortSignal.timeout(5000),
+          });
 
-        const keys = Object.keys(newKeys);
-        results.push({
-          route: `${body.sourceSlug} → ${targetSlug} [${keys.join(', ')}]`,
-          ok: res.ok,
-          delivered: newKeys,
-          error: res.ok ? undefined : `HTTP ${res.status}`,
-        });
+          const keys = Object.keys(newKeys);
+          results.push({
+            route: `${body.sourceSlug} → ${targetSlug} [${keys.join(', ')}]`,
+            ok: res.ok,
+            delivered: newKeys,
+            error: res.ok ? undefined : `HTTP ${res.status}`,
+          });
 
-        if (res.ok) {
-          console.log(`[fanout] Delivered: ${body.sourceSlug} → ${targetSlug} [${keys.join(', ')}]`);
+          if (res.ok) {
+            console.log(`[fanout] POST fallback: ${body.sourceSlug} → ${targetSlug} [${keys.join(', ')}]`);
+          }
         }
       } catch (e) {
         results.push({
