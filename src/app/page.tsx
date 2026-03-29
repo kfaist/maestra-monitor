@@ -769,42 +769,45 @@ export default function Home() {
 
       if (entities.length > 0) {
         setSlots(prev => {
-          // 1. Populate the 3 primary cards with matching entity data
-          const primaries = prev.filter(c => isPrimary(c.entity_id || '')).map(card => {
+          // Step 1: For each primary slot, find matching backend entity and REPLACE (not coexist)
+          const matchedBackendIds = new Set<string>();
+
+          const hydratedPrimaries = prev.filter(c => isPrimary(c.entity_id || '')).map(card => {
             const cardNorm = normSlug(card.entity_id || '');
-            const match = entities.find(e =>
-              normSlug((e.slug as string) || '') === cardNorm
-              || normSlug((e.name as string) || '') === cardNorm
-              || String(e.id) === card.entity_id
-            );
-            if (!match) return card;
-            const state = (match.state as Record<string, unknown>) || {};
-            const serverSchema = (match.metadata as Record<string, unknown>)?.stateSchema as import('@/types').StateSchema | undefined;
-            return {
-              ...card,
-              entityId: String(match.id),
-              state_summary: state,
-              stateSchema: serverSchema || card.stateSchema,
-              last_heartbeat: (match.last_heartbeat as number) || card.last_heartbeat,
-              // Identity is NEVER overwritten
-              entity_id: card.entity_id,
-              label: card.label,
-              id: card.id,
-            };
+            const match = entities.find(e => {
+              const eSlug = normSlug((e.slug as string) || '');
+              const eName = normSlug((e.name as string) || '');
+              return eSlug === cardNorm || eName === cardNorm || String(e.id) === card.entity_id;
+            });
+            if (match) {
+              // Mark this backend entity as consumed — it must NOT appear in discovered
+              const matchSlug = (match.slug as string) || (match.name as string) || String(match.id);
+              matchedBackendIds.add(matchSlug);
+              const state = (match.state as Record<string, unknown>) || {};
+              const serverSchema = (match.metadata as Record<string, unknown>)?.stateSchema as import('@/types').StateSchema | undefined;
+              return {
+                ...card,
+                entityId: String(match.id),
+                state_summary: state,
+                stateSchema: serverSchema || card.stateSchema,
+                last_heartbeat: (match.last_heartbeat as number) || card.last_heartbeat,
+                // Identity is NEVER overwritten
+                entity_id: card.entity_id,
+                label: card.label,
+                id: card.id,
+              };
+            }
+            return card;
           });
 
-          // 2. Find entities not matched to any primary card
-          const matchedSlugs = new Set(entities
-            .filter(e => isPrimary((e.slug as string) || '') || isPrimary((e.name as string) || ''))
-            .map(e => (e.slug as string) || (e.name as string) || String(e.id)));
-          const existingDiscoveredIds = new Set(prev.filter(c => !isPrimary(c.entity_id || '')).map(c => c.entity_id));
-
+          // Step 2: Discovered = backend entities that did NOT match any primary
           const discovered = entities
             .filter(e => {
               const slug = (e.slug as string) || (e.name as string) || String(e.id);
-              return !isPrimary(slug) && !matchedSlugs.has(slug);
+              // Exclude if this entity matched a primary (by consumed set OR by normalized check)
+              return !matchedBackendIds.has(slug) && !isPrimary(slug);
             })
-            .map((e, i) => {
+            .map(e => {
               const slug = (e.slug as string) || (e.name as string) || String(e.id);
               const existing = prev.find(c => c.entity_id === slug);
               const state = (e.state as Record<string, unknown>) || {};
@@ -833,7 +836,8 @@ export default function Home() {
               } as import('@/types').FleetSlot;
             });
 
-          return [...primaries, ...discovered];
+          // Step 3: Primaries replaced, not coexisting
+          return [...hydratedPrimaries, ...discovered];
         });
       }
 
