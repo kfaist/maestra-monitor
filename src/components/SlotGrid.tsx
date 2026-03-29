@@ -1599,6 +1599,49 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                           </div>
                                         );
                                       })}
+                                      {/* Prompt to enable receiving in TD */}
+                                      <div style={{
+                                        marginTop: 8, padding: '6px 8px',
+                                        background: 'rgba(52,211,153,0.06)',
+                                        border: '1px solid rgba(52,211,153,0.15)',
+                                        borderRadius: 4, fontSize: 9, lineHeight: 1.6,
+                                      }}>
+                                        <div style={{ color: '#34d399', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 3 }}>
+                                          RECEIVE IN TD
+                                        </div>
+                                        <div style={{ color: 'rgba(255,255,255,0.4)' }}>
+                                          Paste in Textport to pull these values into your .toe:
+                                        </div>
+                                        <div style={{
+                                          display: 'flex', alignItems: 'center', gap: 4, marginTop: 4,
+                                          background: 'rgba(0,0,0,0.3)', padding: '4px 6px', borderRadius: 3,
+                                        }}>
+                                          <code style={{
+                                            flex: 1, fontSize: 8, fontFamily: 'var(--font-mono)',
+                                            color: '#34d399', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                          }}>
+                                            {"import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/pull_state.py').read().decode())"}
+                                          </code>
+                                          <button
+                                            onClick={ev => {
+                                              ev.stopPropagation();
+                                              navigator.clipboard.writeText("import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/pull_state.py').read().decode())");
+                                              const btn = ev.currentTarget;
+                                              btn.textContent = '\u2713';
+                                              setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+                                            }}
+                                            style={{
+                                              fontSize: 8, fontFamily: 'var(--font-mono)', fontWeight: 700,
+                                              padding: '2px 6px', cursor: 'pointer',
+                                              background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)',
+                                              color: '#34d399', borderRadius: 2, flexShrink: 0,
+                                            }}
+                                          >Copy</button>
+                                        </div>
+                                        <div style={{ color: 'rgba(255,255,255,0.25)', marginTop: 3, fontSize: 8 }}>
+                                          Values land in /project1/maestra_state Table DAT
+                                        </div>
+                                      </div>
                                     </div>
                                   );
                                 })()}
