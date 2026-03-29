@@ -22,7 +22,7 @@ import { DmxState, defaultDmxState, SCENE_CUE_MAP } from '@/components/LightingP
 import { FleetSlot, LogEntry, EventEntry, AudioAnalysisData, SlotConnectionInfo, MaestraSlotStatus, defaultSlotStatus } from '@/types';
 import { createInitialSlots, SUGGESTIONS } from '@/mock';
 import { WSSimulator } from '@/mock/ws-simulator';
-import { API_BASE } from '@/mock/gpu-nodes';
+import { createInitialGpuNodes } from '@/mock/gpu-nodes';
 import { GALLERY_URL, RAILWAY_URL } from '@/lib/maestra-client';
 import { formatTimestamp } from '@/lib/audio-utils';
 import { FRAME_FETCH_INTERVAL } from '@/lib/constants';
@@ -103,7 +103,7 @@ export default function Home() {
     if (mode === 'gallery') return GALLERY_URL;
     if (mode === 'custom' && cu) return cu;
     if (mode === 'railway') return RAILWAY_URL;
-    return GALLERY_URL; // auto: try gallery first
+    return RAILWAY_URL; // auto: Railway is always reachable; switch to Gallery on-site
   };
 
   const slotsRef = useRef(slots);
@@ -336,13 +336,24 @@ export default function Home() {
   // Update connection config
   const handleServerModeChange = useCallback((mode: 'railway' | 'gallery' | 'auto' | 'custom') => {
     setServerMode(mode);
-    // Reconnect WS to new server — use ref to avoid forward declaration issue
+    serverModeRef.current = mode;
+    log(`[Server] Switching to ${mode.toUpperCase()} mode → ${mode === 'gallery' ? GALLERY_URL : mode === 'railway' ? RAILWAY_URL : 'auto'}`, 'info');
+
+    // Reset frame state for clean transition
+    frameErrorCountRef.current = 0;
+    firstFrameSlotsRef.current.clear();
+
+    // Reconnect WS to new server
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
-    // wsReconnect will fire from the ws.onclose handler automatically
-  }, []);
+
+    // Re-fetch entities from new server immediately
+    setTimeout(() => {
+      fetchEntities();
+    }, 200);
+  }, [fetchEntities, log]);
 
   const updateConnectionConfig = useCallback((config: { serverUrl?: string; entityId?: string; port?: number; streamPath?: string }) => {
     if (!connectionInfo) return;
@@ -383,9 +394,10 @@ export default function Home() {
       if (webcamActiveRef.current && slot.id === webcamSlotRef.current) return;
 
       const entityId = slot.entity_id || slot.id;
+      const activeBase = resolveActiveBase();
       const endpoint = slot.endpoint
-        ? (slot.endpoint.startsWith('/api/') ? slot.endpoint : `${API_BASE}${slot.endpoint}`)
-        : `/api/frame/${entityId}`;
+        ? `${activeBase}${slot.endpoint}`
+        : `${activeBase}/video/frame/${entityId}`;
       try {
         const res = await fetch(`${endpoint}?t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -477,16 +489,18 @@ export default function Home() {
   const connectWS = useCallback(() => {
     if (wsRef.current && (wsRef.current.readyState === 0 || wsRef.current.readyState === 1)) return;
 
-    // Railway backend has no WebSocket — only connect in gallery mode (on-site)
-    if (serverModeRef.current === 'railway') {
+    // Railway backend has no WebSocket — only connect when targeting gallery server
+    const activeBase = resolveActiveBase();
+    if (activeBase.includes('railway.app')) {
       setWsStatus('offline');
-      log('Railway mode: WebSocket not available — switch to Gallery on-site', 'warn');
+      if (serverModeRef.current !== 'auto') {
+        log('Railway mode: WebSocket not available — switch to Local on-site', 'warn');
+      }
       return;
     }
 
-    const activeBase = GALLERY_URL;
     const WS_URL = activeBase.replace('https', 'wss').replace('http', 'ws') + '/ws';
-    log('Connecting to Gallery WebSocket...', 'info');
+    log(`Connecting WebSocket to ${WS_URL}...`, 'info');
     setWsStatus('connecting');
 
     try {
@@ -1136,7 +1150,7 @@ export default function Home() {
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         // Use the Uint8Array directly as body (not .buffer which can be wrong size)
-        fetch(`${API_BASE}/video/frame/td`, {
+        fetch(`${resolveActiveBase()}/video/frame/td`, {
           method: 'POST',
           headers: { 'Content-Type': 'image/jpeg' },
           body: bytes}).then(res => {
@@ -1516,7 +1530,7 @@ export default function Home() {
     // SD frame endpoint health check — probe on load to confirm frames are flowing
     (async () => {
       try {
-        const probeUrl = `${API_BASE}/video/frame/td?t=${Date.now()}`;
+        const probeUrl = `${resolveActiveBase()}/video/frame/td?t=${Date.now()}`;
         const res = await fetch(probeUrl, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
