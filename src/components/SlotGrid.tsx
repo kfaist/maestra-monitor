@@ -823,7 +823,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
             color: '#fff',
             animation: 'textFlicker 4s linear infinite',
           }}>
-            + Add Your Entity
+            + Add Your TD Node
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span className="entity-count">{activeCount} active / {slots.length} slots</span>
