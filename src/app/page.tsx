@@ -96,6 +96,10 @@ export default function Home() {
   const frameIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const simulatorRef = useRef<WSSimulator | null>(null);
   const activeNodeUrlRef = useRef<string | null>(null);
+  // Auto-mode probe result: gallery if reachable, Railway otherwise
+  const autoResolvedRef = useRef<string>(GALLERY_URL); // optimistic: gallery first
+  const autoProbeCompleteRef = useRef(false);
+
   // Resolve active server URL from mode
   const resolveActiveBase = () => {
     const mode = serverModeRef.current;
@@ -103,7 +107,8 @@ export default function Home() {
     if (mode === 'gallery') return GALLERY_URL;
     if (mode === 'custom' && cu) return cu;
     if (mode === 'railway') return RAILWAY_URL;
-    return RAILWAY_URL; // auto: Railway is always reachable; switch to Gallery on-site
+    // auto: use probe result (gallery if on-site, Railway if remote)
+    return autoResolvedRef.current;
   };
 
   const slotsRef = useRef(slots);
@@ -1520,11 +1525,34 @@ export default function Home() {
     });
     simulatorRef.current.start();
 
-    connectWS();
-    fetchEntities();
-    const entityInterval = setInterval(fetchEntities, 10000);
+    // Auto-mode: probe gallery server, fall back to Railway if unreachable
+    // Gallery person gets local speed automatically. Remote users get Railway.
+    (async () => {
+      if (serverModeRef.current !== 'auto') {
+        autoProbeCompleteRef.current = true;
+      } else {
+        try {
+          const probe = await fetch(`${GALLERY_URL}/entities`, {
+            signal: AbortSignal.timeout(2500),
+            mode: 'no-cors',
+          });
+          // no-cors gives opaque response — if we got here without error, gallery is reachable
+          autoResolvedRef.current = GALLERY_URL;
+          log(`[Auto] Gallery reachable — using local server`, 'ok');
+        } catch {
+          autoResolvedRef.current = RAILWAY_URL;
+          log(`[Auto] Gallery unreachable — using Railway`, 'info');
+        }
+        autoProbeCompleteRef.current = true;
+      }
 
-    fetchFrame();
+      // Now boot everything with the resolved URL
+      connectWS();
+      fetchEntities();
+      fetchFrame();
+    })();
+
+    const entityInterval = setInterval(fetchEntities, 10000);
     frameIntervalRef.current = setInterval(fetchFrame, FRAME_FETCH_INTERVAL);
 
     // SD frame endpoint health check — probe on load to confirm frames are flowing
