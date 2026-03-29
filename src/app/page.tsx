@@ -1465,6 +1465,7 @@ export default function Home() {
     setTimeout(() => {
       autoConnectSlot('KFaist_CineTech');
       autoConnectSlot('KFaist_Ambient_Intelligence');
+      autoConnectSlot('KFaist_Shapeshifters');
     }, 100);
 
     // ── State sidecar polling ──────────────────────────────────────
@@ -1628,7 +1629,7 @@ export default function Home() {
             entityBus={entityBus}
             slots={slots}
             entityStates={entityStates as Record<string, Record<string, unknown>>}
-            onOpenWizard={() => { setSelectedId('slot_3'); setWizardTarget('slot_3'); }}
+            onOpenWizard={() => { setSelectedId('KFaist_Shapeshifters'); setWizardTarget('KFaist_Shapeshifters'); }}
           />
         </div>
       </div>

@@ -631,7 +631,7 @@ header {
 .live-node-panel {
   display: flex; flex-direction: column; gap: 0;
   background: var(--surface);
-  max-height: clamp(440px, 62vh, 600px);
+  max-height: clamp(550px, 75vh, 800px);
   overflow-y: auto;
 }
 .live-node-thumb {
