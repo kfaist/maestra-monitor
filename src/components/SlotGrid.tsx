@@ -2002,8 +2002,71 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                     </select>
                                     </>
                                   ) : (
-                                    <div style={{fontSize: 11,color:'rgba(255,255,255,0.2)',fontFamily:'var(--font-mono)',padding:'4px 0',lineHeight:1.6}}>
-                                      No nodes detected. Run exec(open(r&apos;build_maestra_tox.py&apos;).read()) in TD once.
+                                    <div style={{
+                                      padding: '10px', background: 'rgba(251,191,36,0.06)',
+                                      border: '1px solid rgba(251,191,36,0.25)',
+                                      fontSize: 10, lineHeight: 1.7, color: 'rgba(255,255,255,0.6)',
+                                    }} onClick={e => e.stopPropagation()}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                                        <span style={{ fontSize: 14 }}>&#x26A0;</span>
+                                        <span style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24' }}>No nodes detected</span>
+                                      </div>
+                                      <div style={{ color: 'rgba(255,255,255,0.8)', marginBottom: 8 }}>
+                                        Open Textport (<span style={{ color: '#fbbf24', fontWeight: 700 }}>Alt + T</span>) inside your .toe file and paste:
+                                      </div>
+                                      <pre style={{
+                                        padding: '8px 10px', background: 'rgba(0,0,0,0.6)',
+                                        border: '1px solid rgba(255,255,255,0.08)',
+                                        fontFamily: 'var(--font-mono)', fontSize: 10,
+                                        color: '#c8d8e8', overflowX: 'auto', whiteSpace: 'pre-wrap',
+                                        lineHeight: 1.6, cursor: 'text', userSelect: 'all',
+                                      }}>{`comp = op('YOUR_TOX_NAME')  # replace with your component name
+# Force cook
+comp.cook(force=True)
+# Reinitialize Maestra (if available)
+try:
+    comp.ext.Maestra.reinit()
+except:
+    pass
+# Nudge parameters to trigger updates
+for p in comp.pars():
+    try:
+        p.val = p.eval()
+    except:
+        pass
+print("Component refreshed")`}</pre>
+                                      <div style={{ marginTop: 8, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                                        <button
+                                          onClick={e => {
+                                            e.stopPropagation();
+                                            navigator.clipboard.writeText(`comp = op('YOUR_TOX_NAME')  # replace with your component name\n# Force cook\ncomp.cook(force=True)\n# Reinitialize Maestra (if available)\ntry:\n    comp.ext.Maestra.reinit()\nexcept:\n    pass\n# Nudge parameters to trigger updates\nfor p in comp.pars():\n    try:\n        p.val = p.eval()\n    except:\n        pass\nprint("Component refreshed")`);
+                                            const btn = e.currentTarget;
+                                            btn.textContent = '\u2713 Copied!';
+                                            setTimeout(() => { btn.textContent = 'Copy Script'; }, 2000);
+                                          }}
+                                          style={{
+                                            fontSize: 10, padding: '4px 10px', cursor: 'pointer',
+                                            fontFamily: 'var(--font-mono)', background: 'rgba(251,191,36,0.1)',
+                                            border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24',
+                                          }}>
+                                          Copy Script
+                                        </button>
+                                        <a
+                                          href="/build_maestra_tox.py"
+                                          download="build_maestra_tox.py"
+                                          onClick={e => e.stopPropagation()}
+                                          style={{
+                                            fontSize: 10, padding: '4px 10px', textDecoration: 'none',
+                                            fontFamily: 'var(--font-mono)', background: 'rgba(0,212,255,0.08)',
+                                            border: '1px solid rgba(0,212,255,0.3)', color: '#00d4ff',
+                                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                                          }}>
+                                          &#x2193; build_maestra_tox.py
+                                        </a>
+                                      </div>
+                                      <div style={{ marginTop: 8, fontSize: 9, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>
+                                        Replace <code style={{ color: '#fbbf24' }}>YOUR_TOX_NAME</code> with your maestra component name (e.g. <code style={{ color: slotColor }}>maestra</code> or <code style={{ color: slotColor }}>maestra_fleet</code>).
+                                      </div>
                                     </div>
                                   )}
                                 </div>
