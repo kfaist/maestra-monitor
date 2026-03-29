@@ -52,6 +52,7 @@ export default function Home() {
   const [slots, setSlots] = useState<FleetSlot[]>(createInitialSlots); // seeded from mock, hydrated from server
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [wizardTarget, setWizardTarget] = useState<string | null>(null);
+  const [debugEntities, setDebugEntities] = useState<Array<{ slug: string; name: string; id: string; source: string }>>([]);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [eventEntries, setEventEntries] = useState<EventEntry[]>([]);
   const [audioData, setAudioData] = useState<AudioAnalysisData>({
@@ -841,6 +842,17 @@ export default function Home() {
       setResolvedServerUrl('shared discovery (backend)');
     }
     log(`[Server] ${entities.length} entities from ${source}`, 'ok');
+
+    // ── DEBUG: log every imported entity ──
+    const debugList = entities.map(e => ({
+      slug: (e.slug as string) || '',
+      name: (e.name as string) || '',
+      id: String(e.id || ''),
+      source,
+    }));
+    setDebugEntities(debugList);
+    console.log(`[DEBUG fetchEntities] ${entities.length} entities from ${source}:`);
+    debugList.forEach(d => console.log(`  slug=${d.slug} | name=${d.name} | id=${d.id} | source=${d.source}`));
 
     // ── Push discoveries to shared store (fire-and-forget) ──
     // Every browser that gets entities pushes them to /api/discovery
@@ -1817,6 +1829,39 @@ export default function Home() {
       {/* DASHBOARD TAB */}
       <div className={`tab-content ${activeTab === 'dashboard' ? 'active' : ''}`}>
         <div className="fleet-layout">
+
+          {/* ── DEBUG: Imported Entities ── */}
+          {debugEntities.length > 0 && (
+            <div style={{
+              margin: '0 0 12px', padding: '10px 14px',
+              background: 'rgba(255,200,0,0.06)', border: '1px solid rgba(255,200,0,0.2)',
+              borderRadius: 6, fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
+            }}>
+              <div style={{ fontWeight: 700, color: '#fbbf24', letterSpacing: '0.1em', marginBottom: 8, textTransform: 'uppercase', fontSize: 11 }}>
+                Imported Entities ({debugEntities.length})
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto 120px', gap: '2px 12px', color: 'rgba(255,255,255,0.5)' }}>
+                <span style={{ fontWeight: 700, color: '#fbbf24', borderBottom: '1px solid rgba(255,200,0,0.15)', paddingBottom: 2 }}>slug</span>
+                <span style={{ fontWeight: 700, color: '#fbbf24', borderBottom: '1px solid rgba(255,200,0,0.15)', paddingBottom: 2 }}>name</span>
+                <span style={{ fontWeight: 700, color: '#fbbf24', borderBottom: '1px solid rgba(255,200,0,0.15)', paddingBottom: 2 }}>id</span>
+                <span style={{ fontWeight: 700, color: '#fbbf24', borderBottom: '1px solid rgba(255,200,0,0.15)', paddingBottom: 2 }}>source</span>
+                {debugEntities.map((d, i) => (
+                  <div key={i} style={{ display: 'contents' }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#e2e8f0' }}>{d.slug || '(empty)'}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name || '(empty)'}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 9 }}>{d.id}</span>
+                    <span style={{
+                      color: d.source === 'gallery-cache' ? '#22c55e'
+                        : d.source === 'discovery-store' ? '#a78bfa'
+                        : d.source.includes('railway') ? '#3DD6FF'
+                        : '#fbbf24',
+                      fontWeight: 600,
+                    }}>{d.source}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Left: Slot Grid + Patch Bay + Audio + Scenes + DMX + Palette + Modulation */}
           <div className="fleet-panel">
