@@ -1,4 +1,4 @@
-# push_shapeshifters.py v3 — uses TD Web Client DAT (no urllib in callback)
+# push_shapeshifters.py v4 — uses run() to defer upload to main thread
 # Run once in TD Textport:
 #   import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/push_shapeshifters.py').read().decode())
 
@@ -8,7 +8,7 @@ BACKEND = 'https://maestra-backend-v2-production.up.railway.app'
 ENTITY = 'KFaist_Shapeshifters'
 SOURCE_TOP = 'comp1'
 
-# 1. Register entity (this works from Textport main thread)
+# 1. Register entity
 try:
     d = json.dumps({
         'name': ENTITY, 'slug': ENTITY,
@@ -30,20 +30,30 @@ if old:
     old.destroy()
     print('[Shapeshifters] Removed old shapeshifters_exec')
 
-# 3. Create Web Client DAT for uploading
-wc_name = 'shapeshifters_webclient'
-wc = op('/project1/' + wc_name)
-if not wc:
-    wc = root.create(webDAT, wc_name)
-    print('[Shapeshifters] Created ' + wc_name)
-
-# 4. Create Execute DAT that saves frame + triggers Web Client
+# 3. Create Execute DAT — saves frame, defers upload via run()
 EXEC_SCRIPT = '''import os
 
+BACKEND = "''' + BACKEND + '''"
 ENTITY = "''' + ENTITY + '''"
 SOURCE = "''' + SOURCE_TOP + '''"
-BACKEND = "''' + BACKEND + '''"
 _counter = 0
+
+def _do_upload():
+    import urllib.request
+    try:
+        path = project.folder + "/._sf_frame.jpg"
+        with open(path, "rb") as f:
+            data = f.read()
+        if len(data) < 100:
+            return
+        req = urllib.request.Request(
+            BACKEND + "/video/frame/" + ENTITY,
+            data=data,
+            method="POST",
+            headers={"Content-Type": "image/jpeg"})
+        urllib.request.urlopen(req, timeout=3)
+    except:
+        pass
 
 def onFrameStart(frame):
     global _counter
@@ -56,26 +66,18 @@ def onFrameStart(frame):
             return
         path = project.folder + "/._sf_frame.jpg"
         src.save(path)
-        sz = os.path.getsize(path)
-        if sz < 100:
+        if os.path.getsize(path) < 100:
             return
-        wc = op("/" + project.name + "/shapeshifters_webclient")
-        if wc:
-            wc.par.url = BACKEND + "/video/frame/" + ENTITY
-            wc.par.uploadfilepath = path
-            wc.par.method = "POST"
-            wc.par.sendsrequest.pulse()
-    except Exception as e:
-        if _counter % 64 == 0:
-            print("[Shapeshifters] " + str(e)[:60])
+        run("op('" + me.path + "').module._do_upload()", delayFrames=1)
+    except:
+        pass
 '''
 
-exec_name = 'shapeshifters_exec'
-exec_op = root.create(executeDAT, exec_name)
+exec_op = root.create(executeDAT, 'shapeshifters_exec')
 exec_op.text = EXEC_SCRIPT
 exec_op.par.framestart = True
 exec_op.par.active = True
 
 print('[Shapeshifters] Relay: ' + SOURCE_TOP + ' -> /video/frame/' + ENTITY)
-print('[Shapeshifters] Using Web Client DAT (not urllib)')
+print('[Shapeshifters] Upload deferred to main thread via run()')
 print('[Shapeshifters] DONE')
