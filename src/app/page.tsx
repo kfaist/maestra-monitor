@@ -167,7 +167,7 @@ export default function Home() {
       if (!prev || prev.slotId !== slotId) return prev;
       return {
         ...prev,
-        serverUrl: prev?.serverUrl || MAESTRA_API_URL,
+        serverUrl: prev?.serverUrl || resolveActiveBase(),
         entityId: prev?.entityId || '',
         slotId,
         connected: status.server === 'connected' && status.entity === 'registered',
@@ -218,7 +218,7 @@ export default function Home() {
       slotLabel: slot.label,
       slotTag: slot.suggestion?.tag,
       entityId,
-      serverUrl: MAESTRA_API_URL,
+      serverUrl: resolveActiveBase(),
       autoConnect: true,
       autoDiscover: true});
 
@@ -279,7 +279,7 @@ export default function Home() {
 
     // Set initial connectionInfo
     setConnectionInfo({
-      serverUrl: MAESTRA_API_URL,
+      serverUrl: resolveActiveBase(),
       entityId,
       slotId,
       connected: false,
