@@ -448,16 +448,45 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
   }, []);
 
   // ═══ Wire routes state — fetched from /api/routes ═══
-  const [wireRoutes, setWireRoutes] = useState<WireRoute[]>([]);
+  const [wireRoutes, setWireRoutes] = useState<WireRoute[]>(() => {
+    try { const v = localStorage.getItem('maestra_wire_routes'); return v ? JSON.parse(v) : []; } catch { return []; }
+  });
   // Wire amounts are now stored on the route itself (route.amount), not in localStorage.
   // This local state is only for optimistic UI updates during slider drags.
   const [wireAmountOverrides, setWireAmountOverrides] = useState<WireAmounts>({});
 
-  // Fetch routes periodically
+  // Save routes to localStorage whenever they change
+  useEffect(() => {
+    try { localStorage.setItem('maestra_wire_routes', JSON.stringify(wireRoutes)); } catch {}
+  }, [wireRoutes]);
+
+  // Fetch routes periodically — merge with localStorage
   useEffect(() => {
     const loadRoutes = () => fetch('/api/routes')
       .then(r => r.json())
-      .then(d => { if (d.routes) setWireRoutes(d.routes); })
+      .then(d => {
+        if (d.routes && d.routes.length > 0) {
+          setWireRoutes(d.routes);
+        } else {
+          // Server empty (Railway restart) — re-seed from localStorage
+          try {
+            const cached = localStorage.getItem('maestra_wire_routes');
+            if (cached) {
+              const local: WireRoute[] = JSON.parse(cached);
+              if (local.length > 0) {
+                // Push local routes back to server
+                local.forEach(r => {
+                  fetch('/api/routes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(r),
+                  }).catch(() => {});
+                });
+              }
+            }
+          } catch {}
+        }
+      })
       .catch(() => {});
     loadRoutes();
     const t = setInterval(loadRoutes, 5000);
