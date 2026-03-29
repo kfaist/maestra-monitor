@@ -211,34 +211,34 @@ function EntityPicker({ slotColor, current, onSelect }: {
               {filtered.length === 0 ? 'No nodes detected' : 'Nodes not appearing or not highlighted?'}
             </span>
           </div>
-          <div style={{ color: 'rgba(255,255,255,0.8)', marginBottom: 8 }}>
-            Open Textport (<span style={{ color: '#fbbf24', fontWeight: 700 }}>Alt + T</span>) inside your .toe file and paste this single line:
+          <div style={{ color: 'rgba(255,255,255,0.85)', marginBottom: 6, fontSize: 11 }}>
+            <strong>1.</strong> TouchDesigner must be running with your <span style={{ color: slotColor }}>.toe</span> file open
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.85)', marginBottom: 8, fontSize: 11 }}>
+            <strong>2.</strong> Open Textport (<span style={{ color: '#fbbf24', fontWeight: 700 }}>Alt + T</span>) and paste:
           </div>
           <pre style={{
             padding: '8px 10px', background: 'rgba(0,0,0,0.6)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            fontFamily: 'var(--font-mono)', fontSize: 10,
-            color: '#c8d8e8', overflowX: 'auto', whiteSpace: 'pre-wrap',
+            border: '1px solid rgba(0,212,255,0.2)',
+            fontFamily: 'var(--font-mono)', fontSize: 11,
+            color: '#00d4ff', overflowX: 'auto', whiteSpace: 'pre-wrap',
             lineHeight: 1.6, cursor: 'text', userSelect: 'all',
-          }}>{`exec("n='maestra'\\nc=op(n) or op(n+'1') or op('maestra_fleet')\\nif not c:\\n for x in root.findChildren(type=COMP):\\n  if 'aestra' in x.name: c=x; break\\nif c:\\n c.cook(force=True)\\n try:\\n  c.ext.Maestra.reinit()\\n except: pass\\n for p in c.pars():\\n  try: p.val=p.eval()\\n  except: pass\\n print(c,'refreshed')\\nelse: print('NOT FOUND - check component name')")`}</pre>
-          <div style={{ marginTop: 6, fontSize: 9, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
-            This auto-searches for <code style={{ color: '#fbbf24' }}>maestra</code>, <code style={{ color: '#fbbf24' }}>maestra1</code>, or <code style={{ color: '#fbbf24' }}>maestra_fleet</code>. If your component has a different name, edit the <code style={{ color: '#fbbf24' }}>n='maestra'</code> part.
-          </div>
+          }}>{`exec(open(r'C:\\Users\\Krista\\Desktop\\build_maestra_tox.py').read())`}</pre>
           <div style={{ marginTop: 8, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               onClick={e => {
                 e.stopPropagation();
-                navigator.clipboard.writeText(`exec("n='maestra'\\nc=op(n) or op(n+'1') or op('maestra_fleet')\\nif not c:\\n for x in root.findChildren(type=COMP):\\n  if 'aestra' in x.name: c=x; break\\nif c:\\n c.cook(force=True)\\n try:\\n  c.ext.Maestra.reinit()\\n except: pass\\n for p in c.pars():\\n  try: p.val=p.eval()\\n  except: pass\\n print(c,'refreshed')\\nelse: print('NOT FOUND - check component name')")`);
+                navigator.clipboard.writeText(`exec(open(r'C:\\Users\\Krista\\Desktop\\build_maestra_tox.py').read())`);
                 const btn = e.currentTarget;
                 btn.textContent = '\u2713 Copied!';
-                setTimeout(() => { btn.textContent = 'Copy Script'; }, 2000);
+                setTimeout(() => { btn.textContent = 'Copy Command'; }, 2000);
               }}
               style={{
                 fontSize: 10, padding: '4px 10px', cursor: 'pointer',
                 fontFamily: 'var(--font-mono)', background: 'rgba(251,191,36,0.1)',
                 border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24',
               }}>
-              Copy Script
+              Copy Command
             </button>
             <a
               href="/build_maestra_tox.py"
@@ -253,8 +253,8 @@ function EntityPicker({ slotColor, current, onSelect }: {
               &#x2193; build_maestra_tox.py
             </a>
           </div>
-          <div style={{ marginTop: 8, fontSize: 9, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>
-            Replace <code style={{ color: '#fbbf24' }}>n='maestra'</code> if your component has a different name. If it prints NOT FOUND, check what it's called in TD's network editor.
+          <div style={{ marginTop: 8, fontSize: 9, color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
+            Scans your TD project, registers your entity, and pushes all nodes/operators to the dashboard. Once it prints DONE, nodes appear in the dropdown above within 15 seconds.
           </div>
         </div>
       )}
@@ -2000,34 +2000,34 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                         <span style={{ fontSize: 14 }}>&#x26A0;</span>
                                         <span style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24' }}>No nodes detected</span>
                                       </div>
-                                      <div style={{ color: 'rgba(255,255,255,0.8)', marginBottom: 8 }}>
-                                        Open Textport (<span style={{ color: '#fbbf24', fontWeight: 700 }}>Alt + T</span>) inside your .toe file and paste this single line:
+                                      <div style={{ color: 'rgba(255,255,255,0.85)', marginBottom: 6, fontSize: 11 }}>
+                                        <strong>1.</strong> TouchDesigner must be running with your <span style={{ color: slotColor }}>.toe</span> file open
+                                      </div>
+                                      <div style={{ color: 'rgba(255,255,255,0.85)', marginBottom: 8, fontSize: 11 }}>
+                                        <strong>2.</strong> Open Textport (<span style={{ color: '#fbbf24', fontWeight: 700 }}>Alt + T</span>) and paste:
                                       </div>
                                       <pre style={{
                                         padding: '8px 10px', background: 'rgba(0,0,0,0.6)',
-                                        border: '1px solid rgba(255,255,255,0.08)',
-                                        fontFamily: 'var(--font-mono)', fontSize: 10,
-                                        color: '#c8d8e8', overflowX: 'auto', whiteSpace: 'pre-wrap',
+                                        border: '1px solid rgba(0,212,255,0.2)',
+                                        fontFamily: 'var(--font-mono)', fontSize: 11,
+                                        color: '#00d4ff', overflowX: 'auto', whiteSpace: 'pre-wrap',
                                         lineHeight: 1.6, cursor: 'text', userSelect: 'all',
-                                      }}>{`exec("n='maestra'\\nc=op(n) or op(n+'1') or op('maestra_fleet')\\nif not c:\\n for x in root.findChildren(type=COMP):\\n  if 'aestra' in x.name: c=x; break\\nif c:\\n c.cook(force=True)\\n try:\\n  c.ext.Maestra.reinit()\\n except: pass\\n for p in c.pars():\\n  try: p.val=p.eval()\\n  except: pass\\n print(c,'refreshed')\\nelse: print('NOT FOUND - check component name')")`}</pre>
-                                      <div style={{ marginTop: 6, fontSize: 9, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
-                                        Auto-searches for <code style={{ color: '#fbbf24' }}>maestra</code>, <code style={{ color: '#fbbf24' }}>maestra1</code>, or <code style={{ color: '#fbbf24' }}>maestra_fleet</code>. Edit <code style={{ color: '#fbbf24' }}>n='maestra'</code> if yours is named differently.
-                                      </div>
+                                      }}>{`exec(open(r'C:\\Users\\Krista\\Desktop\\build_maestra_tox.py').read())`}</pre>
                                       <div style={{ marginTop: 8, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                                         <button
                                           onClick={e => {
                                             e.stopPropagation();
-                                            navigator.clipboard.writeText(`exec("n='maestra'\\nc=op(n) or op(n+'1') or op('maestra_fleet')\\nif not c:\\n for x in root.findChildren(type=COMP):\\n  if 'aestra' in x.name: c=x; break\\nif c:\\n c.cook(force=True)\\n try:\\n  c.ext.Maestra.reinit()\\n except: pass\\n for p in c.pars():\\n  try: p.val=p.eval()\\n  except: pass\\n print(c,'refreshed')\\nelse: print('NOT FOUND - check component name')")`);
+                                            navigator.clipboard.writeText(`exec(open(r'C:\\Users\\Krista\\Desktop\\build_maestra_tox.py').read())`);
                                             const btn = e.currentTarget;
                                             btn.textContent = '\u2713 Copied!';
-                                            setTimeout(() => { btn.textContent = 'Copy Script'; }, 2000);
+                                            setTimeout(() => { btn.textContent = 'Copy Command'; }, 2000);
                                           }}
                                           style={{
                                             fontSize: 10, padding: '4px 10px', cursor: 'pointer',
                                             fontFamily: 'var(--font-mono)', background: 'rgba(251,191,36,0.1)',
                                             border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24',
                                           }}>
-                                          Copy Script
+                                          Copy Command
                                         </button>
                                         <a
                                           href="/build_maestra_tox.py"
@@ -2042,8 +2042,8 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                           &#x2193; build_maestra_tox.py
                                         </a>
                                       </div>
-                                      <div style={{ marginTop: 8, fontSize: 9, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>
-                                        If it prints NOT FOUND, check what your maestra component is named in TD's network editor.
+                                      <div style={{ marginTop: 8, fontSize: 9, color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
+                                        Scans your TD project, registers your entity, and pushes all nodes/operators to the dashboard. Once it prints DONE, nodes appear in the dropdown within 15 seconds.
                                       </div>
                                     </div>
                                   )}
