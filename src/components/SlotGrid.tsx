@@ -797,22 +797,48 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
         </div>
       )}
 
-      <div className="panel-header">
-        <div className="panel-title-sm">// Fleet Slots</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div className="entity-count">{activeCount} active / {slots.length} slots</div>
-          <button
-            onClick={() => setShowBootstrap(prev => !prev)}
-            style={{
-              background: showBootstrap ? 'rgba(0,212,255,0.15)' : 'transparent',
-              border: '1px solid rgba(0,212,255,0.3)', color: 'var(--accent)',
-              padding: '3px 8px', fontSize: 10, fontFamily: 'var(--font-display)',
-              letterSpacing: '0.08em', cursor: 'pointer', borderRadius: 2,
-            }}>
-            {showBootstrap ? '✕ CLOSE' : '? HELP'}
-          </button>
-          {/* Primary cards are fixed — no dynamic add */}
-        </div>
+      <div className="panel-header" style={{ padding: 0, marginBottom: 12 }}>
+        <button
+          onClick={() => {
+            const emptySlot = slots.find(s => !s.active);
+            if (emptySlot) {
+              onSelectSlot(emptySlot.id);
+              setSetupState(prev => ({
+                ...prev,
+                [emptySlot.id]: { stage: 'connect' as InlineStage, slug: '', refFile: null, direction: 'send' as NodeRole, selectedTop: '', stateKey: '', stateType: 'string', stateDesc: '', outputSignals: [], streamType: '', selectedNode: '', nodeSearch: '', opSearch: '' },
+              }));
+            }
+          }}
+          style={{
+            width: '100%', padding: '12px 20px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            background: 'linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(0,212,255,0.06) 50%, rgba(255,255,255,0.04) 100%)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            cursor: 'pointer', transition: 'all 0.2s',
+            fontFamily: 'var(--font-display)',
+          }}
+        >
+          <span style={{
+            fontSize: 15, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase',
+            color: '#fff',
+            animation: 'textFlicker 4s linear infinite',
+          }}>
+            + Add Your Entity
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="entity-count">{activeCount} active / {slots.length} slots</span>
+            <button
+              onClick={e => { e.stopPropagation(); setShowBootstrap(prev => !prev); }}
+              style={{
+                background: showBootstrap ? 'rgba(0,212,255,0.15)' : 'transparent',
+                border: '1px solid rgba(0,212,255,0.3)', color: 'var(--accent)',
+                padding: '3px 8px', fontSize: 10, fontFamily: 'var(--font-display)',
+                letterSpacing: '0.08em', cursor: 'pointer', borderRadius: 2,
+              }}>
+              {showBootstrap ? '✕ CLOSE' : '? HELP'}
+            </button>
+          </div>
+        </button>
       </div>
 
       {/* Bootstrap / Help panel — auto-shows when inactive, toggleable always */}

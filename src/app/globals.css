@@ -108,6 +108,10 @@ header {
 .dot.connecting { background: var(--accent); animation: blink 1s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+@keyframes textFlicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; text-shadow: 0 0 8px rgba(255,255,255,0.6), 0 0 20px rgba(255,255,255,0.2); }
+  20%, 24%, 55% { opacity: 0.6; text-shadow: none; }
+}
 @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
 .header-time { font-family: var(--font-display); font-size: 11px; color: var(--text); letter-spacing: 0.1em; }
 
