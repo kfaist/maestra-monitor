@@ -179,18 +179,40 @@ function EntityPicker({ slotColor, current, onSelect }: {
           outline: 'none', boxSizing: 'border-box' }}
       />
       {loading && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-mono)' }}>loading nodes…</div>}
-      {!loading && filtered.length === 0 && (
+      {!loading && filtered.length > 0 && (
+        <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.6)' }}>
+          {filtered.map(e => (
+            <div key={e.slug}
+              onClick={ev => { ev.stopPropagation(); onSelect(e.slug); setSearch(''); }}
+              style={{ padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+                background: current === e.slug ? `${slotColor}18` : 'transparent',
+                borderLeft: current === e.slug ? `2px solid ${slotColor}` : '2px solid transparent' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                background: e.status === 'online' ? '#4ade80' : 'rgba(255,255,255,0.2)' }} />
+              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: current === e.slug ? slotColor : 'rgba(255,255,255,0.7)', fontWeight: current === e.slug ? 700 : 400 }}>
+                {e.slug}
+              </span>
+              {e.name !== e.slug && (
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginLeft: 'auto' }}>{e.name}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {!loading && (
         <div style={{
-          padding: '10px', background: 'rgba(251,191,36,0.06)',
+          padding: '10px', marginTop: 4, background: 'rgba(251,191,36,0.06)',
           border: '1px solid rgba(251,191,36,0.25)',
           fontSize: 10, lineHeight: 1.7, color: 'rgba(255,255,255,0.6)',
         }} onClick={e => e.stopPropagation()}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
             <span style={{ fontSize: 14 }}>&#x26A0;</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24' }}>No nodes detected</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24' }}>
+              {filtered.length === 0 ? 'No nodes detected' : 'Nodes not appearing or not highlighted?'}
+            </span>
           </div>
           <div style={{ color: 'rgba(255,255,255,0.8)', marginBottom: 8 }}>
-            Open Textport (<span style={{ color: '#fbbf24', fontWeight: 700 }}>Alt + T</span>) inside your .toe file and paste this:
+            Open Textport (<span style={{ color: '#fbbf24', fontWeight: 700 }}>Alt + T</span>) inside your .toe file and paste:
           </div>
           <pre style={{
             padding: '8px 10px', background: 'rgba(0,0,0,0.6)',
@@ -243,28 +265,8 @@ print("Component refreshed")`}</pre>
             </a>
           </div>
           <div style={{ marginTop: 8, fontSize: 9, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>
-            Replace <code style={{ color: '#fbbf24' }}>YOUR_TOX_NAME</code> with your maestra component name (e.g. <code style={{ color: slotColor }}>maestra</code> or <code style={{ color: slotColor }}>maestra_fleet</code>). After running, nodes should appear above.
+            Replace <code style={{ color: '#fbbf24' }}>YOUR_TOX_NAME</code> with your maestra component name (e.g. <code style={{ color: slotColor }}>maestra</code> or <code style={{ color: slotColor }}>maestra_fleet</code>). After running, your node should appear or become active above.
           </div>
-        </div>
-      )}
-      {!loading && filtered.length > 0 && (
-        <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.6)' }}>
-          {filtered.map(e => (
-            <div key={e.slug}
-              onClick={ev => { ev.stopPropagation(); onSelect(e.slug); setSearch(''); }}
-              style={{ padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
-                background: current === e.slug ? `${slotColor}18` : 'transparent',
-                borderLeft: current === e.slug ? `2px solid ${slotColor}` : '2px solid transparent' }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-                background: e.status === 'online' ? '#4ade80' : 'rgba(255,255,255,0.2)' }} />
-              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: current === e.slug ? slotColor : 'rgba(255,255,255,0.7)', fontWeight: current === e.slug ? 700 : 400 }}>
-                {e.slug}
-              </span>
-              {e.name !== e.slug && (
-                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginLeft: 'auto' }}>{e.name}</span>
-              )}
-            </div>
-          ))}
         </div>
       )}
     </div>
