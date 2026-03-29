@@ -410,8 +410,9 @@ export default function Home() {
 
       const entityId = slot.entity_id || slot.id;
       const activeBase = resolveActiveBase();
+      // /api/* endpoints are monitor-local (same-origin proxy), others go to activeBase (backend)
       const endpoint = slot.endpoint
-        ? `${activeBase}${slot.endpoint}`
+        ? (slot.endpoint.startsWith('/api/') ? slot.endpoint : `${activeBase}${slot.endpoint}`)
         : `${activeBase}/video/frame/${entityId}`;
       try {
         const res = await fetch(`${endpoint}?t=${Date.now()}`, { cache: 'no-store' });
