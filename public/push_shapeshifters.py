@@ -7,7 +7,7 @@ import urllib.request, json
 BACKEND = 'https://maestra-backend-v2-production.up.railway.app'
 DASHBOARD = 'https://maestra-monitor-production.up.railway.app'
 ENTITY = 'KFaist_Shapeshifters'
-SOURCE_TOP = 'comp1'
+SOURCE_TOP = 'comp2'
 
 # 1. Register entity
 try:
