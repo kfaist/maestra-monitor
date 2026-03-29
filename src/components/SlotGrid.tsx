@@ -1707,6 +1707,58 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                               Type a path and press Enter -- skips straight to naming
                             </div>
                           </div>
+                          {/* Onboarding: how to get nodes */}
+                          <div style={{
+                            padding: '10px', marginTop: 6, background: 'rgba(251,191,36,0.06)',
+                            border: '1px solid rgba(251,191,36,0.25)',
+                            fontSize: 9, lineHeight: 1.7, color: 'rgba(255,255,255,0.5)',
+                          }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                              <span style={{ fontSize: 14 }}>&#x26A0;</span>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24' }}>Nodes not appearing?</span>
+                            </div>
+                            <div style={{ color: '#fff', fontWeight: 700, marginBottom: 4, fontSize: 10 }}>
+                              1. TouchDesigner must be running with your .toe file open
+                            </div>
+                            <div style={{ color: '#fff', fontWeight: 700, marginBottom: 6, fontSize: 10 }}>
+                              2. Open Textport (Alt + T) and paste this single line:
+                            </div>
+                            <pre style={{
+                              padding: '6px 8px', background: 'rgba(0,0,0,0.6)',
+                              border: '1px solid rgba(0,212,255,0.2)',
+                              fontFamily: 'var(--font-mono)', fontSize: 9,
+                              color: '#00d4ff', overflowX: 'auto', whiteSpace: 'pre-wrap',
+                              lineHeight: 1.5, cursor: 'text', userSelect: 'all',
+                            }}>{`import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/build_maestra_tox.py').read().decode())`}</pre>
+                            <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
+                              <button
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  navigator.clipboard.writeText(`import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/build_maestra_tox.py').read().decode())`);
+                                  const btn = e.currentTarget;
+                                  btn.textContent = '\u2713 Copied!';
+                                  setTimeout(() => { btn.textContent = 'Copy Command'; }, 2000);
+                                }}
+                                style={{
+                                  fontSize: 9, padding: '3px 8px', cursor: 'pointer',
+                                  fontFamily: 'var(--font-mono)', background: 'rgba(251,191,36,0.1)',
+                                  border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24',
+                                }}>
+                                Copy Command
+                              </button>
+                              <a href="/build_maestra_tox.py" download="build_maestra_tox.py"
+                                onClick={e => e.stopPropagation()}
+                                style={{ fontSize: 9, padding: '3px 8px', textDecoration: 'none',
+                                  fontFamily: 'var(--font-mono)', background: 'rgba(0,212,255,0.08)',
+                                  border: '1px solid rgba(0,212,255,0.3)', color: '#00d4ff',
+                                  display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                &#x2193; build_maestra_tox.py
+                              </a>
+                            </div>
+                            <div style={{ marginTop: 6, fontSize: 8, color: 'rgba(255,255,255,0.3)' }}>
+                              Once it prints DONE, nodes appear in the dropdown within 15 seconds.
+                            </div>
+                          </div>
                         </div>
                       )}
 
