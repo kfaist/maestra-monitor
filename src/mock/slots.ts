@@ -60,12 +60,12 @@ export function createInitialSlots(): FleetSlot[] {
       _frameTimes: [],
       _fpsSmooth: null,
     },
-    // Card 3: KFaist_Shapeshifters — permanent, active with video
+    // Card 3: KFaist_Shapeshifters — permanent, active with dedicated video
     {
       id: 'KFaist_Shapeshifters',
       label: 'KFaist Shapeshifters',
       entity_id: 'KFaist_Shapeshifters',
-      endpoint: '/video/frame/KFaist_Ambient_Intelligence',
+      endpoint: '/video/frame/KFaist_Shapeshifters',
       active: true,
       fps: null,
       frameUrl: null,
