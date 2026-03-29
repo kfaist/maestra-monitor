@@ -1,19 +1,19 @@
-# push_shapeshifters.py v4 — uses run() to defer upload to main thread
+# push_shapeshifters.py v6 — pushes comp2 to monitor /api/frame/ proxy
 # Run once in TD Textport:
 #   import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/push_shapeshifters.py').read().decode())
 
 import urllib.request, json
 
+MONITOR = 'https://maestra-monitor-production.up.railway.app'
 BACKEND = 'https://maestra-backend-v2-production.up.railway.app'
-DASHBOARD = 'https://maestra-monitor-production.up.railway.app'
 ENTITY = 'KFaist_Shapeshifters'
 SOURCE_TOP = 'comp2'
 
-# 1. Register entity
+# 1. Register entity on backend
 try:
     d = json.dumps({
         'name': ENTITY, 'slug': ENTITY,
-        'state': {'active': True, 'server': BACKEND, 'toe_name': str(project.name)},
+        'state': {'active': True, 'server': BACKEND, 'toe_name': str(project.name), 'source_top': SOURCE_TOP},
         'tags': ['touchdesigner'],
     }).encode()
     req = urllib.request.Request(BACKEND + '/entities', data=d, method='POST',
@@ -31,10 +31,10 @@ if old:
     old.destroy()
     print('[Shapeshifters] Removed old shapeshifters_exec')
 
-# 3. Create Execute DAT — saves frame, defers upload via run()
+# 3. Create Execute DAT — saves comp2 frame, defers upload via run()
 EXEC_SCRIPT = '''import os
 
-DASHBOARD = "''' + DASHBOARD + '''"
+MONITOR = "''' + MONITOR + '''"
 ENTITY = "''' + ENTITY + '''"
 SOURCE = "''' + SOURCE_TOP + '''"
 _counter = 0
@@ -48,7 +48,7 @@ def _do_upload():
         if len(data) < 100:
             return
         req = urllib.request.Request(
-            DASHBOARD + "/api/frame/" + ENTITY,
+            MONITOR + "/api/frame/" + ENTITY,
             data=data,
             method="POST",
             headers={"Content-Type": "image/jpeg"})
@@ -79,6 +79,6 @@ exec_op.text = EXEC_SCRIPT
 exec_op.par.framestart = True
 exec_op.par.active = True
 
-print('[Shapeshifters] Relay: ' + SOURCE_TOP + ' -> ' + DASHBOARD + '/api/frame/' + ENTITY)
-print('[Shapeshifters] Upload deferred to main thread via run()')
+print('[Shapeshifters] Source: ' + SOURCE_TOP + ' (same feed as ndiout1)')
+print('[Shapeshifters] Target: ' + MONITOR + '/api/frame/' + ENTITY)
 print('[Shapeshifters] DONE')
