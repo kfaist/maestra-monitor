@@ -509,6 +509,26 @@ export default function Home() {
               ...(b ? { sub: b.sub || 0, bass: b.bass || 0, mid: b.mid || 0, high: b.high || 0 } : {}),
               ...(s ? { drums: s.drums || 0, stemBass: s.bass || 0, melody: s.melody || 0, vocals: s.vocals || 0 } : {}),
               ...(bpm ? { bpm: bpm as number } : {})}));
+
+            // Bridge audio analysis into entity states for slots that declare audio outputs
+            const rms = b ? Math.sqrt((b.sub*b.sub + b.bass*b.bass + b.mid*b.mid + b.high*b.high) / 4) : undefined;
+            if (rms !== undefined) {
+              // Push audio_amplitude to any slot that has it in stateSchema
+              slotsRef.current.forEach(slot => {
+                const schema = slot.stateSchema;
+                if (!schema) return;
+                const eid = slot.entity_id || slot.id;
+                const updates: Record<string, string> = {};
+                if (schema.audio_amplitude) updates.audio_amplitude = rms.toFixed(3);
+                if (schema.fps && slot.fps != null) updates.fps = String(slot.fps);
+                if (Object.keys(updates).length > 0) {
+                  setEntityStates(prev => ({
+                    ...prev,
+                    [eid]: { ...prev[eid], ...updates },
+                  }));
+                }
+              });
+            }
           }
           return;
         }
@@ -945,6 +965,17 @@ export default function Home() {
     targets.forEach(t => sendViaAll({ type: 'p6_flush', prompt, data: { p6: prompt, prompt } }, t));
     logEvent('state', 'fleet', `P6 flush → ${prompt.slice(0, 40)}`);
     pushBusEntry('fleet.p6', prompt.slice(0, 50));
+
+    // Bridge prompt_text into entity states for slots that declare it
+    slotsRef.current.forEach(slot => {
+      if (slot.stateSchema?.prompt_text) {
+        const eid = slot.entity_id || slot.id;
+        setEntityStates(prev => ({
+          ...prev,
+          [eid]: { ...prev[eid], prompt_text: prompt },
+        }));
+      }
+    });
   }, [sendViaAll, logEvent, pushBusEntry]);
 
   // Send a state_update to the current target (single entity or global)
