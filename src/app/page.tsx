@@ -90,6 +90,15 @@ export default function Home() {
   const [remoteEntityList, setRemoteEntityList] = useState<string[]>([]);
   const [sendTarget, setSendTarget] = useState<string>('global'); // 'global' or a specific entity_id
 
+  // Shared UI state — synced across all browsers via /api/ui-state
+  const [syncedUi, setSyncedUi] = useState<{
+    palette: { hue: number; saturation: number; value: number; activeIndex: number } | null;
+    modulation: Array<{ name: string; source: string; amount: number }> | null;
+    updatedAt: number;
+  }>({ palette: null, modulation: null, updatedAt: 0 });
+  const uiStateVersionRef = useRef(0); // last known server version
+  const modulationAccRef = useRef<Array<{ name: string; source: string; amount: number }>>([]); // accumulate local changes
+
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
   const wsReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -339,6 +348,7 @@ export default function Home() {
   }, [log, logEvent, saveConnectedSlots]);
 
   // Update connection config
+  const fetchEntitiesRef = useRef<() => void>(() => {});
   const handleServerModeChange = useCallback((mode: 'railway' | 'gallery' | 'auto' | 'custom') => {
     setServerMode(mode);
     serverModeRef.current = mode;
@@ -356,9 +366,9 @@ export default function Home() {
 
     // Re-fetch entities from new server immediately
     setTimeout(() => {
-      fetchEntities();
+      fetchEntitiesRef.current();
     }, 200);
-  }, [fetchEntities, log]);
+  }, [log]);
 
   const updateConnectionConfig = useCallback((config: { serverUrl?: string; entityId?: string; port?: number; streamPath?: string }) => {
     if (!connectionInfo) return;
@@ -794,6 +804,30 @@ export default function Home() {
       } catch { /* gallery unreachable */ }
     }
 
+    // Fallback 3: shared discovery store (persisted to Maestra backend)
+    // This is how remote browsers see entities discovered by the gallery browser
+    if (entities.length === 0) {
+      try {
+        const discRes = await fetch('/api/discovery', { signal: AbortSignal.timeout(4000) });
+        if (discRes.ok) {
+          const disc = await discRes.json() as { entities: Record<string, { slug: string; label: string; entity_id: string; type: string; last_seen: number; heartbeat_status: string; stream_status: string; state_keys: Record<string, { value: unknown }> }> };
+          if (disc.entities && Object.keys(disc.entities).length > 0) {
+            // Convert discovery records back to entity-shaped objects for the hydration logic
+            entities = Object.values(disc.entities).map(d => ({
+              id: d.entity_id || d.slug,
+              slug: d.slug,
+              name: d.label,
+              state: Object.fromEntries(Object.entries(d.state_keys || {}).map(([k, v]) => [k, v.value])),
+              status: d.heartbeat_status === 'live' ? 'active' : 'offline',
+              last_seen: new Date(d.last_seen).toISOString(),
+              metadata: {},
+            }));
+            source = 'discovery-store';
+          }
+        }
+      } catch { /* discovery unavailable */ }
+    }
+
     if (entities.length === 0) {
       setServerConnected(false);
       setResolvedServerUrl(resolveActiveBase());
@@ -802,8 +836,35 @@ export default function Home() {
     setServerConnected(true);
     if (source === 'gallery-cache') {
       setResolvedServerUrl('gallery-cache (seeded)');
+    } else if (source === 'discovery-store') {
+      setResolvedServerUrl('shared discovery (backend)');
     }
     log(`[Server] ${entities.length} entities from ${source}`, 'ok');
+
+    // ── Push discoveries to shared store (fire-and-forget) ──
+    // Every browser that gets entities pushes them to /api/discovery
+    // so all other browsers can see them even if they can't reach the source
+    try {
+      const discoveryPayload = entities.map(e => {
+        const slug = (e.slug as string) || (e.name as string) || String(e.id);
+        const state = (e.state as Record<string, unknown>) || {};
+        return {
+          slug,
+          label: (e.name as string) || slug,
+          entity_id: String(e.id),
+          type: (e.entity_type_id as string) || (e.type as string) || 'unknown',
+          source_server: source === 'gallery-cache' ? 'gallery' : resolveActiveBase(),
+          heartbeat_status: (e.status as string) === 'active' ? 'live' : (e.status as string) || 'unknown',
+          stream_status: state.active_stream ? 'live' : 'none',
+          state,
+        };
+      });
+      fetch('/api/discovery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entities: discoveryPayload }),
+      }).catch(() => {}); // fire-and-forget
+    } catch { /* non-critical */ }
 
       // Fixed primary card entity_ids — these are permanent and never altered
       const PRIMARY_IDS = new Set(['KFaist_CineTech', 'KFaist_Ambient_Intelligence', 'KFaist_Shapeshifters']);
@@ -1018,7 +1079,7 @@ export default function Home() {
     }
   }, [sendTarget]);
 
-  // Color palette change — sends hue/saturation/value to TD via Maestra
+  // Color palette change — sends hue/saturation/value to TD via Maestra + syncs to all browsers
   const handleColorChange = useCallback((color: { hue: number; saturation: number; value: number }) => {
     sendToTarget({ ...color, field: 'color' });
     // Also publish to lighting_palette entity for DMX color mapping
@@ -1030,11 +1091,27 @@ export default function Home() {
         timestamp: Date.now()}));
     }
     pushBusEntry('lighting_palette.hue', String(color.hue));
+    // Sync to shared UI state
+    fetch('/api/ui-state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ palette: { ...color, activeIndex: 0 } }),
+    }).catch(() => {});
   }, [sendToTarget, pushBusEntry]);
 
-  // Modulation change — sends source/amount for a parameter to TD
+  // Modulation change — sends source/amount for a parameter to TD + syncs to all browsers
   const handleModulationChange = useCallback((paramName: string, source: string, amount: number) => {
     sendToTarget({ param: paramName, source, amount, field: 'modulation' });
+    // Accumulate and sync
+    const acc = modulationAccRef.current;
+    const idx = acc.findIndex(p => p.name === paramName);
+    if (idx >= 0) acc[idx] = { name: paramName, source, amount };
+    else acc.push({ name: paramName, source, amount });
+    fetch('/api/ui-state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ modulation: acc }),
+    }).catch(() => {});
   }, [sendToTarget]);
 
   // Webcam frame handler — injects captured frames into the CURRENTLY selected slot,
@@ -1631,6 +1708,28 @@ export default function Home() {
       connectionsRef.current.clear();
     };
   }, [connectWS, fetchEntities, fetchFrame, autoConnectSlot, log]);
+
+  // ── Shared UI state poll — syncs palette/modulation across all browsers ──
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/ui-state', { signal: AbortSignal.timeout(3000) });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.updatedAt && data.updatedAt > uiStateVersionRef.current) {
+          uiStateVersionRef.current = data.updatedAt;
+          setSyncedUi({
+            palette: data.palette || null,
+            modulation: data.modulation || null,
+            updatedAt: data.updatedAt,
+          });
+        }
+      } catch { /* polling failure is fine */ }
+    };
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // ── Auto-populate: approve discovered entities from modal ───────
   const approveDiscoveredEntities = useCallback(() => {
