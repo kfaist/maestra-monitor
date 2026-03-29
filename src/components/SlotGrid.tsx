@@ -1397,7 +1397,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                   fontFamily: 'var(--font-mono)',
                                   color: isCardDropTarget ? '#fff' : `${slotColor}80`,
                                   fontStyle: 'normal',
-                                  border: isCardDropTarget ? `3px dashed ${slotColor}` : `3px dashed ${slotColor}50`,
+                                  border: isCardDropTarget ? `3px dashed ${slotColor}` : `3px dashed #fff`,
                                   borderRadius: 6,
                                   margin: '6px',
                                   background: isCardDropTarget
@@ -1423,7 +1423,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                   </>
                                 ) : (
                                   <>
-                                    <span style={{ fontSize: 14, fontWeight: 500, fontStyle: 'italic', letterSpacing: '0.02em', color: '#fff' }}>
+                                    <span style={{ fontSize: 13, fontWeight: 400, fontStyle: 'italic', letterSpacing: '0.02em', color: 'rgba(255,255,255,0.5)', textDecoration: 'underline', textDecorationColor: 'rgba(255,255,255,0.2)', textUnderlineOffset: '3px' }}>
                                       Drop an Output (+) signal from another node here to route in
                                     </span>
                                   </>

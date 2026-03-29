@@ -504,8 +504,8 @@ header {
 .slot.locked-slot { cursor: default; }
 .slot.locked-slot::after { content: ''; position: absolute; inset: 0; border: 2px solid var(--slot-color, var(--active)); border-radius: 4px; pointer-events: none; opacity: 0.6; animation: lockPulse 2s ease-in-out infinite; }
 @keyframes lockPulse { 0%,100% { opacity: 0.4; } 50% { opacity: 0.9; } }
-.slot-video-area { width: 100%; aspect-ratio: 16/9; background: var(--slot-empty); position: relative; overflow: auto; }
-.slot-video-area img { width: 100%; height: 100%; object-fit: cover; display: block; will-change: contents; image-rendering: auto; }
+.slot-video-area { width: 100%; min-height: 120px; background: var(--slot-empty); position: relative; overflow: visible; }
+.slot-video-area img { width: 100%; height: 100%; object-fit: cover; display: block; will-change: contents; image-rendering: auto; min-height: 120px; }
 
 .slot-suggestion { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: clamp(14px, 1.2vw, 22px) clamp(16px, 1.4vw, 24px); gap: 4px; }
 .suggestion-eyebrow { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-dim); opacity: 0.7; margin-bottom: 2px; }
