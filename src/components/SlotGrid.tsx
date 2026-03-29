@@ -212,7 +212,7 @@ function EntityPicker({ slotColor, current, onSelect }: {
             </span>
           </div>
           <div style={{ color: 'rgba(255,255,255,0.8)', marginBottom: 8 }}>
-            Open Textport (<span style={{ color: '#fbbf24', fontWeight: 700 }}>Alt + T</span>) inside your .toe file and paste:
+            Open Textport (<span style={{ color: '#fbbf24', fontWeight: 700 }}>Alt + T</span>) inside your .toe file and paste this single line:
           </div>
           <pre style={{
             padding: '8px 10px', background: 'rgba(0,0,0,0.6)',
@@ -220,26 +220,15 @@ function EntityPicker({ slotColor, current, onSelect }: {
             fontFamily: 'var(--font-mono)', fontSize: 10,
             color: '#c8d8e8', overflowX: 'auto', whiteSpace: 'pre-wrap',
             lineHeight: 1.6, cursor: 'text', userSelect: 'all',
-          }}>{`comp = op('YOUR_TOX_NAME')  # replace with your component name
-# Force cook
-comp.cook(force=True)
-# Reinitialize Maestra (if available)
-try:
-    comp.ext.Maestra.reinit()
-except:
-    pass
-# Nudge parameters to trigger updates
-for p in comp.pars():
-    try:
-        p.val = p.eval()
-    except:
-        pass
-print("Component refreshed")`}</pre>
+          }}>{`exec("n='maestra'\\nc=op(n) or op(n+'1') or op('maestra_fleet')\\nif not c:\\n for x in root.findChildren(type=COMP):\\n  if 'aestra' in x.name: c=x; break\\nif c:\\n c.cook(force=True)\\n try:\\n  c.ext.Maestra.reinit()\\n except: pass\\n for p in c.pars():\\n  try: p.val=p.eval()\\n  except: pass\\n print(c,'refreshed')\\nelse: print('NOT FOUND - check component name')")`}</pre>
+          <div style={{ marginTop: 6, fontSize: 9, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
+            This auto-searches for <code style={{ color: '#fbbf24' }}>maestra</code>, <code style={{ color: '#fbbf24' }}>maestra1</code>, or <code style={{ color: '#fbbf24' }}>maestra_fleet</code>. If your component has a different name, edit the <code style={{ color: '#fbbf24' }}>n='maestra'</code> part.
+          </div>
           <div style={{ marginTop: 8, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               onClick={e => {
                 e.stopPropagation();
-                navigator.clipboard.writeText(`comp = op('YOUR_TOX_NAME')  # replace with your component name\n# Force cook\ncomp.cook(force=True)\n# Reinitialize Maestra (if available)\ntry:\n    comp.ext.Maestra.reinit()\nexcept:\n    pass\n# Nudge parameters to trigger updates\nfor p in comp.pars():\n    try:\n        p.val = p.eval()\n    except:\n        pass\nprint("Component refreshed")`);
+                navigator.clipboard.writeText(`exec("n='maestra'\\nc=op(n) or op(n+'1') or op('maestra_fleet')\\nif not c:\\n for x in root.findChildren(type=COMP):\\n  if 'aestra' in x.name: c=x; break\\nif c:\\n c.cook(force=True)\\n try:\\n  c.ext.Maestra.reinit()\\n except: pass\\n for p in c.pars():\\n  try: p.val=p.eval()\\n  except: pass\\n print(c,'refreshed')\\nelse: print('NOT FOUND - check component name')")`);
                 const btn = e.currentTarget;
                 btn.textContent = '\u2713 Copied!';
                 setTimeout(() => { btn.textContent = 'Copy Script'; }, 2000);
@@ -265,7 +254,7 @@ print("Component refreshed")`}</pre>
             </a>
           </div>
           <div style={{ marginTop: 8, fontSize: 9, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>
-            Replace <code style={{ color: '#fbbf24' }}>YOUR_TOX_NAME</code> with your maestra component name (e.g. <code style={{ color: slotColor }}>maestra</code> or <code style={{ color: slotColor }}>maestra_fleet</code>). After running, your node should appear or become active above.
+            Replace <code style={{ color: '#fbbf24' }}>n='maestra'</code> if your component has a different name. If it prints NOT FOUND, check what it's called in TD's network editor.
           </div>
         </div>
       )}
@@ -2012,7 +2001,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                         <span style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24' }}>No nodes detected</span>
                                       </div>
                                       <div style={{ color: 'rgba(255,255,255,0.8)', marginBottom: 8 }}>
-                                        Open Textport (<span style={{ color: '#fbbf24', fontWeight: 700 }}>Alt + T</span>) inside your .toe file and paste:
+                                        Open Textport (<span style={{ color: '#fbbf24', fontWeight: 700 }}>Alt + T</span>) inside your .toe file and paste this single line:
                                       </div>
                                       <pre style={{
                                         padding: '8px 10px', background: 'rgba(0,0,0,0.6)',
@@ -2020,26 +2009,15 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                         fontFamily: 'var(--font-mono)', fontSize: 10,
                                         color: '#c8d8e8', overflowX: 'auto', whiteSpace: 'pre-wrap',
                                         lineHeight: 1.6, cursor: 'text', userSelect: 'all',
-                                      }}>{`comp = op('YOUR_TOX_NAME')  # replace with your component name
-# Force cook
-comp.cook(force=True)
-# Reinitialize Maestra (if available)
-try:
-    comp.ext.Maestra.reinit()
-except:
-    pass
-# Nudge parameters to trigger updates
-for p in comp.pars():
-    try:
-        p.val = p.eval()
-    except:
-        pass
-print("Component refreshed")`}</pre>
+                                      }}>{`exec("n='maestra'\\nc=op(n) or op(n+'1') or op('maestra_fleet')\\nif not c:\\n for x in root.findChildren(type=COMP):\\n  if 'aestra' in x.name: c=x; break\\nif c:\\n c.cook(force=True)\\n try:\\n  c.ext.Maestra.reinit()\\n except: pass\\n for p in c.pars():\\n  try: p.val=p.eval()\\n  except: pass\\n print(c,'refreshed')\\nelse: print('NOT FOUND - check component name')")`}</pre>
+                                      <div style={{ marginTop: 6, fontSize: 9, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
+                                        Auto-searches for <code style={{ color: '#fbbf24' }}>maestra</code>, <code style={{ color: '#fbbf24' }}>maestra1</code>, or <code style={{ color: '#fbbf24' }}>maestra_fleet</code>. Edit <code style={{ color: '#fbbf24' }}>n='maestra'</code> if yours is named differently.
+                                      </div>
                                       <div style={{ marginTop: 8, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                                         <button
                                           onClick={e => {
                                             e.stopPropagation();
-                                            navigator.clipboard.writeText(`comp = op('YOUR_TOX_NAME')  # replace with your component name\n# Force cook\ncomp.cook(force=True)\n# Reinitialize Maestra (if available)\ntry:\n    comp.ext.Maestra.reinit()\nexcept:\n    pass\n# Nudge parameters to trigger updates\nfor p in comp.pars():\n    try:\n        p.val = p.eval()\n    except:\n        pass\nprint("Component refreshed")`);
+                                            navigator.clipboard.writeText(`exec("n='maestra'\\nc=op(n) or op(n+'1') or op('maestra_fleet')\\nif not c:\\n for x in root.findChildren(type=COMP):\\n  if 'aestra' in x.name: c=x; break\\nif c:\\n c.cook(force=True)\\n try:\\n  c.ext.Maestra.reinit()\\n except: pass\\n for p in c.pars():\\n  try: p.val=p.eval()\\n  except: pass\\n print(c,'refreshed')\\nelse: print('NOT FOUND - check component name')")`);
                                             const btn = e.currentTarget;
                                             btn.textContent = '\u2713 Copied!';
                                             setTimeout(() => { btn.textContent = 'Copy Script'; }, 2000);
@@ -2065,7 +2043,7 @@ print("Component refreshed")`}</pre>
                                         </a>
                                       </div>
                                       <div style={{ marginTop: 8, fontSize: 9, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>
-                                        Replace <code style={{ color: '#fbbf24' }}>YOUR_TOX_NAME</code> with your maestra component name (e.g. <code style={{ color: slotColor }}>maestra</code> or <code style={{ color: slotColor }}>maestra_fleet</code>).
+                                        If it prints NOT FOUND, check what your maestra component is named in TD's network editor.
                                       </div>
                                     </div>
                                   )}
