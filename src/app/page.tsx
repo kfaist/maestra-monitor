@@ -763,7 +763,7 @@ export default function Home() {
     log(`[Server] ${entities.length} entities from ${source}`, 'ok');
 
       // Fixed primary card entity_ids — these are permanent and never altered
-      const PRIMARY_IDS = new Set(['KFaist_CineTech', 'KFaist_Ambient_Intelligence']);
+      const PRIMARY_IDS = new Set(['KFaist_CineTech', 'KFaist_Ambient_Intelligence', 'KFaist_Shapeshifters']);
 
       if (entities.length > 0) {
         setSlots(prev => {
