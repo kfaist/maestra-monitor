@@ -10,7 +10,7 @@
  * Click a chip to apply globally (broadcasts to all connected slots).
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { FleetSlot } from '@/types';
 import { getSlotColor, ALL_OUTS, OutSignal, SLOT_COLORS } from './GlobalOutBar';
 
@@ -47,6 +47,32 @@ export default function EntityPatchBay({ slots, entityStates, liveValues, onAppl
   const [dragging, setDragging] = useState<OutSignal | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const draggingRef = useRef<OutSignal | null>(null);
+
+  // Hydrate routing from backend on mount
+  useEffect(() => {
+    fetch('/api/routes')
+      .then(r => r.json())
+      .then(data => {
+        const routes = data.routes || [];
+        const map: RoutingMap = {};
+        for (const r of routes) {
+          if (!r.targetSlug || !r.targetKey) continue;
+          const slotId = slots.find(s => s.entity_id === r.targetSlug)?.id || r.targetSlug;
+          if (!map[slotId]) map[slotId] = [];
+          if (!map[slotId].includes(r.targetKey)) map[slotId].push(r.targetKey);
+        }
+        setRouting(prev => {
+          // Merge: backend wins for initial load, but keep any local-only routes
+          const merged = { ...prev };
+          for (const [k, v] of Object.entries(map)) {
+            merged[k] = [...new Set([...(merged[k] || []), ...v])];
+          }
+          return merged;
+        });
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getLive = (sigId: string): string => {
     if (liveValues[sigId] !== undefined) return String(liveValues[sigId]).slice(0, 20);
@@ -85,11 +111,43 @@ export default function EntityPatchBay({ slots, entityStates, liveValues, onAppl
       return { ...prev, [slotId]: [...cur, sig.id] };
     });
     setDragOver(null);
-  }, []);
+
+    // Persist to backend /api/routes
+    const targetSlot = slots.find(s => s.id === slotId);
+    const targetSlug = targetSlot?.entity_id || slotId;
+    const sourceSlotId = (sig as OutSignal & { sourceSlotId?: string }).sourceSlotId;
+    const sourceSlot = sourceSlotId ? slots.find(s => s.id === sourceSlotId) : null;
+    const sourceSlug = sourceSlot?.entity_id || sig.id.split('.')[0] || 'global';
+    const sourceKey = sig.id.includes('.') ? sig.id.split('.').slice(1).join('.') : sig.id;
+
+    fetch('/api/routes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourceSlug,
+        sourceKey,
+        targetSlug,
+        targetKey: sig.id,
+      }),
+    }).catch(() => { /* silent */ });
+  }, [slots]);
 
   const removeRoute = useCallback((slotId: string, sigId: string) => {
     setRouting(prev => ({ ...prev, [slotId]: (prev[slotId] ?? []).filter(s => s !== sigId) }));
-  }, []);
+    // Delete from backend — find matching route and remove
+    const targetSlot = slots.find(s => s.id === slotId);
+    const targetSlug = targetSlot?.entity_id || slotId;
+    fetch(`/api/routes?slug=${encodeURIComponent(targetSlug)}`)
+      .then(r => r.json())
+      .then(data => {
+        const routes = data.routes || data.routes || [];
+        const match = routes.find((r: { targetKey: string }) => r.targetKey === sigId);
+        if (match) {
+          fetch(`/api/routes?id=${match.id}`, { method: 'DELETE' }).catch(() => {});
+        }
+      })
+      .catch(() => {});
+  }, [slots]);
 
   const handleClickGlobal = useCallback((sig: OutSignal) => {
     const val = getLive(sig.id);
