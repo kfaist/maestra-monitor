@@ -764,14 +764,17 @@ export default function Home() {
 
       // Fixed primary card entity_ids — these are permanent and never altered
       const PRIMARY_IDS = new Set(['KFaist_CineTech', 'KFaist_Ambient_Intelligence', 'KFaist_Shapeshifters']);
+      const normSlug = (s: string) => s.replace(/[\s_]+/g, '_');
+      const isPrimary = (s: string) => PRIMARY_IDS.has(normSlug(s));
 
       if (entities.length > 0) {
         setSlots(prev => {
           // 1. Populate the 3 primary cards with matching entity data
-          const primaries = prev.filter(c => PRIMARY_IDS.has(c.entity_id || '')).map(card => {
+          const primaries = prev.filter(c => isPrimary(c.entity_id || '')).map(card => {
+            const cardNorm = normSlug(card.entity_id || '');
             const match = entities.find(e =>
-              (e.slug as string) === card.entity_id
-              || (e.name as string) === card.entity_id
+              normSlug((e.slug as string) || '') === cardNorm
+              || normSlug((e.name as string) || '') === cardNorm
               || String(e.id) === card.entity_id
             );
             if (!match) return card;
@@ -792,14 +795,14 @@ export default function Home() {
 
           // 2. Find entities not matched to any primary card
           const matchedSlugs = new Set(entities
-            .filter(e => PRIMARY_IDS.has((e.slug as string) || '') || PRIMARY_IDS.has((e.name as string) || ''))
+            .filter(e => isPrimary((e.slug as string) || '') || isPrimary((e.name as string) || ''))
             .map(e => (e.slug as string) || (e.name as string) || String(e.id)));
-          const existingDiscoveredIds = new Set(prev.filter(c => !PRIMARY_IDS.has(c.entity_id || '')).map(c => c.entity_id));
+          const existingDiscoveredIds = new Set(prev.filter(c => !isPrimary(c.entity_id || '')).map(c => c.entity_id));
 
           const discovered = entities
             .filter(e => {
               const slug = (e.slug as string) || (e.name as string) || String(e.id);
-              return !PRIMARY_IDS.has(slug) && !matchedSlugs.has(slug);
+              return !isPrimary(slug) && !matchedSlugs.has(slug);
             })
             .map((e, i) => {
               const slug = (e.slug as string) || (e.name as string) || String(e.id);

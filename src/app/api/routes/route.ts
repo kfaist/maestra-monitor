@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 
 const FILE = '/tmp/maestra-routes.json';
+const BACKEND = 'https://maestra-backend-v2-production.up.railway.app';
+const CONFIG_SLUG = '_monitor_config';
 
 export interface WireRoute {
   id: string;                // unique route ID
@@ -22,6 +24,55 @@ export interface WireRoute {
 
 interface RouteStore {
   routes: WireRoute[];
+}
+
+/** Fetch routes from Maestra backend (durable) */
+async function loadFromBackend(): Promise<RouteStore> {
+  try {
+    const res = await fetch(`${BACKEND}/entities`, { signal: AbortSignal.timeout(4000) });
+    if (!res.ok) return { routes: [] };
+    const entities = await res.json() as Record<string, unknown>[];
+    // Find latest _monitor_config by created_at
+    const configs = entities
+      .filter(e => e.slug === CONFIG_SLUG)
+      .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+    if (configs.length === 0) return { routes: [] };
+    const state = (configs[0].state as Record<string, unknown>) || {};
+    const routes = (state.routes as WireRoute[]) || [];
+    routes.forEach(r => { if (r.amount == null) r.amount = 1.0; });
+    console.log(`[routes] Restored ${routes.length} routes from backend`);
+    return { routes };
+  } catch { return { routes: [] }; }
+}
+
+/** Sync routes to Maestra backend (durable, fire-and-forget) */
+function syncToBackend(store: RouteStore) {
+  // Read current tops from /tmp to preserve them
+  let tops: string[] = [];
+  let tree: Record<string, string[]> = {};
+  try {
+    const topsData = JSON.parse(fs.readFileSync('/tmp/maestra-tops.json', 'utf8'));
+    // Flatten all tops
+    Object.values(topsData).forEach((s: unknown) => {
+      const entry = s as { tops?: string[]; tree?: Record<string, string[]> };
+      if (entry.tops) tops = [...tops, ...entry.tops];
+      if (entry.tree) tree = { ...tree, ...entry.tree };
+    });
+  } catch {}
+
+  fetch(`${BACKEND}/entities`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: CONFIG_SLUG,
+      slug: CONFIG_SLUG,
+      state: { routes: store.routes, tops, tree },
+      tags: ['system'],
+    }),
+    signal: AbortSignal.timeout(5000),
+  }).then(() => {
+    console.log(`[routes] Synced ${store.routes.length} routes to backend`);
+  }).catch(() => {});
 }
 
 function load(): RouteStore {
@@ -44,7 +95,14 @@ function makeId(): string {
 
 /** GET /api/routes — list all routes, optionally filtered by slug */
 export async function GET(req: NextRequest) {
-  const store = load();
+  let store = load();
+  // If /tmp is empty (Railway restart), restore from Maestra backend
+  if (store.routes.length === 0) {
+    store = await loadFromBackend();
+    if (store.routes.length > 0) {
+      save(store); // Cache locally for subsequent reads
+    }
+  }
   const slug = req.nextUrl.searchParams.get('slug');
   if (slug) {
     const filtered = store.routes.filter(
@@ -103,6 +161,7 @@ export async function POST(req: NextRequest) {
 
     store.routes.push(route);
     save(store);
+    syncToBackend(store);
 
     console.log(`[routes] Wire: ${route.sourceSlug}.${route.sourceKey} → ${route.targetSlug}.${route.targetKey}`);
     return NextResponse.json({ ok: true, route });
@@ -123,6 +182,7 @@ export async function DELETE(req: NextRequest) {
     const before = store.routes.length;
     store.routes = store.routes.filter(r => r.id !== body.id);
     save(store);
+    syncToBackend(store);
 
     return NextResponse.json({ ok: true, removed: before !== store.routes.length });
   } catch (e) {
@@ -152,6 +212,7 @@ export async function PATCH(req: NextRequest) {
       route.active = !route.active; // toggle
     }
     save(store);
+    syncToBackend(store);
 
     return NextResponse.json({ ok: true, route });
   } catch (e) {
