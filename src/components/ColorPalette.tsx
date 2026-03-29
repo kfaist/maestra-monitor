@@ -11,29 +11,15 @@ export interface ColorState {
 
 interface ColorPaletteProps {
   onColorChange?: (color: ColorState) => void;
-  syncedColor?: { hue: number; saturation: number; value: number; activeIndex: number } | null;
 }
 
 const DEBOUNCE_MS = 150;
 
-export default function ColorPalette({ onColorChange, syncedColor }: ColorPaletteProps) {
+export default function ColorPalette({ onColorChange }: ColorPaletteProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [hue, setHue] = useState(280);
   const [saturation, setSaturation] = useState(85);
   const [value, setValue] = useState(50);
-  const lastSyncRef = useRef(0);
-
-  // Apply synced state from other browsers (skip if local change is recent)
-  useEffect(() => {
-    if (!syncedColor) return;
-    const now = Date.now();
-    // Don't override if user is actively dragging (within 2s of last local change)
-    if (now - lastSyncRef.current < 2000) return;
-    setHue(syncedColor.hue);
-    setSaturation(syncedColor.saturation);
-    setValue(syncedColor.value);
-    setActiveIndex(syncedColor.activeIndex);
-  }, [syncedColor]);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onColorChangeRef = useRef(onColorChange);
@@ -41,7 +27,6 @@ export default function ColorPalette({ onColorChange, syncedColor }: ColorPalett
 
   // Debounced send — fires after slider stops moving
   const sendColor = useCallback((h: number, s: number, v: number) => {
-    lastSyncRef.current = Date.now();
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       onColorChangeRef.current?.({ hue: h, saturation: s, value: v });

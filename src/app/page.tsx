@@ -22,7 +22,7 @@ import { DmxState, defaultDmxState, SCENE_CUE_MAP } from '@/components/LightingP
 import { FleetSlot, LogEntry, EventEntry, AudioAnalysisData, SlotConnectionInfo, MaestraSlotStatus, defaultSlotStatus } from '@/types';
 import { createInitialSlots, SUGGESTIONS } from '@/mock';
 import { WSSimulator } from '@/mock/ws-simulator';
-// gpu-nodes import removed — endpoints now route through resolveActiveBase()
+import { API_BASE } from '@/mock/gpu-nodes';
 import { GALLERY_URL, RAILWAY_URL } from '@/lib/maestra-client';
 import { formatTimestamp } from '@/lib/audio-utils';
 import { FRAME_FETCH_INTERVAL } from '@/lib/constants';
@@ -52,7 +52,6 @@ export default function Home() {
   const [slots, setSlots] = useState<FleetSlot[]>(createInitialSlots); // seeded from mock, hydrated from server
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [wizardTarget, setWizardTarget] = useState<string | null>(null);
-  const [debugEntities, setDebugEntities] = useState<Array<{ slug: string; name: string; id: string; source: string }>>([]);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [eventEntries, setEventEntries] = useState<EventEntry[]>([]);
   const [audioData, setAudioData] = useState<AudioAnalysisData>({
@@ -91,25 +90,12 @@ export default function Home() {
   const [remoteEntityList, setRemoteEntityList] = useState<string[]>([]);
   const [sendTarget, setSendTarget] = useState<string>('global'); // 'global' or a specific entity_id
 
-  // Shared UI state — synced across all browsers via /api/ui-state
-  const [syncedUi, setSyncedUi] = useState<{
-    palette: { hue: number; saturation: number; value: number; activeIndex: number } | null;
-    modulation: Array<{ name: string; source: string; amount: number }> | null;
-    updatedAt: number;
-  }>({ palette: null, modulation: null, updatedAt: 0 });
-  const uiStateVersionRef = useRef(0); // last known server version
-  const modulationAccRef = useRef<Array<{ name: string; source: string; amount: number }>>([]); // accumulate local changes
-
   // Refs
   const wsRef = useRef<WebSocket | null>(null);
   const wsReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const frameIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const simulatorRef = useRef<WSSimulator | null>(null);
   const activeNodeUrlRef = useRef<string | null>(null);
-  // Auto-mode probe result: gallery if reachable, Railway otherwise
-  const autoResolvedRef = useRef<string>(GALLERY_URL); // optimistic: gallery first
-  const autoProbeCompleteRef = useRef(false);
-
   // Resolve active server URL from mode
   const resolveActiveBase = () => {
     const mode = serverModeRef.current;
@@ -117,8 +103,7 @@ export default function Home() {
     if (mode === 'gallery') return GALLERY_URL;
     if (mode === 'custom' && cu) return cu;
     if (mode === 'railway') return RAILWAY_URL;
-    // auto: use probe result (gallery if on-site, Railway if remote)
-    return autoResolvedRef.current;
+    return GALLERY_URL; // auto: try gallery first
   };
 
   const slotsRef = useRef(slots);
@@ -349,27 +334,15 @@ export default function Home() {
   }, [log, logEvent, saveConnectedSlots]);
 
   // Update connection config
-  const fetchEntitiesRef = useRef<() => void>(() => {});
   const handleServerModeChange = useCallback((mode: 'railway' | 'gallery' | 'auto' | 'custom') => {
     setServerMode(mode);
-    serverModeRef.current = mode;
-    log(`[Server] Switching to ${mode.toUpperCase()} mode → ${mode === 'gallery' ? GALLERY_URL : mode === 'railway' ? RAILWAY_URL : 'auto'}`, 'info');
-
-    // Reset frame state for clean transition
-    frameErrorCountRef.current = 0;
-    firstFrameSlotsRef.current.clear();
-
-    // Reconnect WS to new server
+    // Reconnect WS to new server — use ref to avoid forward declaration issue
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
-
-    // Re-fetch entities from new server immediately
-    setTimeout(() => {
-      fetchEntitiesRef.current();
-    }, 200);
-  }, [log]);
+    // wsReconnect will fire from the ws.onclose handler automatically
+  }, []);
 
   const updateConnectionConfig = useCallback((config: { serverUrl?: string; entityId?: string; port?: number; streamPath?: string }) => {
     if (!connectionInfo) return;
@@ -410,11 +383,9 @@ export default function Home() {
       if (webcamActiveRef.current && slot.id === webcamSlotRef.current) return;
 
       const entityId = slot.entity_id || slot.id;
-      const activeBase = resolveActiveBase();
-      // /api/* endpoints are monitor-local (same-origin proxy), others go to activeBase (backend)
       const endpoint = slot.endpoint
-        ? (slot.endpoint.startsWith('/api/') ? slot.endpoint : `${activeBase}${slot.endpoint}`)
-        : `${activeBase}/video/frame/${entityId}`;
+        ? (slot.endpoint.startsWith('/api/') ? slot.endpoint : `${API_BASE}${slot.endpoint}`)
+        : `/api/frame/${entityId}`;
       try {
         const res = await fetch(`${endpoint}?t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -506,18 +477,16 @@ export default function Home() {
   const connectWS = useCallback(() => {
     if (wsRef.current && (wsRef.current.readyState === 0 || wsRef.current.readyState === 1)) return;
 
-    // Railway backend has no WebSocket — only connect when targeting gallery server
-    const activeBase = resolveActiveBase();
-    if (activeBase.includes('railway.app')) {
+    // Railway backend has no WebSocket — only connect in gallery mode (on-site)
+    if (serverModeRef.current === 'railway') {
       setWsStatus('offline');
-      if (serverModeRef.current !== 'auto') {
-        log('Railway mode: WebSocket not available — switch to Local on-site', 'warn');
-      }
+      log('Railway mode: WebSocket not available — switch to Gallery on-site', 'warn');
       return;
     }
 
+    const activeBase = GALLERY_URL;
     const WS_URL = activeBase.replace('https', 'wss').replace('http', 'ws') + '/ws';
-    log(`Connecting WebSocket to ${WS_URL}...`, 'info');
+    log('Connecting to Gallery WebSocket...', 'info');
     setWsStatus('connecting');
 
     try {
@@ -806,30 +775,6 @@ export default function Home() {
       } catch { /* gallery unreachable */ }
     }
 
-    // Fallback 3: shared discovery store (persisted to Maestra backend)
-    // This is how remote browsers see entities discovered by the gallery browser
-    if (entities.length === 0) {
-      try {
-        const discRes = await fetch('/api/discovery', { signal: AbortSignal.timeout(4000) });
-        if (discRes.ok) {
-          const disc = await discRes.json() as { entities: Record<string, { slug: string; label: string; entity_id: string; type: string; last_seen: number; heartbeat_status: string; stream_status: string; state_keys: Record<string, { value: unknown }> }> };
-          if (disc.entities && Object.keys(disc.entities).length > 0) {
-            // Convert discovery records back to entity-shaped objects for the hydration logic
-            entities = Object.values(disc.entities).map(d => ({
-              id: d.entity_id || d.slug,
-              slug: d.slug,
-              name: d.label,
-              state: Object.fromEntries(Object.entries(d.state_keys || {}).map(([k, v]) => [k, v.value])),
-              status: d.heartbeat_status === 'live' ? 'active' : 'offline',
-              last_seen: new Date(d.last_seen).toISOString(),
-              metadata: {},
-            }));
-            source = 'discovery-store';
-          }
-        }
-      } catch { /* discovery unavailable */ }
-    }
-
     if (entities.length === 0) {
       setServerConnected(false);
       setResolvedServerUrl(resolveActiveBase());
@@ -838,46 +783,8 @@ export default function Home() {
     setServerConnected(true);
     if (source === 'gallery-cache') {
       setResolvedServerUrl('gallery-cache (seeded)');
-    } else if (source === 'discovery-store') {
-      setResolvedServerUrl('shared discovery (backend)');
     }
     log(`[Server] ${entities.length} entities from ${source}`, 'ok');
-
-    // ── DEBUG: log every imported entity ──
-    const debugList = entities.map(e => ({
-      slug: (e.slug as string) || '',
-      name: (e.name as string) || '',
-      id: String(e.id || ''),
-      source,
-    }));
-    setDebugEntities(debugList);
-    console.log(`[DEBUG fetchEntities] ${entities.length} entities from ${source}:`);
-    debugList.forEach(d => console.log(`  slug=${d.slug} | name=${d.name} | id=${d.id} | source=${d.source}`));
-
-    // ── Push discoveries to shared store (fire-and-forget) ──
-    // Every browser that gets entities pushes them to /api/discovery
-    // so all other browsers can see them even if they can't reach the source
-    try {
-      const discoveryPayload = entities.map(e => {
-        const slug = (e.slug as string) || (e.name as string) || String(e.id);
-        const state = (e.state as Record<string, unknown>) || {};
-        return {
-          slug,
-          label: (e.name as string) || slug,
-          entity_id: String(e.id),
-          type: (e.entity_type_id as string) || (e.type as string) || 'unknown',
-          source_server: source === 'gallery-cache' ? 'gallery' : resolveActiveBase(),
-          heartbeat_status: (e.status as string) === 'active' ? 'live' : (e.status as string) || 'unknown',
-          stream_status: state.active_stream ? 'live' : 'none',
-          state,
-        };
-      });
-      fetch('/api/discovery', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entities: discoveryPayload }),
-      }).catch(() => {}); // fire-and-forget
-    } catch { /* non-critical */ }
 
       // Fixed primary card entity_ids — these are permanent and never altered
       const PRIMARY_IDS = new Set(['KFaist_CineTech', 'KFaist_Ambient_Intelligence', 'KFaist_Shapeshifters']);
@@ -1092,7 +999,7 @@ export default function Home() {
     }
   }, [sendTarget]);
 
-  // Color palette change — sends hue/saturation/value to TD via Maestra + syncs to all browsers
+  // Color palette change — sends hue/saturation/value to TD via Maestra
   const handleColorChange = useCallback((color: { hue: number; saturation: number; value: number }) => {
     sendToTarget({ ...color, field: 'color' });
     // Also publish to lighting_palette entity for DMX color mapping
@@ -1104,27 +1011,11 @@ export default function Home() {
         timestamp: Date.now()}));
     }
     pushBusEntry('lighting_palette.hue', String(color.hue));
-    // Sync to shared UI state
-    fetch('/api/ui-state', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ palette: { ...color, activeIndex: 0 } }),
-    }).catch(() => {});
   }, [sendToTarget, pushBusEntry]);
 
-  // Modulation change — sends source/amount for a parameter to TD + syncs to all browsers
+  // Modulation change — sends source/amount for a parameter to TD
   const handleModulationChange = useCallback((paramName: string, source: string, amount: number) => {
     sendToTarget({ param: paramName, source, amount, field: 'modulation' });
-    // Accumulate and sync
-    const acc = modulationAccRef.current;
-    const idx = acc.findIndex(p => p.name === paramName);
-    if (idx >= 0) acc[idx] = { name: paramName, source, amount };
-    else acc.push({ name: paramName, source, amount });
-    fetch('/api/ui-state', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ modulation: acc }),
-    }).catch(() => {});
   }, [sendToTarget]);
 
   // Webcam frame handler — injects captured frames into the CURRENTLY selected slot,
@@ -1245,7 +1136,7 @@ export default function Home() {
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         // Use the Uint8Array directly as body (not .buffer which can be wrong size)
-        fetch(`${resolveActiveBase()}/video/frame/td`, {
+        fetch(`${API_BASE}/video/frame/td`, {
           method: 'POST',
           headers: { 'Content-Type': 'image/jpeg' },
           body: bytes}).then(res => {
@@ -1615,40 +1506,17 @@ export default function Home() {
     });
     simulatorRef.current.start();
 
-    // Auto-mode: probe gallery server, fall back to Railway if unreachable
-    // Gallery person gets local speed automatically. Remote users get Railway.
-    (async () => {
-      if (serverModeRef.current !== 'auto') {
-        autoProbeCompleteRef.current = true;
-      } else {
-        try {
-          const probe = await fetch(`${GALLERY_URL}/entities`, {
-            signal: AbortSignal.timeout(2500),
-            mode: 'no-cors',
-          });
-          // no-cors gives opaque response — if we got here without error, gallery is reachable
-          autoResolvedRef.current = GALLERY_URL;
-          log(`[Auto] Gallery reachable — using local server`, 'ok');
-        } catch {
-          autoResolvedRef.current = RAILWAY_URL;
-          log(`[Auto] Gallery unreachable — using Railway`, 'info');
-        }
-        autoProbeCompleteRef.current = true;
-      }
-
-      // Now boot everything with the resolved URL
-      connectWS();
-      fetchEntities();
-      fetchFrame();
-    })();
-
+    connectWS();
+    fetchEntities();
     const entityInterval = setInterval(fetchEntities, 10000);
+
+    fetchFrame();
     frameIntervalRef.current = setInterval(fetchFrame, FRAME_FETCH_INTERVAL);
 
     // SD frame endpoint health check — probe on load to confirm frames are flowing
     (async () => {
       try {
-        const probeUrl = `${resolveActiveBase()}/video/frame/td?t=${Date.now()}`;
+        const probeUrl = `${API_BASE}/video/frame/td?t=${Date.now()}`;
         const res = await fetch(probeUrl, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
@@ -1721,28 +1589,6 @@ export default function Home() {
       connectionsRef.current.clear();
     };
   }, [connectWS, fetchEntities, fetchFrame, autoConnectSlot, log]);
-
-  // ── Shared UI state poll — syncs palette/modulation across all browsers ──
-  useEffect(() => {
-    const poll = async () => {
-      try {
-        const res = await fetch('/api/ui-state', { signal: AbortSignal.timeout(3000) });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.updatedAt && data.updatedAt > uiStateVersionRef.current) {
-          uiStateVersionRef.current = data.updatedAt;
-          setSyncedUi({
-            palette: data.palette || null,
-            modulation: data.modulation || null,
-            updatedAt: data.updatedAt,
-          });
-        }
-      } catch { /* polling failure is fine */ }
-    };
-    poll();
-    const interval = setInterval(poll, 3000);
-    return () => clearInterval(interval);
-  }, []);
 
   // ── Auto-populate: approve discovered entities from modal ───────
   const approveDiscoveredEntities = useCallback(() => {
@@ -1829,39 +1675,6 @@ export default function Home() {
       {/* DASHBOARD TAB */}
       <div className={`tab-content ${activeTab === 'dashboard' ? 'active' : ''}`}>
         <div className="fleet-layout">
-
-          {/* ── DEBUG: Imported Entities ── */}
-          {debugEntities.length > 0 && (
-            <div style={{
-              margin: '0 0 12px', padding: '10px 14px',
-              background: 'rgba(255,200,0,0.06)', border: '1px solid rgba(255,200,0,0.2)',
-              borderRadius: 6, fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
-            }}>
-              <div style={{ fontWeight: 700, color: '#fbbf24', letterSpacing: '0.1em', marginBottom: 8, textTransform: 'uppercase', fontSize: 11 }}>
-                Imported Entities ({debugEntities.length})
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto 120px', gap: '2px 12px', color: 'rgba(255,255,255,0.5)' }}>
-                <span style={{ fontWeight: 700, color: '#fbbf24', borderBottom: '1px solid rgba(255,200,0,0.15)', paddingBottom: 2 }}>slug</span>
-                <span style={{ fontWeight: 700, color: '#fbbf24', borderBottom: '1px solid rgba(255,200,0,0.15)', paddingBottom: 2 }}>name</span>
-                <span style={{ fontWeight: 700, color: '#fbbf24', borderBottom: '1px solid rgba(255,200,0,0.15)', paddingBottom: 2 }}>id</span>
-                <span style={{ fontWeight: 700, color: '#fbbf24', borderBottom: '1px solid rgba(255,200,0,0.15)', paddingBottom: 2 }}>source</span>
-                {debugEntities.map((d, i) => (
-                  <div key={i} style={{ display: 'contents' }}>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#e2e8f0' }}>{d.slug || '(empty)'}</span>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name || '(empty)'}</span>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 9 }}>{d.id}</span>
-                    <span style={{
-                      color: d.source === 'gallery-cache' ? '#22c55e'
-                        : d.source === 'discovery-store' ? '#a78bfa'
-                        : d.source.includes('railway') ? '#3DD6FF'
-                        : '#fbbf24',
-                      fontWeight: 600,
-                    }}>{d.source}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Left: Slot Grid + Patch Bay + Audio + Scenes + DMX + Palette + Modulation */}
           <div className="fleet-panel">

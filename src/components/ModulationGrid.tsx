@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { ModulationParam, AudioSource } from '@/types';
 import { INITIAL_MODULATION_PARAMS } from '@/mock/modulation';
 import { AUDIO_SOURCE_COLORS } from '@/lib/constants';
@@ -10,29 +10,15 @@ const DEBOUNCE_MS = 200;
 
 interface ModulationGridProps {
   onModulationChange?: (paramName: string, source: string, amount: number) => void;
-  syncedParams?: Array<{ name: string; source: string; amount: number }> | null;
 }
 
-export default function ModulationGrid({ onModulationChange, syncedParams }: ModulationGridProps) {
+export default function ModulationGrid({ onModulationChange }: ModulationGridProps) {
   const [params, setParams] = useState<ModulationParam[]>(INITIAL_MODULATION_PARAMS);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onChangeRef = useRef(onModulationChange);
   onChangeRef.current = onModulationChange;
-  const lastLocalRef = useRef(0);
-
-  // Apply synced state from other browsers
-  useEffect(() => {
-    if (!syncedParams || syncedParams.length === 0) return;
-    if (Date.now() - lastLocalRef.current < 2000) return;
-    setParams(prev => prev.map(p => {
-      const synced = syncedParams.find(s => s.name === p.name);
-      if (!synced) return p;
-      return { ...p, source: synced.source as AudioSource, amount: synced.amount };
-    }));
-  }, [syncedParams]);
 
   const sendChange = useCallback((name: string, source: string, amount: number) => {
-    lastLocalRef.current = Date.now();
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       onChangeRef.current?.(name, source, amount);

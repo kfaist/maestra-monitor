@@ -1,15 +1,15 @@
-# push_shapeshifters.py v5 — pushes to monitor /api/frame/ proxy (not backend)
+# push_shapeshifters.py v4 — uses run() to defer upload to main thread
 # Run once in TD Textport:
 #   import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/push_shapeshifters.py').read().decode())
 
 import urllib.request, json
 
-MONITOR = 'https://maestra-monitor-production.up.railway.app'
 BACKEND = 'https://maestra-backend-v2-production.up.railway.app'
+DASHBOARD = 'https://maestra-monitor-production.up.railway.app'
 ENTITY = 'KFaist_Shapeshifters'
 SOURCE_TOP = 'comp1'
 
-# 1. Register entity on Maestra backend
+# 1. Register entity
 try:
     d = json.dumps({
         'name': ENTITY, 'slug': ENTITY,
@@ -19,7 +19,7 @@ try:
     req = urllib.request.Request(BACKEND + '/entities', data=d, method='POST',
                                  headers={'Content-Type': 'application/json'})
     with urllib.request.urlopen(req, timeout=10) as r:
-        print('[Shapeshifters] Entity registered on backend')
+        print('[Shapeshifters] Entity registered')
 except Exception as e:
     print('[Shapeshifters] Entity: ' + str(e)[:80])
 
@@ -31,11 +31,10 @@ if old:
     old.destroy()
     print('[Shapeshifters] Removed old shapeshifters_exec')
 
-# 3. Create Execute DAT — saves frame, defers upload via run() to main thread
-# Target: MONITOR /api/frame/ proxy (in-memory buffer on Railway)
+# 3. Create Execute DAT — saves frame, defers upload via run()
 EXEC_SCRIPT = '''import os
 
-MONITOR = "''' + MONITOR + '''"
+DASHBOARD = "''' + DASHBOARD + '''"
 ENTITY = "''' + ENTITY + '''"
 SOURCE = "''' + SOURCE_TOP + '''"
 _counter = 0
@@ -49,7 +48,7 @@ def _do_upload():
         if len(data) < 100:
             return
         req = urllib.request.Request(
-            MONITOR + "/api/frame/" + ENTITY,
+            DASHBOARD + "/api/frame/" + ENTITY,
             data=data,
             method="POST",
             headers={"Content-Type": "image/jpeg"})
@@ -80,6 +79,6 @@ exec_op.text = EXEC_SCRIPT
 exec_op.par.framestart = True
 exec_op.par.active = True
 
-print('[Shapeshifters] Relay: ' + SOURCE_TOP + ' -> ' + MONITOR + '/api/frame/' + ENTITY)
+print('[Shapeshifters] Relay: ' + SOURCE_TOP + ' -> ' + DASHBOARD + '/api/frame/' + ENTITY)
 print('[Shapeshifters] Upload deferred to main thread via run()')
 print('[Shapeshifters] DONE')
