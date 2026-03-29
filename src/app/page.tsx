@@ -374,9 +374,10 @@ export default function Home() {
     });
     if (streamingSlots.length === 0) return;
 
-    for (const slot of streamingSlots) {
+    // Fetch all slots in parallel — serial awaits caused 1fps when 3 slots share one interval
+    await Promise.all(streamingSlots.map(async (slot) => {
       // Skip the slot that owns the webcam — webcam handler sets frameUrl directly
-      if (webcamActiveRef.current && slot.id === webcamSlotRef.current) continue;
+      if (webcamActiveRef.current && slot.id === webcamSlotRef.current) return;
 
       const entityId = slot.entity_id || slot.id;
       const endpoint = slot.endpoint
@@ -386,7 +387,7 @@ export default function Home() {
         const res = await fetch(`${endpoint}?t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
-        if (blob.size < 100) continue; // Skip tiny/empty responses
+        if (blob.size < 100) return; // Skip tiny/empty responses
         const url = URL.createObjectURL(blob);
 
         // Notify MaestraConnection that a stream frame arrived
@@ -466,7 +467,7 @@ export default function Home() {
           log(`[Frames] Fetch failed for ${slot.id}: ${(err as Error).message} (${frameErrorCountRef.current} total)`, 'warn');
         }
       }
-    }
+    }));
   }, [log]);
 
   // WebSocket connection
