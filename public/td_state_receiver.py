@@ -59,14 +59,16 @@ def _do_poll():
         with urllib.request.urlopen(req, timeout=5) as r:
             entities = json.loads(r.read().decode())
 
-        # Find our entity by slug (normalize spaces/underscores)
+        # Find our entity by slug — pick LATEST by created_at (backend has duplicates)
         norm = lambda s: s.replace(" ", "_").replace("__", "_").lower()
         target = norm(ENTITY_SLUG)
-        match = None
-        for e in entities:
-            if norm(str(e.get("slug", ""))) == target or norm(str(e.get("name", ""))) == target:
-                match = e
-                break
+        matches = [e for e in entities
+                   if norm(str(e.get("slug", ""))) == target
+                   or norm(str(e.get("name", ""))) == target]
+        if matches:
+            match = sorted(matches, key=lambda e: str(e.get("created_at", "")))[-1]
+        else:
+            match = None
 
         if not match:
             _last_error = "Entity not found: " + ENTITY_SLUG
