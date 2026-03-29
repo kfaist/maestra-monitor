@@ -383,8 +383,8 @@ export default function Home() {
 
       const entityId = slot.entity_id || slot.id;
       const endpoint = slot.endpoint
-        ? `${API_BASE}${slot.endpoint}`
-        : `${API_BASE}/video/frame/${entityId}`;
+        ? (slot.endpoint.startsWith('/api/') ? slot.endpoint : `${API_BASE}${slot.endpoint}`)
+        : `/api/frame/${entityId}`;
       try {
         const res = await fetch(`${endpoint}?t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
