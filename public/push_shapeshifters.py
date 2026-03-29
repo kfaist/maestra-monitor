@@ -5,6 +5,7 @@
 import urllib.request, json
 
 BACKEND = 'https://maestra-backend-v2-production.up.railway.app'
+DASHBOARD = 'https://maestra-monitor-production.up.railway.app'
 ENTITY = 'KFaist_Shapeshifters'
 SOURCE_TOP = 'comp1'
 
@@ -33,7 +34,7 @@ if old:
 # 3. Create Execute DAT — saves frame, defers upload via run()
 EXEC_SCRIPT = '''import os
 
-BACKEND = "''' + BACKEND + '''"
+DASHBOARD = "''' + DASHBOARD + '''"
 ENTITY = "''' + ENTITY + '''"
 SOURCE = "''' + SOURCE_TOP + '''"
 _counter = 0
@@ -47,7 +48,7 @@ def _do_upload():
         if len(data) < 100:
             return
         req = urllib.request.Request(
-            BACKEND + "/video/frame/" + ENTITY,
+            DASHBOARD + "/api/frame/" + ENTITY,
             data=data,
             method="POST",
             headers={"Content-Type": "image/jpeg"})
@@ -78,6 +79,6 @@ exec_op.text = EXEC_SCRIPT
 exec_op.par.framestart = True
 exec_op.par.active = True
 
-print('[Shapeshifters] Relay: ' + SOURCE_TOP + ' -> /video/frame/' + ENTITY)
+print('[Shapeshifters] Relay: ' + SOURCE_TOP + ' -> ' + DASHBOARD + '/api/frame/' + ENTITY)
 print('[Shapeshifters] Upload deferred to main thread via run()')
 print('[Shapeshifters] DONE')

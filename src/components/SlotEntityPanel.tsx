@@ -12,7 +12,7 @@
  *   Other nodes can drag these chips to their own IN (routing)
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { FleetSlot } from '@/types';
 import { getSlotColor, ALL_OUTS } from './GlobalOutBar';
 
@@ -80,10 +80,66 @@ export default function SlotEntityPanel({ slots, entityStates, liveValues }: Slo
       return { ...prev, [slotId]: [...cur, d.id] };
     });
     setDragOver(null);
-  }, []);
 
-  const removeRoute = (slotId: string, sigId: string) =>
+    // Persist to backend /api/routes
+    const targetSlot = slots.find(s => s.id === slotId);
+    const targetSlug = targetSlot?.entity_id || slotId;
+    const sourceSlug = d.id.includes('.') ? d.id.split('.')[0] : 'global';
+    const sourceKey = d.id.includes('.') ? d.id.split('.').slice(1).join('.') : d.id;
+
+    fetch('/api/routes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourceSlug,
+        sourceKey,
+        targetSlug,
+        targetKey: d.id,
+      }),
+    }).catch(() => { /* silent */ });
+  }, [slots]);
+
+  const removeRoute = (slotId: string, sigId: string) => {
     setRouting(prev => ({ ...prev, [slotId]: (prev[slotId] ?? []).filter(s => s !== sigId) }));
+    // Delete from backend
+    const targetSlot = slots.find(s => s.id === slotId);
+    const targetSlug = targetSlot?.entity_id || slotId;
+    fetch(`/api/routes?slug=${encodeURIComponent(targetSlug)}`)
+      .then(r => r.json())
+      .then(data => {
+        const routes = data.routes || [];
+        const match = routes.find((r: { targetKey: string }) => r.targetKey === sigId);
+        if (match) {
+          fetch(`/api/routes?id=${match.id}`, { method: 'DELETE' }).catch(() => {});
+        }
+      })
+      .catch(() => {});
+  };
+
+  // Hydrate routing from backend on mount
+  useEffect(() => {
+    fetch('/api/routes')
+      .then(r => r.json())
+      .then(data => {
+        const routes = data.routes || [];
+        const map: Record<string, string[]> = {};
+        for (const r of routes) {
+          if (!r.targetSlug || !r.targetKey) continue;
+          const slotId = slots.find(s => s.entity_id === r.targetSlug)?.id || r.targetSlug;
+          if (!map[slotId]) map[slotId] = [];
+          if (!map[slotId].includes(r.targetKey)) map[slotId].push(r.targetKey);
+        }
+        setRouting(prev => {
+          const merged = { ...prev };
+          for (const [k, v] of Object.entries(map)) {
+            merged[k] = [...new Set([...(merged[k] || []), ...v])];
+          }
+          return merged;
+        });
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div style={{ padding: '0 0 4px 0' }}>

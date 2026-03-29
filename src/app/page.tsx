@@ -60,6 +60,9 @@ export default function Home() {
   const [connectionInfo, setConnectionInfo] = useState<SlotConnectionInfo | null>(null);
   const [joinModalOpen, setJoinModalOpen] = useState(false);
   const [entityBus, setEntityBus] = useState<EntityBusEntry[]>([]);
+  // Auto-populate modal state: pending discovered entities awaiting user approval
+  const [pendingDiscovered, setPendingDiscovered] = useState<Array<{ slug: string; label: string; type: string; state: Record<string, unknown>; entityId: string; stateSchema?: import('@/types').StateSchema }>>([]);
+  const [populateModalShown, setPopulateModalShown] = useState(false);
 
   // Entity state — accumulated key/value state per entity for live debugging
   const [entityStates, setEntityStates] = useState<Record<string, Record<string, string>>>({});
@@ -381,8 +384,8 @@ export default function Home() {
 
       const entityId = slot.entity_id || slot.id;
       const endpoint = slot.endpoint
-        ? `${API_BASE}${slot.endpoint}`
-        : `${API_BASE}/video/frame/${entityId}`;
+        ? (slot.endpoint.startsWith('/api/') ? slot.endpoint : `${API_BASE}${slot.endpoint}`)
+        : `/api/frame/${entityId}`;
       try {
         const res = await fetch(`${endpoint}?t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -507,6 +510,26 @@ export default function Home() {
               ...(b ? { sub: b.sub || 0, bass: b.bass || 0, mid: b.mid || 0, high: b.high || 0 } : {}),
               ...(s ? { drums: s.drums || 0, stemBass: s.bass || 0, melody: s.melody || 0, vocals: s.vocals || 0 } : {}),
               ...(bpm ? { bpm: bpm as number } : {})}));
+
+            // Bridge audio analysis into entity states for slots that declare audio outputs
+            const rms = b ? Math.sqrt((b.sub*b.sub + b.bass*b.bass + b.mid*b.mid + b.high*b.high) / 4) : undefined;
+            if (rms !== undefined) {
+              // Push audio_amplitude to any slot that has it in stateSchema
+              slotsRef.current.forEach(slot => {
+                const schema = slot.stateSchema;
+                if (!schema) return;
+                const eid = slot.entity_id || slot.id;
+                const updates: Record<string, string> = {};
+                if (schema.audio_amplitude) updates.audio_amplitude = rms.toFixed(3);
+                if (schema.fps && slot.fps != null) updates.fps = String(slot.fps);
+                if (Object.keys(updates).length > 0) {
+                  setEntityStates(prev => ({
+                    ...prev,
+                    [eid]: { ...prev[eid], ...updates },
+                  }));
+                }
+              });
+            }
           }
           return;
         }
@@ -802,11 +825,36 @@ export default function Home() {
           });
 
           // Step 2: Discovered = backend entities that did NOT match any primary
-          const discovered = entities
+          const discoveredRaw = entities
             .filter(e => {
               const slug = (e.slug as string) || (e.name as string) || String(e.id);
               // Exclude if this entity matched a primary (by consumed set OR by normalized check)
               return !matchedBackendIds.has(slug) && !isPrimary(slug);
+            });
+
+          // Check which discovered entities already have slots (approved previously)
+          const existingDiscoveredSlugs = new Set(prev.filter(c => c.id.startsWith('discovered-')).map(c => c.entity_id));
+          const newDiscovered = discoveredRaw.filter(e => {
+            const slug = (e.slug as string) || (e.name as string) || String(e.id);
+            return !existingDiscoveredSlugs.has(slug);
+          });
+
+          // If there are truly new discovered entities, queue them for the modal
+          if (newDiscovered.length > 0 && !populateModalShown) {
+            const pending = newDiscovered.map(e => {
+              const slug = (e.slug as string) || (e.name as string) || String(e.id);
+              const state = (e.state as Record<string, unknown>) || {};
+              const serverSchema = (e.metadata as Record<string, unknown>)?.stateSchema as import('@/types').StateSchema | undefined;
+              return { slug, label: (e.name as string) || slug, type: (e.type as string) || 'unknown', state, entityId: String(e.id), stateSchema: serverSchema };
+            });
+            setPendingDiscovered(pending);
+          }
+
+          // Only include previously-approved discovered entities (not new ones pending modal)
+          const approved = discoveredRaw
+            .filter(e => {
+              const slug = (e.slug as string) || (e.name as string) || String(e.id);
+              return existingDiscoveredSlugs.has(slug);
             })
             .map(e => {
               const slug = (e.slug as string) || (e.name as string) || String(e.id);
@@ -837,8 +885,8 @@ export default function Home() {
               } as import('@/types').FleetSlot;
             });
 
-          // Step 3: Primaries replaced, not coexisting
-          return [...hydratedPrimaries, ...discovered];
+          // Step 3: Primaries replaced, approved discovered kept
+          return [...hydratedPrimaries, ...approved];
         });
       }
 
@@ -918,6 +966,17 @@ export default function Home() {
     targets.forEach(t => sendViaAll({ type: 'p6_flush', prompt, data: { p6: prompt, prompt } }, t));
     logEvent('state', 'fleet', `P6 flush → ${prompt.slice(0, 40)}`);
     pushBusEntry('fleet.p6', prompt.slice(0, 50));
+
+    // Bridge prompt_text into entity states for slots that declare it
+    slotsRef.current.forEach(slot => {
+      if (slot.stateSchema?.prompt_text) {
+        const eid = slot.entity_id || slot.id;
+        setEntityStates(prev => ({
+          ...prev,
+          [eid]: { ...prev[eid], prompt_text: prompt },
+        }));
+      }
+    });
   }, [sendViaAll, logEvent, pushBusEntry]);
 
   // Send a state_update to the current target (single entity or global)
@@ -1531,6 +1590,44 @@ export default function Home() {
     };
   }, [connectWS, fetchEntities, fetchFrame, autoConnectSlot, log]);
 
+  // ── Auto-populate: approve discovered entities from modal ───────
+  const approveDiscoveredEntities = useCallback(() => {
+    setSlots(prev => {
+      const existingSlugs = new Set(prev.map(s => s.entity_id));
+      const newSlots: FleetSlot[] = [];
+      for (const e of pendingDiscovered) {
+        if (existingSlugs.has(e.slug)) continue; // no duplicates
+        newSlots.push({
+          id: `discovered-${e.slug}`,
+          entity_id: e.slug,
+          entityId: e.entityId,
+          slug: e.slug,
+          label: e.label,
+          endpoint: null,
+          cloudNode: false,
+          connection_status: 'disconnected',
+          last_heartbeat: null,
+          active_stream: null,
+          _frameTimes: [],
+          _fpsSmooth: null,
+          fps: null,
+          frameUrl: null,
+          active: false,
+          state_summary: e.state,
+          stateSchema: e.stateSchema,
+        } as FleetSlot);
+      }
+      return [...prev, ...newSlots];
+    });
+    setPopulateModalShown(true);
+    setPendingDiscovered([]);
+  }, [pendingDiscovered]);
+
+  const dismissDiscoveredEntities = useCallback(() => {
+    setPopulateModalShown(true);
+    setPendingDiscovered([]);
+  }, []);
+
   // Derived values
   const selectedSlot = slots.find(s => s.id === selectedId) || null;
   const activeSlots = slots.filter(s => s.active).length;
@@ -1654,6 +1751,70 @@ export default function Home() {
         onClose={() => setJoinModalOpen(false)}
         onJoin={() => {}}
       />
+
+      {/* Auto-populate modal for discovered server entities */}
+      {pendingDiscovered.length > 0 && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 10000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+        }}>
+          <div style={{
+            background: 'var(--surface, #0d1117)', border: '1px solid var(--accent, #00d4ff)',
+            borderRadius: 6, padding: 28, maxWidth: 420, width: '90%',
+            boxShadow: '0 0 40px rgba(0,212,255,0.15)',
+          }}>
+            <div style={{
+              fontFamily: 'var(--font-display, monospace)', fontSize: 13, fontWeight: 700,
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+              color: 'var(--accent, #00d4ff)', marginBottom: 8,
+            }}>Server entities detected</div>
+            <div style={{
+              fontSize: 12, color: 'var(--text-dim, #4a6580)',
+              lineHeight: 1.6, marginBottom: 16,
+            }}>There are entities available on the server. Do you want to populate slots/cards for them?</div>
+            <div style={{
+              display: 'flex', flexDirection: 'column', gap: 6,
+              marginBottom: 20, maxHeight: 200, overflowY: 'auto',
+            }}>
+              {pendingDiscovered.map(e => (
+                <div key={e.slug} style={{
+                  padding: '6px 10px',
+                  background: 'var(--surface2, #131a24)',
+                  border: '1px solid var(--border, #1e2d3d)',
+                  borderRadius: 3, fontSize: 11,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}>
+                  <span style={{ color: 'var(--text-bright, #e8f4ff)', fontWeight: 700, letterSpacing: '0.05em' }}>{e.label}</span>
+                  <span style={{ fontSize: 9, color: 'var(--text-dim, #4a6580)', letterSpacing: '0.08em' }}>{e.type}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={dismissDiscoveredEntities}
+                style={{
+                  fontFamily: 'var(--font-display, monospace)', fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.12em', textTransform: 'uppercase',
+                  padding: '8px 18px', borderRadius: 3,
+                  border: '1px solid var(--border, #1e2d3d)',
+                  background: 'var(--surface2, #131a24)',
+                  color: 'var(--text-dim, #4a6580)', cursor: 'pointer',
+                }}>Ignore</button>
+              <button
+                onClick={approveDiscoveredEntities}
+                style={{
+                  fontFamily: 'var(--font-display, monospace)', fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.12em', textTransform: 'uppercase',
+                  padding: '8px 18px', borderRadius: 3,
+                  border: '1px solid var(--accent, #00d4ff)',
+                  background: 'rgba(0,212,255,0.1)',
+                  color: 'var(--accent, #00d4ff)', cursor: 'pointer',
+                }}>Populate slots</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

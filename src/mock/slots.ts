@@ -65,7 +65,7 @@ export function createInitialSlots(): FleetSlot[] {
       id: 'KFaist_Shapeshifters',
       label: 'KFaist Shapeshifters',
       entity_id: 'KFaist_Shapeshifters',
-      endpoint: '/video/frame/KFaist_Shapeshifters',
+      endpoint: '/api/frame/KFaist_Shapeshifters',
       active: true,
       fps: null,
       frameUrl: null,
