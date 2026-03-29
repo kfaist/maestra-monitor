@@ -1,9 +1,6 @@
-# push_shapeshifters.py — Push comp1 video to KFaist_Shapeshifters
+# push_shapeshifters.py v2 — synchronous (no threading)
 # Run once in TD Textport:
 #   import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/push_shapeshifters.py').read().decode())
-#
-# Creates an Execute DAT that grabs comp1 every few frames and POSTs
-# the JPEG to /video/frame/KFaist_Shapeshifters on the Maestra backend.
 
 import urllib.request, json, os
 
@@ -23,64 +20,55 @@ try:
     with urllib.request.urlopen(req, timeout=10) as r:
         print('[Shapeshifters] Entity registered')
 except Exception as e:
-    print('[Shapeshifters] Entity: ' + str(e)[:60])
+    print('[Shapeshifters] Entity: ' + str(e)[:80])
 
-# 2. Create the relay script as an Execute DAT
-EXEC_SCRIPT = '''import urllib.request, os, threading
+# 2. Create relay as Execute DAT — synchronous, no threading
+EXEC_SCRIPT = '''import urllib.request, os
 
 BACKEND = "''' + BACKEND + '''"
 ENTITY = "''' + ENTITY + '''"
 SOURCE = "''' + SOURCE_TOP + '''"
 _counter = 0
-_busy = False
-
-def _upload(data):
-    global _busy
-    try:
-        req = urllib.request.Request(
-            BACKEND + "/video/frame/" + ENTITY,
-            data=data, method="POST",
-            headers={"Content-Type": "image/jpeg"})
-        urllib.request.urlopen(req, timeout=3)
-    except:
-        pass
-    _busy = False
 
 def onFrameStart(frame):
-    global _counter, _busy
+    global _counter
     _counter += 1
-    if _counter % 4 != 0:
-        return
-    if _busy:
-        return
-    src = op("/" + project.name + "/" + SOURCE)
-    if not src:
+    if _counter % 8 != 0:
         return
     try:
+        src = op("/" + project.name + "/" + SOURCE)
+        if not src:
+            return
         path = project.folder + "/._sf_frame.jpg"
         src.save(path)
         with open(path, "rb") as f:
             data = f.read()
         if len(data) < 100:
             return
-        _busy = True
-        t = threading.Thread(target=_upload, args=(data,), daemon=True)
-        t.start()
-    except:
-        pass
+        req = urllib.request.Request(
+            BACKEND + "/video/frame/" + ENTITY,
+            data=data,
+            method="POST",
+            headers={"Content-Type": "image/jpeg"})
+        urllib.request.urlopen(req, timeout=3)
+    except Exception as e:
+        if _counter % 64 == 0:
+            print("[Shapeshifters] " + str(e)[:60])
 '''
 
 root = op('/project1')
-exec_name = 'shapeshifters_exec'
-exec_op = op('/project1/' + exec_name)
-if not exec_op:
-    exec_op = root.create(executeDAT, exec_name)
-    print('[Shapeshifters] Created ' + exec_name)
 
+# Remove old one if exists
+old = op('/project1/shapeshifters_exec')
+if old:
+    old.destroy()
+    print('[Shapeshifters] Removed old exec')
+
+exec_op = root.create(executeDAT, 'shapeshifters_exec')
 exec_op.text = EXEC_SCRIPT
 exec_op.par.framestart = True
 exec_op.par.active = True
 
 print('[Shapeshifters] Relay: ' + SOURCE_TOP + ' -> /video/frame/' + ENTITY)
-print('[Shapeshifters] Posting every 4th frame via background thread')
-print('[Shapeshifters] DONE — slot 3 video should appear within 5 seconds')
+print('[Shapeshifters] Synchronous upload every 8th frame')
+print('[Shapeshifters] DONE — errors will print every 64 frames if still failing')
