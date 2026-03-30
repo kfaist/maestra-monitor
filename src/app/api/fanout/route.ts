@@ -33,7 +33,7 @@ function loadRoutes(): RouteStore {
   catch { return { routes: [] }; }
 }
 
-/** Look up entity by slug, return { id, state } */
+/** Look up entity by slug — pick LATEST by created_at to handle duplicates */
 async function resolveEntity(serverUrl: string, targetSlug: string): Promise<{ id: string; state: Record<string, unknown> } | null> {
   try {
     const res = await fetch(`${serverUrl}/entities`, {
@@ -43,15 +43,19 @@ async function resolveEntity(serverUrl: string, targetSlug: string): Promise<{ i
     const entities = await res.json() as Array<Record<string, unknown>>;
     const norm = (s: string) => s.replace(/[\s_]+/g, '_').toLowerCase();
     const target = norm(targetSlug);
-    const match = entities.find(e => {
+    const matches = entities.filter(e => {
       const slug = norm(String(e.slug || ''));
       const name = norm(String(e.name || ''));
       return slug === target || name === target;
     });
-    if (!match) return null;
+    if (matches.length === 0) return null;
+    // Pick latest by created_at
+    const latest = matches.sort((a, b) =>
+      String(b.created_at || '').localeCompare(String(a.created_at || ''))
+    )[0];
     return {
-      id: String(match.id),
-      state: (match.state as Record<string, unknown>) || {},
+      id: String(latest.id),
+      state: (latest.state as Record<string, unknown>) || {},
     };
   } catch {
     return null;
