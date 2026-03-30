@@ -33,7 +33,7 @@ function loadRoutes(): RouteStore {
   catch { return { routes: [] }; }
 }
 
-/** Look up entity by slug — pick LATEST by created_at to handle duplicates */
+/** Look up entity by slug — pick one with MOST state keys (empty duplicates from heartbeat) */
 async function resolveEntity(serverUrl: string, targetSlug: string): Promise<{ id: string; state: Record<string, unknown> } | null> {
   try {
     const res = await fetch(`${serverUrl}/entities`, {
@@ -49,13 +49,16 @@ async function resolveEntity(serverUrl: string, targetSlug: string): Promise<{ i
       return slug === target || name === target;
     });
     if (matches.length === 0) return null;
-    // Pick latest by created_at
-    const latest = matches.sort((a, b) =>
-      String(b.created_at || '').localeCompare(String(a.created_at || ''))
-    )[0];
+    // Pick by: most state keys (desc), then created_at (desc)
+    const best = matches.sort((a, b) => {
+      const aKeys = Object.keys((a.state as Record<string, unknown>) || {}).length;
+      const bKeys = Object.keys((b.state as Record<string, unknown>) || {}).length;
+      if (aKeys !== bKeys) return aKeys - bKeys;
+      return String(a.created_at || '').localeCompare(String(b.created_at || ''));
+    }).pop()!;
     return {
-      id: String(latest.id),
-      state: (latest.state as Record<string, unknown>) || {},
+      id: String(best.id),
+      state: (best.state as Record<string, unknown>) || {},
     };
   } catch {
     return null;
