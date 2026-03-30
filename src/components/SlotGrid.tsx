@@ -839,7 +839,7 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
             }
           }}
           style={{
-            width: '100%', padding: '12px 20px',
+            width: '100%', padding: '8px 14px',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             background: 'linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(0,212,255,0.06) 50%, rgba(255,255,255,0.04) 100%)',
             border: '1px solid rgba(255,255,255,0.12)',
@@ -848,31 +848,65 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
           }}
         >
           <span style={{
-            fontSize: 15, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase',
+            fontSize: 14, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase',
             color: '#fff',
             animation: 'textFlicker 4s linear infinite',
           }}>
-            + Add Your TD Node
+            + Add Your TD Node:
           </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <button
               onClick={e => {
                 e.stopPropagation();
                 navigator.clipboard.writeText(`import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/build_maestra_tox.py').read().decode())`);
                 const btn = e.currentTarget;
-                btn.textContent = '\u2713 Copied to clipboard!';
-                setTimeout(() => { btn.textContent = 'Copy Textport Command'; }, 2500);
+                btn.textContent = '\u2713 Copied!';
+                setTimeout(() => { btn.textContent = 'Scanner'; }, 2500);
               }}
               style={{
                 background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.4)',
-                color: '#fbbf24', padding: '4px 10px', fontSize: 10,
+                color: '#fbbf24', padding: '3px 8px', fontSize: 9,
                 fontFamily: 'var(--font-display)', fontWeight: 700,
                 letterSpacing: '0.06em', cursor: 'pointer', borderRadius: 2,
                 transition: 'all 0.15s',
               }}>
-              Copy Textport Command
+              Scanner
             </button>
-            <span className="entity-count">{activeCount} active / {slots.length} slots</span>
+            <button
+              onClick={e => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(`import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/td_state_receiver.py').read().decode())`);
+                const btn = e.currentTarget;
+                btn.textContent = '\u2713 Copied!';
+                setTimeout(() => { btn.textContent = 'Receiver'; }, 2500);
+              }}
+              style={{
+                background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.4)',
+                color: '#22c55e', padding: '3px 8px', fontSize: 9,
+                fontFamily: 'var(--font-display)', fontWeight: 700,
+                letterSpacing: '0.06em', cursor: 'pointer', borderRadius: 2,
+                transition: 'all 0.15s',
+              }}>
+              Receiver
+            </button>
+            <button
+              onClick={e => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(`import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/push_shapeshifters.py').read().decode())`);
+                const btn = e.currentTarget;
+                btn.textContent = '\u2713 Copied!';
+                setTimeout(() => { btn.textContent = 'Video'; }, 2500);
+              }}
+              style={{
+                background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.4)',
+                color: '#a78bfa', padding: '3px 8px', fontSize: 9,
+                fontFamily: 'var(--font-display)', fontWeight: 700,
+                letterSpacing: '0.06em', cursor: 'pointer', borderRadius: 2,
+                transition: 'all 0.15s',
+              }}>
+              Video
+            </button>
+            <span className="entity-count">{activeCount}/{slots.length}</span>
             <button
               onClick={e => { e.stopPropagation(); setShowBootstrap(prev => !prev); }}
               style={{
