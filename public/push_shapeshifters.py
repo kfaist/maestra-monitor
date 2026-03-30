@@ -1,4 +1,4 @@
-# push_shapeshifters.py v9 — auto-detects perform/comp2/comp1, direct upload
+# push_shapeshifters.py v10 — direct upload, auto-detect TOP only (skip COMPs)
 # Run in TD Textport:
 #   import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/push_shapeshifters.py').read().decode())
 
@@ -8,15 +8,17 @@ MONITOR = 'https://maestra-monitor-production.up.railway.app'
 BACKEND = 'https://maestra-backend-v2-production.up.railway.app'
 ENTITY = 'KFaist_Shapeshifters'
 
-# Auto-detect source TOP: prefer perform, then comp2, then comp1
+# Auto-detect source — only real TOPs (not COMPs)
 SOURCE_TOP = None
-for name in ['perform', 'perform1', 'comp2', 'comp1']:
+for name in ['comp2', 'comp1']:
     t = op('/project1/' + name)
-    if t and t.width > 0:
+    if t and t.isTOP and t.width > 0:
         SOURCE_TOP = name
         break
 if not SOURCE_TOP:
-    print('[Shapeshifters] ERROR: no perform/comp found')
+    print('[Shapeshifters] ERROR: no comp1 or comp2 TOP found')
+    tops = [c.name for c in op('/project1').children if c.isTOP]
+    print('[Shapeshifters] Available TOPs: ' + str(tops[:10]))
     raise SystemExit
 print('[Shapeshifters] Source: ' + SOURCE_TOP + ' (' + str(op('/project1/' + SOURCE_TOP).width) + 'x' + str(op('/project1/' + SOURCE_TOP).height) + ')')
 
@@ -48,7 +50,9 @@ if old:
     old.destroy()
     print('[Shapeshifters] Removed old')
 
-# Direct upload in onFrameStart — no run() deferral
+# DIRECT upload in onFrameStart — no run() deferral
+# Proven: main thread urllib works (manual test got 204)
+# run() deferred uploads silently fail
 EXEC_SCRIPT = '''import os, urllib.request
 
 MONITOR = "''' + MONITOR + '''"
@@ -69,7 +73,8 @@ def onFrameStart(frame):
             return
         path = project.folder + "/._sf_frame.jpg"
         src.save(path)
-        if os.path.getsize(path) < 100:
+        sz = os.path.getsize(path)
+        if sz < 100:
             return
         with open(path, "rb") as f:
             data = f.read()
@@ -96,5 +101,5 @@ exec_op.par.framestart = True
 exec_op.par.active = True
 
 print('[Shapeshifters] ' + SOURCE_TOP + ' -> ' + MONITOR + '/api/frame/' + ENTITY)
-print('[Shapeshifters] Direct upload every 15th frame')
-print('[Shapeshifters] DONE')
+print('[Shapeshifters] Direct upload every 15th frame (~4fps)')
+print('[Shapeshifters] DONE — watch for "First frame:" message')
