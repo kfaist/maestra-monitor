@@ -1,6 +1,7 @@
 'use client';
 
 import { SLOT_COLORS } from './SignalPanel';
+import VenueEntityCards from './VenueEntityCards';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { FleetSlot, slotStatusLabel, slotStatusClass, formatAge, EventEntry } from '@/types';
 
@@ -2810,6 +2811,13 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
           </div>
         )}
       </div>
+
+      {/* ── Venue Entity Cards — other artists' pieces at the gallery ── */}
+      <VenueEntityCards
+        onDragStart={handleChipDragStart}
+        onDragEnd={handleChipDragEnd}
+        activeDrag={dragSource}
+      />
 
       {/* ── Floating connection preview during drag ── */}
       {dragSource && dragPos && (

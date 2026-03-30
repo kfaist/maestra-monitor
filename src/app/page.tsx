@@ -18,6 +18,7 @@ import {
 } from '@/components';
 import { JoinMaestraResult } from '@/components/JoinModal';
 import { EntityBusEntry } from '@/components/DetailPanel';
+import TranscriptionBar from '@/components/TranscriptionBar';
 import { DmxState, defaultDmxState, SCENE_CUE_MAP } from '@/components/LightingPanel';
 import { FleetSlot, LogEntry, EventEntry, AudioAnalysisData, SlotConnectionInfo, MaestraSlotStatus, defaultSlotStatus } from '@/types';
 import { createInitialSlots, SUGGESTIONS } from '@/mock';
@@ -1682,6 +1683,16 @@ export default function Home() {
 
           {/* Left: Slot Grid + Patch Bay + Audio + Scenes + DMX + Palette + Modulation */}
           <div className="fleet-panel">
+            <TranscriptionBar
+              onNounsDetected={(nouns) => {
+                const prompt = nouns.join(', ');
+                broadcastPrompt(prompt);
+                log(`[Speech] Nouns → prompt: ${prompt}`, 'ok');
+              }}
+              onTranscriptChange={(text) => {
+                setPromptText(text);
+              }}
+            />
             <SlotGrid
               slots={slots}
               selectedId={selectedId}

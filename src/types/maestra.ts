@@ -261,3 +261,15 @@ export interface ColorPaletteState {
   value: number;
   activeIndex: number;
 }
+
+/** Venue entity from the gallery Maestra server — another artist's piece, sensor, or device */
+export interface VenueEntity {
+  slug: string;
+  name: string;
+  type: string;
+  icon: string;
+  status: string;
+  state: Record<string, unknown>;
+  stateKeys: string[];
+  lastSeen: string;
+}
