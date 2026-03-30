@@ -1,5 +1,5 @@
-# push_shapeshifters.py v6 — pushes comp2 to monitor /api/frame/ proxy
-# Run once in TD Textport:
+# push_shapeshifters.py v7 — auto-detects comp1 or comp2
+# Run in TD Textport:
 #   import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/push_shapeshifters.py').read().decode())
 
 import urllib.request, json
@@ -7,9 +7,30 @@ import urllib.request, json
 MONITOR = 'https://maestra-monitor-production.up.railway.app'
 BACKEND = 'https://maestra-backend-v2-production.up.railway.app'
 ENTITY = 'KFaist_Shapeshifters'
-SOURCE_TOP = 'comp2'
 
-# 1. Register entity on backend
+# Auto-detect source TOP: prefer comp2, fall back to comp1
+SOURCE_TOP = None
+for name in ['comp2', 'comp1']:
+    if op('/project1/' + name):
+        SOURCE_TOP = name
+        break
+if not SOURCE_TOP:
+    print('[Shapeshifters] ERROR: no comp1 or comp2 found')
+else:
+    print('[Shapeshifters] Source: ' + SOURCE_TOP)
+
+# Also wire receiver level if it exists and is unwired
+level = op('/project1/state_receiver_level')
+if level and SOURCE_TOP:
+    src = op('/project1/' + SOURCE_TOP)
+    if src and (not level.inputs or level.inputs[0] != src):
+        level.inputConnectors[0].connect(src)
+        print('[Shapeshifters] Wired ' + SOURCE_TOP + ' -> state_receiver_level')
+
+if not SOURCE_TOP:
+    raise SystemExit
+
+# Register entity
 try:
     d = json.dumps({
         'name': ENTITY, 'slug': ENTITY,
@@ -25,13 +46,13 @@ except Exception as e:
 
 root = op('/project1')
 
-# 2. Remove old exec if exists
+# Remove old exec
 old = op('/project1/shapeshifters_exec')
 if old:
     old.destroy()
     print('[Shapeshifters] Removed old shapeshifters_exec')
 
-# 3. Create Execute DAT — saves comp2 frame, defers upload via run()
+# Create Execute DAT
 EXEC_SCRIPT = '''import os
 
 MONITOR = "''' + MONITOR + '''"
@@ -79,6 +100,5 @@ exec_op.text = EXEC_SCRIPT
 exec_op.par.framestart = True
 exec_op.par.active = True
 
-print('[Shapeshifters] Source: ' + SOURCE_TOP + ' (same feed as ndiout1)')
-print('[Shapeshifters] Target: ' + MONITOR + '/api/frame/' + ENTITY)
+print('[Shapeshifters] ' + SOURCE_TOP + ' -> ' + MONITOR + '/api/frame/' + ENTITY)
 print('[Shapeshifters] DONE')
