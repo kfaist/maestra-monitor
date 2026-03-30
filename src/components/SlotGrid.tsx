@@ -256,6 +256,39 @@ function EntityPicker({ slotColor, current, onSelect }: {
           <div style={{ marginTop: 8, fontSize: 9, color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
             Fetches and runs the script directly -- no file download needed. Scans your TD project, registers your entity, and pushes all nodes to the dashboard. Once it prints DONE, nodes appear above within 15 seconds.
           </div>
+
+          {/* Receive Values */}
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(34,211,153,0.15)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <span style={{ fontSize: 11, color: '#34d399' }}>&#x2193;</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#34d399', letterSpacing: '0.08em' }}>RECEIVE ROUTED VALUES</span>
+            </div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginBottom: 6, lineHeight: 1.5 }}>
+              Creates a <span style={{ color: '#34d399' }}>maestra_receiver</span> TOX that listens for values routed from other slots. Entity: <span style={{ color: slotColor, fontWeight: 600 }}>{slot.entity_id || slot.id}</span>
+            </div>
+            <pre style={{
+              padding: '6px 8px', background: 'rgba(0,0,0,0.6)',
+              border: '1px solid rgba(34,211,153,0.2)',
+              fontFamily: 'var(--font-mono)', fontSize: 9,
+              color: '#34d399', overflowX: 'auto', whiteSpace: 'pre-wrap',
+              lineHeight: 1.5, cursor: 'text', userSelect: 'all',
+            }}>{`_E='${slot.entity_id || slot.id}'; import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/build_receiver_tox.py').read().decode())`}</pre>
+            <button
+              onClick={e => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(`_E='${slot.entity_id || slot.id}'; import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/build_receiver_tox.py').read().decode())`);
+                const btn = e.currentTarget;
+                btn.textContent = '\u2713 Copied!';
+                setTimeout(() => { btn.textContent = 'Copy Receiver Command'; }, 2000);
+              }}
+              style={{
+                fontSize: 10, padding: '4px 10px', cursor: 'pointer', marginTop: 6,
+                fontFamily: 'var(--font-mono)', background: 'rgba(34,211,153,0.1)',
+                border: '1px solid rgba(34,211,153,0.3)', color: '#34d399',
+              }}>
+              Copy Receiver Command
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -2268,6 +2301,41 @@ export default function SlotGrid({ slots, selectedId, onSelectSlot, onAddSlot, o
                                       </div>
                                       <div style={{ marginTop: 8, fontSize: 9, color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
                                         Fetches and runs directly -- no file download needed. Once it prints DONE, nodes appear in the dropdown within 15 seconds.
+                                      </div>
+
+                                      {/* Receive Values — builds maestra_receiver TOX with entity slug */}
+                                      <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(34,211,153,0.15)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                                          <span style={{ fontSize: 11, color: '#34d399' }}>&#x2193;</span>
+                                          <span style={{ fontSize: 10, fontWeight: 700, color: '#34d399', letterSpacing: '0.08em' }}>RECEIVE ROUTED VALUES</span>
+                                        </div>
+                                        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginBottom: 6, lineHeight: 1.5 }}>
+                                          Creates a <span style={{ color: '#34d399' }}>maestra_receiver</span> COMP in your project that listens for values routed from other slots. Entity: <span style={{ color: slotColor, fontWeight: 600 }}>{slot.entity_id || slot.id}</span>
+                                        </div>
+                                        <pre style={{
+                                          padding: '6px 8px', background: 'rgba(0,0,0,0.6)',
+                                          border: '1px solid rgba(34,211,153,0.2)',
+                                          fontFamily: 'var(--font-mono)', fontSize: 9,
+                                          color: '#34d399', overflowX: 'auto', whiteSpace: 'pre-wrap',
+                                          lineHeight: 1.5, cursor: 'text', userSelect: 'all',
+                                        }}>{`_E='${slot.entity_id || slot.id}'; import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/build_receiver_tox.py').read().decode())`}</pre>
+                                        <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
+                                          <button
+                                            onClick={e => {
+                                              e.stopPropagation();
+                                              navigator.clipboard.writeText(`_E='${slot.entity_id || slot.id}'; import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/build_receiver_tox.py').read().decode())`);
+                                              const btn = e.currentTarget;
+                                              btn.textContent = '\u2713 Copied!';
+                                              setTimeout(() => { btn.textContent = 'Copy Receiver Command'; }, 2000);
+                                            }}
+                                            style={{
+                                              fontSize: 9, padding: '3px 8px', cursor: 'pointer',
+                                              fontFamily: 'var(--font-mono)', background: 'rgba(34,211,153,0.1)',
+                                              border: '1px solid rgba(34,211,153,0.3)', color: '#34d399',
+                                            }}>
+                                            Copy Receiver Command
+                                          </button>
+                                        </div>
                                       </div>
                                     </div>
                                   )}
