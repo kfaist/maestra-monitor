@@ -153,7 +153,7 @@ export interface FleetSlot {
 export interface SlotSuggestion {
   title: string;
   desc: string;
-  tag: 'td' | 'max' | 'browser';
+  tag: 'td' | 'max' | 'browser' | 'osc' | 'arduino' | 'web' | 'dmx' | 'spatial';
   tagLabel: string;
 }
 
