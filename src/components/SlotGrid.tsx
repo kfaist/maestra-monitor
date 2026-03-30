@@ -264,7 +264,7 @@ function EntityPicker({ slotColor, current, onSelect }: {
               <span style={{ fontSize: 10, fontWeight: 700, color: '#34d399', letterSpacing: '0.08em' }}>RECEIVE ROUTED VALUES</span>
             </div>
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginBottom: 6, lineHeight: 1.5 }}>
-              Creates a <span style={{ color: '#34d399' }}>maestra_receiver</span> TOX that listens for values routed from other slots. Entity: <span style={{ color: slotColor, fontWeight: 600 }}>{slot.entity_id || slot.id}</span>
+              Creates a <span style={{ color: '#34d399' }}>maestra_receiver</span> TOX that listens for values routed from other slots. Entity: <span style={{ color: slotColor, fontWeight: 600 }}>{current || 'your_entity'}</span>
             </div>
             <pre style={{
               padding: '6px 8px', background: 'rgba(0,0,0,0.6)',
@@ -272,11 +272,11 @@ function EntityPicker({ slotColor, current, onSelect }: {
               fontFamily: 'var(--font-mono)', fontSize: 9,
               color: '#34d399', overflowX: 'auto', whiteSpace: 'pre-wrap',
               lineHeight: 1.5, cursor: 'text', userSelect: 'all',
-            }}>{`_E='${slot.entity_id || slot.id}'; import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/build_receiver_tox.py').read().decode())`}</pre>
+            }}>{`_E='${current || 'your_entity'}'; import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/build_receiver_tox.py').read().decode())`}</pre>
             <button
               onClick={e => {
                 e.stopPropagation();
-                navigator.clipboard.writeText(`_E='${slot.entity_id || slot.id}'; import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/build_receiver_tox.py').read().decode())`);
+                navigator.clipboard.writeText(`_E='${current || 'your_entity'}'; import urllib.request; exec(urllib.request.urlopen('https://maestra-monitor-production.up.railway.app/build_receiver_tox.py').read().decode())`);
                 const btn = e.currentTarget;
                 btn.textContent = '\u2713 Copied!';
                 setTimeout(() => { btn.textContent = 'Copy Receiver Command'; }, 2000);

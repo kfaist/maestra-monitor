@@ -158,7 +158,10 @@ export async function POST(req: NextRequest) {
 
     // ── Test mode ──
     if (body._test && body._targetSlug && body._key !== undefined) {
-      const result = await writeState(serverUrl, body._targetSlug, { [body._key]: body._value }, 'TEST');
+      const tSlug = body._targetSlug;
+      const tKey = body._key;
+      const tVal = body._value;
+      const result = await writeState(serverUrl, tSlug, { [tKey]: tVal }, 'TEST');
       return NextResponse.json({ ok: result.ok, test: true, debug: result.debug });
     }
 
