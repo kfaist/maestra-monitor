@@ -791,7 +791,7 @@ export default function Home() {
     log(`[Server] ${entities.length} entities from ${source}`, 'ok');
 
       // Fixed primary card entity_ids — these are permanent and never altered
-      const PRIMARY_IDS = new Set(['KFaist_CineTech', 'KFaist_Ambient_Intelligence', 'KFaist_Shapeshifters']);
+      const PRIMARY_IDS = new Set(['KFaist_CineTech', 'KFaist_Ambient_Intelligence', 'KFaist_Shapeshifters', 'lidar', 'moth-sculpture', 'ephemeral-channels']);
       const normSlug = (s: string) => s.replace(/[\s_]+/g, '_');
       const isPrimary = (s: string) => PRIMARY_IDS.has(normSlug(s));
 
