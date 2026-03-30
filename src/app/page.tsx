@@ -442,7 +442,11 @@ export default function Home() {
 
         setSlots(prev => prev.map(s => {
           if (s.id !== slot.id) return s;
-          if (s.frameUrl && s.frameUrl.startsWith('blob:')) URL.revokeObjectURL(s.frameUrl);
+          // Defer old blob revocation — revoking before React renders causes white flash
+          const oldUrl = s.frameUrl;
+          if (oldUrl && oldUrl.startsWith('blob:')) {
+            setTimeout(() => URL.revokeObjectURL(oldUrl), 100);
+          }
           const now = performance.now();
           const times = [...s._frameTimes, now].filter(t => now - t < 1000);
           let fps = s.fps;
